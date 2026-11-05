@@ -816,6 +816,11 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     accepted("he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: rb.id }));
     const rs = await w.chain.view("score", { account: rf.account });
     await solvent(w, "after a refusal, whose rows the token prepaid");
+    // The refusal came before he posted those epochs: the figures he posts afterwards don't count either.
+    await w.chain.advanceTo(w.timing.epochStart(re + 2) + 1000);
+    accepted("he posts a figure for a refused epoch", await rf.post(re + 1, 4_000_000_000n));
+    const rs2 = await w.chain.view("score", { account: rf.account });
+    check("a figure posted after a refusal doesn't count either", BigInt(rs2.voided_e6) === 4_000_000_000n && BigInt(rs2.score_e6) === BigInt(rs2.posted_e6) - 4_000_000_000n - BigInt(rs2.missed + rs2.refused) * BigInt(rs2.charge_per_missed_e6), JSON.stringify(rs2));
     // A refusal shields an old figure from proof (#13): it stops counting instead.
     const rv = new TraderAgent(w.chain, await w.fund("shielder", near(100)), seedOf("shared"), w.timing);
     accepted("a trader", await rv.register("shielder", { book_usd: 100_000, floor_bps: 100, base_price: PRICE, slope: 0n, bond: BOND }));
