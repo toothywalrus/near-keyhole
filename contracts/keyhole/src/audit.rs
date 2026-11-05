@@ -86,8 +86,12 @@ impl Keyhole {
                 .unwrap_or_else(|| env::panic_str(&format!("entry {}: that key doesn't open it", a.next_seq.0)));
             match opened {
                 Some(trade) if (trade.feed as usize) < self.feeds.len() => {
-                    let price = self.price_at(trade.feed, e.at_ms.0, o.price_index);
-                    book.apply(trade.feed as usize, trade.qty_e8, price, self.feeds.len(), t.book_usd_e6.0 as i128);
+                    match self.price_at(trade.feed, e.at_ms.0, o.price_index) {
+                        Some(price) => {
+                            book.apply(trade.feed as usize, trade.qty_e8, price, self.feeds.len(), t.book_usd_e6.0 as i128);
+                        }
+                        None => book.void = book.void.saturating_add(1),
+                    }
                 }
                 _ => book.void = book.void.saturating_add(1),
             }
@@ -115,7 +119,7 @@ impl Keyhole {
         for f in 0..MAX_FEEDS {
             if a.positions[f] != 0 {
                 let hint = mark_indices.get(f).copied().flatten().unwrap_or_else(|| env::panic_str("a held position needs its mark"));
-                marks[f] = Some(self.price_at(f as u8, end, hint));
+                marks[f] = Some(self.mark_at(f as u8, end, hint));
             }
         }
         let book = Book { positions: a.positions, cash_e16: a.cash_e16.0, applied: a.applied, void: a.void };

@@ -26,7 +26,7 @@ const STORAGE = near("0.01");
 
 export type Config = {
   slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number;
-  challenge_secs: number; unbond_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; late_penalty_bps: number;
+  challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; late_penalty_bps: number;
   max_window_epochs: number; min_dispute: string; audit_bond: string; recorder: string | null;
 };
 export type Clock = { now_ms: string; genesis_ms: string; slot: string; epoch: number };
@@ -59,9 +59,14 @@ export function firstRoundAtOrAfter(rounds: Round[], at: number): number {
 /** Everything read from the chain for pricing, cached per feed. */
 export class Prices {
   rounds: Round[][] = [];
+  gapMs = 0;
+  nowMs = 0;
   constructor(private chain: Chain) {}
   async load(): Promise<void> {
     const feeds = await this.chain.view<{ rounds: number }[]>("get_feeds");
+    const cfg = await this.chain.view<Config>("get_config");
+    this.gapMs = cfg.max_round_gap_secs * 1000;
+    this.nowMs = await this.chain.nowMs();
     this.rounds = [];
     for (let f = 0; f < feeds.length; f++) {
       const all: Round[] = [];
@@ -74,6 +79,21 @@ export class Prices {
   get feeds(): number {
     return this.rounds.length;
   }
+}
+
+/**
+ * The contract's price rule: the first round at or after a moment. `price: null` means void: that round came too late, or none came and the wait is over. Before
+ * the wait is over with no round, the figure can't be known yet, and this throws. `index` is the hint the contract wants, even when void.
+ */
+export function priceOf(prices: Prices, feed: number, at: number): { index: number; price: bigint | null } {
+  const rounds = prices.rounds[feed];
+  const i = firstRoundAtOrAfter(rounds, at);
+  if (i < 0) {
+    if (prices.nowMs <= at + 2 * prices.gapMs) throw new Error(`no round after ${at} on feed ${feed} yet`);
+    return { index: rounds.length, price: null };
+  }
+  if (Number(rounds[i].t_ms) > at + prices.gapMs) return { index: i, price: null };
+  return { index: i, price: BigInt(rounds[i].answer_e8) };
 }
 
 /** Replay one epoch with the same rule as the contract. `keyOf` gives an entry's key. */
@@ -98,10 +118,11 @@ export function replayEpoch(entries: EntryRec[], keyOf: (e: EntryRec) => Uint8Ar
     let applied = false;
     const t = opened.entry;
     if (t && t.feed < prices.feeds) {
-      priceIndex = firstRoundAtOrAfter(prices.rounds[t.feed], Number(e.at_ms));
-      if (priceIndex < 0) throw new Error(`no round after entry ${e.seq} yet`);
-      priceE8 = BigInt(prices.rounds[t.feed][priceIndex].answer_e8);
-      applied = book.apply(t.feed, t.qty_e8, priceE8, prices.feeds, book_usd_e6);
+      const q = priceOf(prices, t.feed, Number(e.at_ms));
+      priceIndex = q.index;
+      priceE8 = q.price;
+      if (priceE8 === null) book.void++;
+      else applied = book.apply(t.feed, t.qty_e8, priceE8, prices.feeds, book_usd_e6);
     } else {
       book.void++;
     }
@@ -112,10 +133,9 @@ export function replayEpoch(entries: EntryRec[], keyOf: (e: EntryRec) => Uint8Ar
   const mark_indices: (number | null)[] = new Array(MAX_FEEDS).fill(null);
   for (let f = 0; f < MAX_FEEDS; f++) {
     if (book.positions[f] !== 0n) {
-      const i = firstRoundAtOrAfter(prices.rounds[f], epochEndMs);
-      if (i < 0) throw new Error(`no round after the epoch's end yet on feed ${f}`);
-      marks[f] = BigInt(prices.rounds[f][i].answer_e8);
-      mark_indices[f] = i;
+      const q = priceOf(prices, f, epochEndMs);
+      marks[f] = q.price ?? BigInt(prices.rounds[f][q.index - 1].answer_e8);
+      mark_indices[f] = q.index;
     }
   }
   return { pnl_e6: pnlE6(book.markedE16(marks)!), openings, mark_indices, trades, book };

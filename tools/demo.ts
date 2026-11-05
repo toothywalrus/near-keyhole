@@ -67,7 +67,7 @@ await w.chain.advanceTo(w.timing.epochStart(e0));
 say(`\n== Epoch ${e0}: everyone writes as it happens. No backdating, no gaps. ==`);
 record("vega writes: long ETH", await vega.write(trade(0, 3, 2400, "breakout above the weekly high")), "an encrypted entry, committed when written");
 record("lucky writes: a small long", await lucky.write(trade(0, 0.5, 2400, "small starter")));
-record("lucky writes: a big loser", await lucky.write(trade(1, -1.5, 70000, "short BTC against the long")));
+record("lucky writes: a BTC short", await lucky.write(trade(1, -1.5, 70000, "short BTC against the long")));
 record("vega writes: a BTC hedge", await vega.write(trade(1, -0.05, 70000, "hedge the beta")));
 await w.rounds();
 await w.chain.advanceTo(w.timing.epochStart(e0 + 1));

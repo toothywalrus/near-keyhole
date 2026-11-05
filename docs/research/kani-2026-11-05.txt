@@ -1,0 +1,3 @@
+== proofs::apply_is_total_and_void_changes_nothing
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.871036s

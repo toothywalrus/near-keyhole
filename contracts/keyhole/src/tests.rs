@@ -24,6 +24,7 @@ fn contract() -> Keyhole {
             max_window_epochs: 31,
             min_dispute: U128(1),
             audit_bond: U128(1),
+            max_round_gap_secs: 3600,
             recorder: None,
         },
         vec![oracle::FeedInit { symbol: "ETH/USD".into(), source: oracle::FeedSource::Recorded }],

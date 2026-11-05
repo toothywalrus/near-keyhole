@@ -113,6 +113,11 @@ impl Keyhole {
         let t = p.updated_at.0.saturating_mul(1000);
         let n = self.feeds[feed as usize].rounds;
         if n > 0 {
+            // Too old to import: figures already computed without it must stay right. A feed's first round is exempt, since nothing was priced before it.
+            if t + self.config.max_round_gap_secs as u64 * 1000 < self.now_ms() {
+                env::log_str("that round is too old to import");
+                return false;
+            }
             let last = self.rounds.get(&Self::key(feed as u32, n as u64 - 1)).cloned();
             if last.map(|l| l.t_ms.0 >= t).unwrap_or(false) {
                 env::log_str("no newer round to import");
@@ -135,17 +140,41 @@ impl Keyhole {
         self.feeds[feed as usize].rounds = n + 1;
     }
 
-    /// The price in force for a moment `at_ms`: the first round at or after it, proven by its index `hint`.
-    /// Priced this way a trader can't know the price of a trade when he writes it, however fast his data is (`docs/decisions/0004`).
-    pub(crate) fn price_at(&self, feed: u8, at_ms: u64, hint: u32) -> i64 {
+    /// The price of a trade written at `at_ms`: the first round at or after it, proven by its index `hint`. Priced this way a trader can't know the price of a trade when he
+    /// writes it, however fast his data is (`docs/decisions/0004`). `None` means the trade is void: that round came too late, or never came. A `hint` equal to the number of
+    /// rounds claims that no round follows the trade, which can be claimed only once the wait is over. Otherwise a trade on a dead feed could hold an audit up for good.
+    pub(crate) fn price_at(&self, feed: u8, at_ms: u64, hint: u32) -> Option<i64> {
         let f = self.feeds.get(feed as usize).unwrap_or_else(|| env::panic_str("no such feed"));
-        require!(hint < f.rounds, "no such round yet: a trade is priced at the first round after it");
+        let gap = self.config.max_round_gap_secs as u64 * 1000;
+        require!(hint <= f.rounds, "no such round");
+        if hint == f.rounds {
+            if f.rounds > 0 {
+                let last = self.rounds.get(&Self::key(feed as u32, f.rounds as u64 - 1)).expect("round");
+                require!(last.t_ms.0 < at_ms, "wrong price hint: a round follows the trade");
+            }
+            require!(self.now_ms() > at_ms + 2 * gap, "no such round yet: a trade is priced at the first round after it");
+            return None;
+        }
         let r = self.rounds.get(&Self::key(feed as u32, hint as u64)).expect("round");
         require!(r.t_ms.0 >= at_ms, "wrong price hint: that round is before the trade");
         if hint > 0 {
             let prev = self.rounds.get(&Self::key(feed as u32, hint as u64 - 1)).expect("round");
             require!(prev.t_ms.0 < at_ms, "wrong price hint: an earlier round also follows the trade");
         }
-        r.answer_e8
+        if r.t_ms.0 > at_ms + gap {
+            return None;
+        }
+        Some(r.answer_e8)
+    }
+
+    /// The mark for a position at an epoch's end: the first round at or after the end, or if the feed went quiet, the last round before it.
+    pub(crate) fn mark_at(&self, feed: u8, end_ms: u64, hint: u32) -> i64 {
+        match self.price_at(feed, end_ms, hint) {
+            Some(p) => p,
+            None => {
+                require!(hint > 0, "no round to mark at");
+                self.rounds.get(&Self::key(feed as u32, hint as u64 - 1)).expect("round").answer_e8
+            }
+        }
     }
 }

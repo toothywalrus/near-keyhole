@@ -11,4 +11,6 @@
 - An entry that is malformed, names an unknown feed, has zero size or would take the position past 3× the declared book in one feed is **void**. Posting a figure that counted it is a false figure. So a single huge bet can't manufacture a leaderboard return.
 - Every function in the module is total: nothing a trader wrote can make it panic.
 
+- A trade whose next round comes more than `max_round_gap_secs` later is void, and so is one on a feed with no round once twice that has passed. Without this, one trade on a dead feed would hold every audit of that epoch up for good, and a trader could lie freely behind it. A position whose feed goes quiet is marked at the last round before the end. Late rounds can't change a figure already computed: a feed's rounds only go forward, and a round older than the gap can't be imported.
+
 **Consequences.** Entries in an epoch's last moments are priced near the mark, and so add almost nothing. An entry's slot must be in the current epoch: a one-slot tolerance doesn't reach across the end, since a trade written after the close could see the mark first.

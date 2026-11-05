@@ -13,7 +13,7 @@ export const CONTRACT = process.env.KEYHOLE_CONTRACT ?? `app.${ROOT}`;
 
 export const TESTNET_CONFIG = (recorder: string): Config => ({
   slot_secs: 20, epoch_slots: 9, post_grace_secs: 180, delivery_lead_secs: 60, delivery_grace_secs: 180,
-  challenge_secs: 180, unbond_secs: 600, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 5000,
+  challenge_secs: 180, unbond_secs: 600, max_round_gap_secs: 900, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 5000,
   late_penalty_bps: 1000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.03").toString(), recorder,
 });
 

@@ -77,6 +77,9 @@ pub struct Config {
     pub min_dispute: U128,
     /// The deposit an audit puts at risk.
     pub audit_bond: U128,
+    /// A trade whose next round comes later than this is void, and so is one on a feed with no round at all once twice this has passed. So a dead feed can't block an audit, and
+    /// a figure can't change later: a late round can't land inside the gap (see `on_imported`).
+    pub max_round_gap_secs: u32,
     /// Who may record replayed rounds into `Recorded` feeds. Absent on a deployment with only proven feeds.
     pub recorder: Option<AccountId>,
 }
@@ -222,6 +225,7 @@ impl Keyhole {
     pub fn new(owner: AccountId, config: Config, feeds: Vec<oracle::FeedInit>) -> Self {
         require!(config.slot_secs > 0 && config.epoch_slots > 0, "a slot and an epoch can't be empty");
         require!(config.prover_bps <= 10_000, "prover_bps is at most 10000");
+        require!(config.max_round_gap_secs > 0, "the round gap can't be zero");
         require!(config.challenge_secs >= config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
         require!(!feeds.is_empty() && feeds.len() <= keyhole_core::pnl::MAX_FEEDS, "1 to 4 feeds");
         let feeds = feeds.into_iter().map(oracle::Feed::from_init).collect();

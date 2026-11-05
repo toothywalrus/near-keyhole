@@ -191,6 +191,35 @@ fn wide(a: u128, b: u128) -> (u128, u128) {
     ((p11 + (p01 >> 64) + (p10 >> 64) + (mid >> 64)), (p00 & m) | (mid << 64))
 }
 
+/// Not a sample: every window of a depth-6 tree. Each cover's subtrees are disjoint, in order, and add up to exactly the window.
+#[test]
+fn every_window_of_a_small_tree_has_an_exact_cover() {
+    const D: u8 = 6;
+    for first in 0u32..64 {
+        for last in first..64 {
+            let nodes = ggm::cover(first, last, D);
+            assert!(!nodes.is_empty() && nodes.len() <= 2 * D as usize);
+            let mut next = first;
+            for n in &nodes {
+                let (a, b) = n.slots(D);
+                assert_eq!(a, next);
+                assert!(b <= last);
+                next = b + 1;
+            }
+            assert_eq!(next, last + 1);
+        }
+    }
+}
+
+/// The published figure is the floor of the total, at the edges of the range and either side of every multiple tried.
+#[test]
+fn the_figure_is_the_floor() {
+    for total in [0i128, 1, -1, 9_999_999_999, 10_000_000_000, -9_999_999_999, -10_000_000_000, -10_000_000_001, i64::MAX as i128, i64::MIN as i128, i128::MAX / 2, i128::MIN / 2] {
+        let q = pnl_e6(total);
+        assert!(q * 10_000_000_000 <= total && total - q * 10_000_000_000 < 10_000_000_000, "{total}");
+    }
+}
+
 #[test]
 fn mul_div_known_values() {
     assert_eq!(keyhole_core::mul_div(10, 10, 4), Some(25));

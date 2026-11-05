@@ -152,7 +152,7 @@ async function run(w: World): Promise<void> {
   accepted("audit: the first entry opens", await w.chain.call(bob, "audit_step", { audit: auditId, openings: [local.openings[0]] }));
   accepted("audit: the second entry opens", await w.chain.call(bob, "audit_step", { audit: auditId, openings: [local.openings[1]] }));
   refused("audit: one entry too many is refused", await w.chain.call(bob, "audit_step", { audit: auditId, openings: [local.openings[1]] }), "already open");
-  refused("audit: a wrong mark hint is refused", await w.chain.call(bob, "audit_conclude", { audit: auditId, mark_indices: local.mark_indices.map((m) => (m === null ? null : m + 1)) }), "");
+  refused("audit: a wrong mark hint is refused", await w.chain.call(bob, "audit_conclude", { audit: auditId, mark_indices: local.mark_indices.map((m) => (m === null ? null : m + 1)) }), "hint");
   const bondBefore = BigInt((await liar.record()).bond);
   const verdict = await w.chain.call(bob, "audit_conclude", { audit: auditId, mark_indices: local.mark_indices });
   check("FALSE PNL: the contract recomputes the figure and slashes", verdict.ok && verdict.value.trader_at_fault === true, verdict.value?.detail ?? verdict.reason ?? "");
@@ -633,6 +633,69 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   check("FAILED TRANSFER: the credit is restored in full", BigInt(await w.chain.view("credit_of", { account: brokenId })) === c0);
   await solvent(w, "after the failed transfer");
 
+  console.log("\n-- A dead feed can't hold an audit up --");
+  {
+    const { VmChain } = await import("./vmchain.ts");
+    const { Timing, Prices } = await import("../lib/src/client.ts");
+    const c3 = new VmChain("kh3.test", Date.UTC(2026, 9, 1));
+    const v3 = c3.vm;
+    for (const a of ["o.test", "liar.test", "aud.test", "r.test"]) v3.fund(a, near(100));
+    accepted("a deployment with a feed that will never get another round", v3.call("o.test", "new", { owner: "o.test", config: { ...w.config, recorder: "r.test" }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }, { symbol: "QUIET", source: "Recorded" }] }));
+    v3.call("r.test", "record_round", { feed: 0, round_id: "1", answer_e8: 200_000_000_000, source_updated_at: "1" }, near("0.01"));
+    const t3 = await Timing.read(c3);
+    const p3 = new Prices(c3);
+    const liar3 = new TraderAgent(c3, "liar.test", seedOf("shared"), t3);
+    accepted("a trader", await liar3.register("liar", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    await c3.advanceTo(t3.epochStart(1));
+    accepted("he trades on the quiet feed, so that no audit can price it", await liar3.write({ feed: 1, flags: 0, qty_e8: 100_000_000n, fill_e8: 1n, settlement: NO_SETTLEMENT, note: "nobody can price this" }));
+    await c3.advanceTo(t3.epochStart(2));
+    accepted("and posts a figure out of nothing", await liar3.post(1, 777_000_000n));
+    const open3 = await c3.call("aud.test", "audit_open", { trader: "liar.test", epoch: 1 }, near(1));
+    accepted("an auditor opens", open3);
+    const [e3] = await loadEntries(c3, "liar.test", 0, 1);
+    const key3 = hex(liar3.keyOf(e3));
+    refused("before the wait is over, claiming no round is refused", await c3.call("aud.test", "audit_step", { audit: open3.value, openings: [{ key: key3, price_index: 0 }] }), "no such round yet");
+    await c3.advanceTo(Number(e3.at_ms) + 2 * w.config.max_round_gap_secs * 1000 + 1000);
+    accepted("after it, the entry is void and the audit goes on", await c3.call("aud.test", "audit_step", { audit: open3.value, openings: [{ key: key3, price_index: 0 }] }));
+    const v3r = await c3.call("aud.test", "audit_conclude", { audit: open3.value, mark_indices: [null, null, null, null] });
+    check("DEAD FEED: the figure out of nothing is proven false", v3r.ok && v3r.value.trader_at_fault === true, v3r.value?.detail ?? v3r.reason ?? "");
+
+    // A claim of no round, when one exists; and a round too late to price a trade.
+    const hon = new TraderAgent(c3, "aud.test", seedOf("shared"), t3);
+    accepted("another trader", await hon.register("hon", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const eNow = t3.epochOf(await c3.nowMs()) + 1;
+    await c3.advanceTo(t3.epochStart(eNow));
+    accepted("a real trade on the live feed", await hon.write({ feed: 0, flags: 0, qty_e8: 100_000_000n, fill_e8: 1n, settlement: NO_SETTLEMENT, note: "ok" }));
+    c3.vm.advance(1000);
+    v3.call("r.test", "record_round", { feed: 0, round_id: "2", answer_e8: 210_000_000_000, source_updated_at: "2" }, near("0.01"));
+    await c3.advanceTo(t3.epochStart(eNow + 1));
+    v3.call("r.test", "record_round", { feed: 0, round_id: "3", answer_e8: 220_000_000_000, source_updated_at: "3" }, near("0.01"));
+    await p3.load();
+    const ff3 = await hon.figure(eNow, p3);
+    check("the replay prices it, and marks it", ff3.pnl_e6 === 100_000_000n * 10n / 10n, String(ff3.pnl_e6));
+    accepted("she posts it", await hon.post(eNow, ff3.pnl_e6));
+    v3.fund("aud2.test", near(10));
+    const open4 = await c3.call("aud2.test", "audit_open", { trader: "aud.test", epoch: eNow }, near(1));
+    refused("claiming no round follows, when one does, is refused", await c3.call("aud2.test", "audit_step", { audit: open4.value, openings: [{ ...ff3.openings[0], price_index: 3 }] }), "a round follows");
+    accepted("the true hint opens it", await c3.call("aud2.test", "audit_step", { audit: open4.value, openings: ff3.openings }));
+    const v4 = await c3.call("aud2.test", "audit_conclude", { audit: open4.value, mark_indices: ff3.mark_indices });
+    check("and the honest figure stands", v4.ok && v4.value.trader_at_fault === false, v4.value?.detail ?? v4.reason ?? "");
+
+    // Now a round far too late.
+    const late = new TraderAgent(c3, "aud2.test", seedOf("shared"), t3);
+    accepted("a third", await late.register("late", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const eL = t3.epochOf(await c3.nowMs()) + 1;
+    await c3.advanceTo(t3.epochStart(eL));
+    accepted("a trade", await late.write({ feed: 0, flags: 0, qty_e8: 100_000_000n, fill_e8: 1n, settlement: NO_SETTLEMENT, note: "the feed then goes quiet" }));
+    await c3.advanceTo(await c3.nowMs() + (w.config.max_round_gap_secs + 60) * 1000);
+    v3.call("r.test", "record_round", { feed: 0, round_id: "4", answer_e8: 900_000_000_000, source_updated_at: "4" }, near("0.01"));
+    await p3.load();
+    const fl = await late.figure(eL, p3);
+    check("a round that comes after the gap prices nothing: the trade is void, so a stale feed can't be a free option", fl.book.void === 1 && fl.pnl_e6 === 0n, `void ${fl.book.void}, figure ${fl.pnl_e6}`);
+    const open5 = await c3.call("aud.test", "audit_open", { trader: "aud2.test", epoch: eL }, near(1));
+    void open5;
+  }
+
   console.log("\n-- NEP-171 transfer_call --");
   const nora = new TraderAgent(w.chain, await w.fund("nora", near(40)), seedOf("shared"), w.timing);
   accepted("a trader", await nora.register("nora", { book_usd: 1000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
@@ -671,6 +734,10 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   check("the round is stored with the time it was proven for", rr.length === 1 && rr[0].answer_e8 === 225000000000 && Number(rr[0].t_ms) === updated * 1000, JSON.stringify(rr[0]));
   const again = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("importing the same round again changes nothing", again.ok && again.value === false && c2.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 }).length === 1, JSON.stringify(again.value ?? again.reason));
+  c2.vm.mock("oracle.test", () => ({ pair: "ETH/USD", age_secs: 10, answer: "1", decimals: 8, round_id: "289449", updated_at: String(updated + 1), proven_at_ms: "1", chain: "base-sepolia" }));
+  c2.vm.advance(10 * 86400_000);
+  const stale = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
+  check("a newer round that's too old to import is refused: figures already computed stay right", stale.ok && stale.value === false && c2.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 }).length === 1, JSON.stringify(stale.value ?? stale.reason));
   c2.vm.mock("oracle.test", () => { throw new Error("oracle down"); });
   const down = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));

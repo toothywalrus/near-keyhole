@@ -7,7 +7,7 @@
 //!
 //! Input on stdin:
 //!   {"contract": "...", "trader": "...", "epoch": 3, "rpc": "http://..."}      read everything else from the chain over HTTP (wasi:http), or
-//!   {"trader": "...", "epoch": 3, "data": {book_usd_e6, feeds, epoch_end_ms, head, entries, rounds}}   everything given (tests, and hosts without HTTP)
+//!   {"trader": "...", "epoch": 3, "data": {book_usd_e6, feeds, epoch_end_ms, head, entries, rounds, gap_ms, now_ms}}   everything given (tests, and hosts without HTTP)
 //! Key material, never in the input: KEYHOLE_NODES='[{"level":..,"index":..,"value":"<hex>"}]' from the environment, which is OutLayer's secret mechanism.
 //! Output on stdout: {"trader","epoch","pnl_e6","head","applied","void","job_sha256"}. Anything else (a key that opens nothing, a missing round) exits 1.
 use keyhole_core::entry;
@@ -101,12 +101,19 @@ fn from_chain(input: &Value) -> Res<Value> {
     let slot_ms = num(&cfg["slot_secs"], "slot_secs")? * 1000;
     let epoch_end_ms = num(&clock["genesis_ms"], "genesis")? + (epoch + 1) * num(&cfg["epoch_slots"], "epoch_slots")? * slot_ms;
     let head = entries.last().map(|e| e["head"].clone()).unwrap_or(t["head"].clone());
-    Ok(json!({ "book_usd_e6": t["book_usd_e6"], "feeds": rounds.len(), "epoch_end_ms": epoch_end_ms, "head": head, "entries": entries, "rounds": rounds }))
+    Ok(json!({ "book_usd_e6": t["book_usd_e6"], "feeds": rounds.len(), "epoch_end_ms": epoch_end_ms, "head": head, "entries": entries, "rounds": rounds,
+        "gap_ms": num(&cfg["max_round_gap_secs"], "gap")? * 1000, "now_ms": num(&clock["now_ms"], "now")? }))
 }
 
-fn first_at_or_after(rounds: &[(u64, i64)], at: u64) -> Option<i64> {
+/// The contract's rule: `Ok(Some(price))`, or `Ok(None)` when the trade is void: the next round came too late, or none came and the wait is over. `Err` when it can't be known yet.
+fn price_of(rounds: &[(u64, i64)], at: u64, gap: u64, now: u64) -> Res<Option<(usize, i64)>> {
     let i = rounds.partition_point(|r| r.0 < at);
-    rounds.get(i).map(|r| r.1)
+    match rounds.get(i) {
+        Some(r) if r.0 > at + gap => Ok(None),
+        Some(r) => Ok(Some((i, r.1))),
+        None if now > at + 2 * gap => Ok(None),
+        None => Err("no round after that moment yet".to_string()),
+    }
 }
 
 fn run(input: &Value, nodes_json: &str) -> Res<Value> {
@@ -125,6 +132,7 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
     }
     let book_usd: i128 = data["book_usd_e6"].as_str().and_then(|s| s.parse().ok()).ok_or("book_usd_e6")?;
     let mut book = Book::default();
+    let (gap, now) = (num(&data["gap_ms"], "gap_ms")?, num(&data["now_ms"], "now_ms")?);
     for e in data["entries"].as_array().ok_or("entries")? {
         let (seq, slot) = (num(&e["seq"], "seq")?, num(&e["slot"], "slot")? as u32);
         let leaf = nodes.iter().find_map(|(id, v)| ggm::leaf_from::<Sha2>(v, *id, DEPTH, slot)).ok_or(format!("entry {seq}: slot {slot} isn't under the nodes given"))?;
@@ -134,8 +142,12 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
         let opened = entry::open::<Sha2>(&key, seq, slot, &ct, &tag).ok_or(format!("entry {seq} doesn't open"))?;
         match opened {
             Some(t) if (t.feed as usize) < feeds => {
-                let p = first_at_or_after(&rounds[t.feed as usize], num(&e["at_ms"], "at_ms")?).ok_or(format!("no round after entry {seq} yet"))?;
-                book.apply(t.feed as usize, t.qty_e8, p, feeds, book_usd);
+                match price_of(&rounds[t.feed as usize], num(&e["at_ms"], "at_ms")?, gap, now)? {
+                    Some((_, p)) => {
+                        book.apply(t.feed as usize, t.qty_e8, p, feeds, book_usd);
+                    }
+                    None => book.void = book.void.saturating_add(1),
+                }
             }
             _ => book.void = book.void.saturating_add(1),
         }
@@ -144,7 +156,11 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
     let mut marks = [None; MAX_FEEDS];
     for f in 0..MAX_FEEDS {
         if book.positions[f] != 0 {
-            marks[f] = Some(first_at_or_after(&rounds[f], end).ok_or(format!("no round after the epoch's end on feed {f} yet"))?);
+            marks[f] = Some(match price_of(&rounds[f], end, gap, now)? {
+                Some((_, p)) => p,
+                // The feed went quiet: the last round before the end.
+                None => rounds[f].get(rounds[f].partition_point(|r| r.0 < end).wrapping_sub(1)).ok_or("no round to mark at")?.1,
+            });
         }
     }
     let total = book.marked_e16(&marks).ok_or("marks overflowed")?;
