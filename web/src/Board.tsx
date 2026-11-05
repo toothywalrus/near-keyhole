@@ -51,7 +51,7 @@ export function Board() {
           return (
             <a className={`brow ${r.slashed ? "caught" : ""}`} role="row" href={`#/t/${r.handle}`} key={r.t.id}>
               <div className="who"><b>{r.t.handle}</b>{statusOf(r)}<small>{r.blurb}</small></div>
-              <div className={`num big ${r.pnl < 0 ? "loss" : ""}`} data-label="PnL">{money(r.pnl)}<small>{pctStr(r.pct)} of book</small></div>
+              <div className={`num big ${r.pnl < 0 ? "loss" : ""}`} data-label="PnL">{money(r.pnl)}<small>{r.slashed ? "only proven epochs are corrected" : `${pctStr(r.pct)} of book`}</small></div>
               <div className="spark-col"><Spark data={r.cum} /></div>
               <div className="num" data-label="P(real)">{d === null ? "—" : `${Math.round(d * 100)}%`}</div>
               <div className="num" data-label="Bond">{r.bond.toFixed(0)} Ⓝ</div>

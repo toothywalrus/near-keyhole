@@ -533,6 +533,21 @@ async function run(w: World): Promise<void> {
   const zAudit = await runAudit(w.chain, carol, zed.account, e, zf);
   check("EXPOSURE: the contract agrees to the unit, voids included", zAudit.verdict.ok && zAudit.verdict.value.trader_at_fault === false, zAudit.verdict.value?.detail ?? zAudit.verdict.reason ?? "");
 
+  // A loss smaller than the published unit: rounding is down, on both sides, or an honest trader gets slashed.
+  await w.rounds();
+  const fay = await newTrader(w, "fay");
+  e = await nextEpoch(w);
+  await fay.write({ feed: 0, flags: 0, qty_e8: 1n, fill_e8: 1n, settlement: NO_SETTLEMENT, note: "the smallest possible trade" });
+  await w.roundAt(0, 300_000_000_001n);
+  await w.chain.advanceTo(w.timing.epochStart(e + 1));
+  await w.roundAt(0, 300_000_000_000n);
+  await w.prices.load();
+  const ff = await fay.figure(e, w.prices);
+  check("the figure is a fraction of a unit below zero, so it rounds to -1", ff.pnl_e6 === -1n, String(ff.pnl_e6));
+  accepted("she posts it", await fay.post(e, ff.pnl_e6));
+  const fa = await runAudit(w.chain, carol, fay.account, e, ff);
+  check("ROUNDING: the contract rounds down too, so the honest figure stands", fa.verdict.ok && fa.verdict.value.trader_at_fault === false, fa.verdict.value?.detail ?? fa.verdict.reason ?? "");
+
   await w.rounds();
   const ova = await newTrader(w, "ova", "shared", { book: 1000 });
   e = await nextEpoch(w);

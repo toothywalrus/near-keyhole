@@ -98,7 +98,7 @@ Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a fun
 | NEAR piece | What it does here |
 |---|---|
 | A Rust contract on near-sdk 5.29 | Journal commitments, the sale, both dispute proofs, the fraud proof, slashing, refunds, NEP-171 tokens |
-| Wasm gas budget | x25519 and ChaCha20 run inside a transaction, and that's what removes the operator: 9.8 Tgas |
+| Wasm gas budget | x25519 and ChaCha20 run inside a transaction, and that's what removes the operator: about 10 Tgas |
 | SHA-256 host function | GGM walks, Merkle checks, tags, the hash chain |
 | Block time | No backdating: a slot is checked against `block_timestamp`, and a trade's price against the rounds after it |
 | Storage staking | Every byte is paid by whoever grew it. Ciphertext on chain means no data availability question |

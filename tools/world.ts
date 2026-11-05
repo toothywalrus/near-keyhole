@@ -78,6 +78,7 @@ export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?
       return `${n}.test`;
     },
     rounds: async () => {
+      chain.vm.advance(1000);
       await rounds();
       chain.vm.advance(1000);
     },

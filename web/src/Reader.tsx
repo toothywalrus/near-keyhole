@@ -199,7 +199,7 @@ export function Reader({ id }: { id: number }) {
 
       {firstBad >= 0 && !dispute && token.state === "Delivered" ? (
         <div className="verdict alarm">
-          <b>Node {firstBad} doesn't match its commitment.</b> What the trader delivered isn't what he committed to before the sale. Reveal your one-time secret, and the contract unwraps that node and compares for itself. It costs about 9.8 Tgas on a real chain.
+          <b>Node {firstBad} doesn't match its commitment.</b> What the trader delivered isn't what he committed to before the sale. Reveal your one-time secret, and the contract unwraps that node and compares for itself. It costs about 10 Tgas on a real chain.
           <div><button className="primary danger" onClick={disputeWrap}>Dispute: reveal the one-time secret</button></div>
         </div>
       ) : null}

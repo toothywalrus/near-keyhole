@@ -6,4 +6,4 @@
 
 The testnet deployment has three recorded feeds and one borrowed feed, whose real round is imported to show the path works. Trades there are priced from the recorded feeds, since the borrowed one has no round after any entry.
 
-**Consequences.** On a borrowed feed, the table is only as dense as its relayers: a trader could try to choose which round gets relayed next, by relaying only favourable ones. Anyone else relaying defeats this, and the contract could require consecutive round ids on a feed with reliable relaying. That's a limit of the mainnet design, stated in the README (#issue filed).
+**Consequences.** On a borrowed feed, the table is only as dense as its relayers: a trader could try to choose which round gets relayed next, by relaying only favourable ones. Anyone else relaying defeats this, and the contract could require consecutive round ids on a feed with reliable relaying. That's a limit of the mainnet design, stated in the README (#3).

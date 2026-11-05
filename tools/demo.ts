@@ -207,7 +207,6 @@ for (const s of steps.filter((x) => x.tgas)) say(`   ${(s.tgas ?? 0).toFixed(2).
 const out = {
   chain: TESTNET ? "testnet" : "sandbox", contract: w.contract, at: new Date().toISOString(), epoch: e0,
   traders: { vega: vega.account, lucky: lucky.account, mallory: mallory.account }, buyer, tokens: { vega: tokenId, lucky: Number(b2.value), mallory: Number(b3.value) },
-  one_time: { note: "the secret of the honest sale, for the web page's read-only replay of this run. A one-time key on testnet, worthless by design.", vega: hex(one.secret) },
   steps,
 };
 writeFileSync(new URL(TESTNET ? "../docs/demo/testnet-run.json" : "../docs/research/gas-sandbox.json", import.meta.url), JSON.stringify(out, null, 1));

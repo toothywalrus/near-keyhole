@@ -5,5 +5,5 @@ export PATH="$HOME/.rustup/toolchains/1.93.0-aarch64-apple-darwin/bin:$HOME/.car
 cd "$(dirname "$0")/../contracts/core" || exit 1
 for h in proofs::the_cover_is_exactly_the_window proofs::the_figure_is_the_floor proofs::apply_is_total_and_void_changes_nothing; do
   echo "== $h"
-  perl -e 'alarm 900; exec @ARGV' -- cargo kani --target-dir "${KANI_TARGET:-/tmp/keyhole-kani}" --harness "$h" 2>&1 | grep -E "VERIFICATION:|Verification Time|Failed Checks|error" 
+  perl -e 'alarm 900; exec @ARGV' -- cargo kani --target-dir "${KANI_TARGET:-/tmp/keyhole-kani}" --harness "$h" 2>&1 | grep -E "^VERIFICATION|Verification Time|Failed Checks|^error" 
 done
