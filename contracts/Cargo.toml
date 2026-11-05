@@ -1,0 +1,20 @@
+[workspace]
+members = ["killtest"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.93"
+repository = "https://github.com/toothywalrus/near-keyhole"
+
+[workspace.dependencies]
+near-sdk = "=5.29.1"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+strip = true

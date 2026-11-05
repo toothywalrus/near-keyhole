@@ -1,0 +1,25 @@
+[package]
+name = "killtest"
+description = "The kill test: can a NEAR contract arbitrate a key sale? x25519 + a stream cipher + a Merkle check, gas measured per step"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["aead"]
+aead = ["dep:chacha20poly1305"]
+
+[dependencies]
+near-sdk = { workspace = true }
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+chacha20poly1305 = { version = "0.10", default-features = false, optional = true }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(near)']
