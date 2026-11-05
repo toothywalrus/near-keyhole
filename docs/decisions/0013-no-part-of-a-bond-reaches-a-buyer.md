@@ -28,3 +28,5 @@ These are one flaw. A buyer can be the trader, so anything paid from a bond to a
 - A trader can still refuse a window, keeping an old false figure from being proven (the judge's suspicion, confirmed). The figure stops counting on the public record (`voided_e6`), and he pays half the price from the bond, loses the sale, and takes at least 2% of the book off his public figure per epoch. Delivery can't be forced: what's left of the limit is stated.
 - The bond can be small next to the claim. The board now shows it next to the PnL, and says that a lie earning more than 60% of the bond can still pay.
 - The contract account keeps a FullAccess key on testnet, so the demo can be replaced; the recorder is trusted. `npm run verify` prints this. "No operator" describes the sale and the proofs, not this deploy's administration.
+
+**Later (same day).** [`0015`](0015-what-a-missed-delivery-costs.md) bounds what a refusal costs, and closes three more ways around these rules.

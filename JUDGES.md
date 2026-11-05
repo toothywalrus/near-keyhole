@@ -58,6 +58,10 @@ Everything here runs from a fresh clone with `npm ci`, free and with no keys, ex
 | Posting winners only | Each gap costs at least 2% of the book on the shown figure | `SKIPPED LOSER` |
 | Refusing a window to hide a false figure | The figure stops counting, and the refusal costs half the price and a gap charge | `SHIELDED FIGURE`, `REFUSED` |
 | Buying into an honest drawdown to burn the bond | Nothing burns: the buyer gets the escrow back, the bond is untouched | `DRAWDOWN` |
+| Buying many windows over the same epochs from an offline trader | Burns once per epoch withheld; past windows get a 48 h catch-up grace; a trader can pause | `OFFLINE` |
+| Refusing your own buyer to void a loss | Only a gain is voided; a loss stays | `LAUNDERED LOSS` |
+| Reading a known drawdown for free by adding today | A loss known at purchase can't make a window refundable | `FREE READ` |
+| An oracle outage longer than the posting grace | `new` refuses such a configuration | `ORACLE OUTAGE` |
 | Buying a window already known to be bad, for free reading | `isn't for sale` | `KNOWN BAD` |
 | A trade on a dead feed, to block an audit | Void after the wait, and the audit goes on | `DEAD FEED` |
 | Leaving just after a late false figure | `the last figure hasn't had its time` | `LATE LIE` |

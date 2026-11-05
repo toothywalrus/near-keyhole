@@ -22,3 +22,4 @@ decision per file.
 | ~~[0012](0012-a-slash-splits-three-ways.md)~~ | ~~A slash splits three ways (prover, burn, buyers)~~: superseded by [0013](0013-no-part-of-a-bond-reaches-a-buyer.md) |
 | [0013](0013-no-part-of-a-bond-reaches-a-buyer.md) | No part of a bond ever reaches a buyer: refunds come from escrow, penalties and the rest of a slash burn, and a true loss never touches the bond. Gaps and refused figures count against the public figure |
 | [0014](0014-what-is-guaranteed-about-a-journal.md) | A journal is what the trader wrote: a settlement reference is his unverified claim, nothing forces a fill before publishing, and the key covers the journal, not a real confidential trade |
+| [0015](0015-what-a-missed-delivery-costs.md) | A refusal costs what it withheld, once per epoch; past windows get a catch-up grace, and traders can pause; only a refused gain stops counting; a known loss can't make a window refundable; the posting grace outlasts an oracle outage |
