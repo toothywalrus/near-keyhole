@@ -7,3 +7,19 @@ Attack suite on a local NEAR sandbox node.
 -- The key sale: garbage, forgery, griefing --
 
 -- A tree that isn't one --
+
+-- The window: exactly its slots, nothing past them --
+
+-- Resale before the start: replay and overreach --
+
+-- Deadlines and settlement --
+
+-- The floor and the lapse: refunds from the bond --
+
+-- Exposure, malformed entries and exact figures --
+
+-- The bond, the oracle, the attested path, private methods --
+
+-- The attested path --
+
+196/196 attack checks passed in 759.2 s

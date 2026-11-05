@@ -193,7 +193,7 @@ export function Reader({ id }: { id: number }) {
       const f = copyChain.current.fill(entry.feed, d.qty_e8, price);
       const fill = Number(entry.fill_e8) / 1e8;
       const age = Math.round((s.vm.clockMs - Number(e.at_ms)) / 86400_000);
-      setCopied((c) => ({ ...c, [e.seq]: `Signed here and settled on the real intents.near wasm, in this tab, with a local solver and test tokens: ${side > 0 ? "paid" : "sold"} ${side > 0 ? `${(Number(f.usdcUnits) / 1e6).toFixed(2)} USDC` : `${(Number(f.assetUnits) / 1e6).toFixed(4)} ${FEEDS[entry.feed]}`} at ${price.toFixed(2)}. Against his ${fill.toFixed(2)}, ${age} days ago: ${slippageBps(side, fill, price).toFixed(0)} bps. You hold ${f.balances.usdc.toFixed(2)} USDC, ${f.balances.asset.toFixed(4)} ${FEEDS[entry.feed]} on it. Nothing left this tab.` }));
+      setCopied((c) => ({ ...c, [e.seq]: `Signed here and settled on the real intents.near wasm, in this tab, with a local solver and test tokens: ${side > 0 ? "paid" : "sold"} ${side > 0 ? `${(Number(f.usdcUnits) / 1e6).toFixed(2)} USDC` : `${(Number(f.assetUnits) / 1e6).toFixed(4)} ${FEEDS[entry.feed]}`} at ${price.toFixed(2)}. Against his ${fill.toFixed(2)}, ${age} days ago: ${Math.abs(slippageBps(side, fill, price)).toFixed(0)} bps ${slippageBps(side, fill, price) > 0 ? "worse" : "better"}. You hold ${f.balances.usdc.toFixed(2)} USDC, ${f.balances.asset.toFixed(4)} ${FEEDS[entry.feed]} on it. Nothing left this tab.` }));
     } catch (err) {
       setCopied((c) => ({ ...c, [e.seq]: `Refused: ${String((err as Error).message).slice(0, 100)}` }));
     }

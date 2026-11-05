@@ -626,7 +626,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
       if (epochs < 1) break;
       const one = buyerKey();
       const b = await w.chain.call(sock, "buy_window", { trader: dr.account, first_epoch: ep, last_epoch: ep + epochs - 1, buyer_pub: hex(one.pub) }, near(60));
-      if (!b.ok) { refused("BOND ESCAPE: once the bond is below the minimum, the trader isn't selling", b, "below the minimum"); break; }
+      if (!b.ok) break;
       const tok = await w.chain.view<TokenRec>("get_token", { token_id: Number(b.value) });
       await w.chain.advanceTo(Number(tok.deliver_by_ms) + 1);
       const c = await w.chain.call(sock, "claim_undelivered", { token_id: Number(b.value) });
@@ -637,6 +637,8 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const drRec = await dr.record();
     check("BOND ESCAPE, refused deliveries: the pair gain nothing, and what left the bond burned", drW1 <= drW0 && BigInt(drRec.burned) > 0n, `${cycles} cycles: bond ${Number(lastBond / 10n ** 21n) / 1000} NEAR, burned ${Number(BigInt(drRec.burned) / 10n ** 21n) / 1000}, the pair down ${Number((drW0 - drW1) / 10n ** 21n) / 1000}`);
     check("and the refusals are on the public record", drRec.late_deliveries === cycles, String(drRec.late_deliveries));
+    check("the bond is now below the minimum", BigInt(drRec.bond) < BigInt(w.config.min_bond), `${Number(BigInt(drRec.bond) / 10n ** 21n) / 1000} NEAR`);
+    refused("BOND ESCAPE: below the minimum, the trader isn't selling", await w.chain.call(sock, "buy_window", { trader: dr.account, first_epoch: await currentEpoch(w), last_epoch: await currentEpoch(w), buyer_pub: hex(buyerKey().pub) }, near(60)), "below the minimum");
 
     const la = new TraderAgent(w.chain, await w.fund("lapser", near(200)), seedOf("shared"), w.timing);
     accepted("a trader with a 10 NEAR bond", await la.register("lapser", { book_usd: 100_000, floor_bps: 1000, base_price: near(10), slope: 0n, bond: near(10) }));
@@ -672,6 +674,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     check("SELF-SLASH: the most a trader can recover through a second account is the prover's share, old window or not", gainFromBond <= (before * 4000n) / 10_000n + 2n * BigInt((await oldSock.token()).price), `${Number(gainFromBond / 10n ** 21n) / 1000} NEAR of a ${Number(before / 10n ** 21n) / 1000} NEAR bond`);
     check("the rest burned, and nothing is left to claim", BigInt(selfRec.bond) === 0n && BigInt(selfRec.burned) === before - (before * 4000n) / 10_000n, `burned ${Number(BigInt(selfRec.burned) / 10n ** 21n) / 1000}`);
     const rc = BigInt(await w.chain.view("credit_of", { account: honestBuyer }));
+    refused("nobody else can claim his escrow", await w.chain.call(sybil, "claim_refund", { token_id: realTok.id }), "only the holder");
     accepted("the real buyer claims", await w.chain.call(honestBuyer, "claim_refund", { token_id: realTok.id }));
     check("the real buyer gets the whole price back, however many second accounts bought in", BigInt(await w.chain.view("credit_of", { account: honestBuyer })) - rc === BigInt((await realTok.token()).price));
     await solvent(w, "after the self-slash");
@@ -701,12 +704,12 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     accepted("an auditor opens", open);
     accepted("the first entry opens", await w.chain.call(stranger, "audit_step", { audit: open.value, openings: [{ key: realKey, price_index: realHint }] }));
     refused("JUNK ENTRY: the second never will", await w.chain.call(stranger, "audit_step", { audit: open.value, openings: [{ key: realKey, price_index: realHint }] }), "doesn't open");
+    refused("nobody can cancel someone else's audit", await w.chain.call(holder, "audit_cancel", { audit: open.value }), "someone else's");
     const creditJ0 = BigInt(await w.chain.view("credit_of", { account: j.account }));
     const stranger0 = BigInt(await w.chain.view("credit_of", { account: stranger }));
     const cancel = await w.chain.call(stranger, "audit_cancel", { audit: open.value });
     const dep = BigInt(w.config.audit_bond);
     check("the auditor can give up: half the deposit back while the trader stands, half to him, so leaving keys on the chain isn't free", cancel.ok && BigInt(await w.chain.view("credit_of", { account: stranger })) - stranger0 === dep / 2n && BigInt(await w.chain.view("credit_of", { account: j.account })) - creditJ0 === dep / 2n, String(cancel.value ?? cancel.reason));
-    refused("nobody can cancel someone else's audit", await w.chain.call(holder, "audit_cancel", { audit: open.value }), "no such audit");
     const open2 = await w.chain.call(stranger, "audit_open", { trader: j.account, epoch: je }, near(1));
     await w.chain.advanceTo(Number((await k.token()).settle_at_ms));
     await w.rounds();

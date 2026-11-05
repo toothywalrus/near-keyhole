@@ -34,8 +34,8 @@ const skip = (step: string, why: string) => {
 
 console.log("Keyhole's judge run. Free, no keys, nothing leaves this machine except reads of public APIs (1Click dry quotes).\n");
 
-let r = await run("npx", ["tsx", "--test", "lib/test/vectors.test.ts", "lib/test/dsr.test.ts", "lib/test/seed.test.ts"]);
-add("TypeScript: cross-language vectors, deflated Sharpe, seeded state", r, tally(r.out, /pass \d+/));
+let r = await run("npx", ["tsx", "--test", "lib/test/vectors.test.ts", "lib/test/dsr.test.ts", "lib/test/seed.test.ts", "lib/test/copy-local.test.ts"]);
+add("TypeScript: vectors, deflated Sharpe, seeded state, copy on the real Intents wasm", r, tally(r.out, /pass \d+/));
 
 if (has("cargo", "--version")) {
   r = await run("cargo", ["test", "--release", "-p", "keyhole-core", "--features", "sha2"], "contracts");
