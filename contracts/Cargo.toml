@@ -1,5 +1,5 @@
 [workspace]
-members = ["killtest"]
+members = ["killtest", "core", "keyhole"]
 resolver = "2"
 
 [workspace.package]

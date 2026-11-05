@@ -4,16 +4,16 @@
   "method": "dispute_sha_ctr",
   "ok": true,
   "value": true,
-  "burnt_tgas": 9.425029370372,
-  "tx": "92UAfSqZgsKu5dRU33SrNEMa4CNrekRCzTkxFpWd7yaX",
+  "burnt_tgas": 9.506721591401,
+  "tx": "5WA6FgRca44hXcx8jaPFRgzV3AgottK7WBkw3uqwz7M2",
   "logs": [
-   "args and setup: 0.283 Tgas",
-   "x25519 base-point (secret matches key): 3.535 Tgas",
+   "args and setup: 0.270 Tgas",
+   "x25519 base-point (secret matches key): 3.533 Tgas",
    "x25519 dh: 3.702 Tgas",
-   "kdf (sha-256): 0.034 Tgas",
-   "decrypt (sha-256 ctr): 0.020 Tgas",
-   "node commitment + merkle path: 0.340 Tgas",
-   "total: 7.964 Tgas (matches commitment: true)"
+   "kdf (sha-256): 0.040 Tgas",
+   "decrypt (sha-256 ctr): 0.025 Tgas",
+   "node commitment + merkle path: 0.430 Tgas",
+   "total: 8.045 Tgas (matches commitment: true)"
   ]
  },
  {
@@ -21,16 +21,16 @@
   "method": "dispute_chacha",
   "ok": true,
   "value": true,
-  "burnt_tgas": 9.423997417569,
-  "tx": "3Zjo1fswe1Dcnbp2u21HQzywRGAnuM8K8njCwUUmvMbT",
+  "burnt_tgas": 9.501120096156,
+  "tx": "CHmxQ9QykVtVuSdLwdjxC4ifwBGnW6kcFRVfaGANnZTt",
   "logs": [
-   "args and setup: 0.283 Tgas",
-   "x25519 base-point (secret matches key): 3.535 Tgas",
+   "args and setup: 0.270 Tgas",
+   "x25519 base-point (secret matches key): 3.533 Tgas",
    "x25519 dh: 3.702 Tgas",
-   "kdf (sha-256): 0.034 Tgas",
+   "kdf (sha-256): 0.040 Tgas",
    "decrypt (chacha20, wasm): 0.014 Tgas",
-   "node commitment + merkle path: 0.341 Tgas",
-   "total: 7.958 Tgas (matches commitment: true)"
+   "node commitment + merkle path: 0.431 Tgas",
+   "total: 8.035 Tgas (matches commitment: true)"
   ]
  },
  {
@@ -38,16 +38,16 @@
   "method": "dispute_aead",
   "ok": true,
   "value": true,
-  "burnt_tgas": 9.455452531575,
-  "tx": "3HpG1Z8aZCA5VS1H8TdpSJdZK7T1NsZvSY3jnqubkS4o",
+  "burnt_tgas": 9.533629160598,
+  "tx": "DNFjpiXbJERoaBDQriqH1zhom86SwNLrNbmHsEf91QZi",
   "logs": [
-   "args and setup: 0.284 Tgas",
-   "x25519 base-point (secret matches key): 3.539 Tgas",
+   "args and setup: 0.270 Tgas",
+   "x25519 base-point (secret matches key): 3.533 Tgas",
    "x25519 dh: 3.702 Tgas",
-   "kdf (sha-256): 0.034 Tgas",
-   "decrypt (chacha20-poly1305, crate): 0.046 Tgas",
-   "node commitment + merkle path: 0.344 Tgas",
-   "total: 7.994 Tgas (matches commitment: true)"
+   "kdf (sha-256): 0.040 Tgas",
+   "decrypt (chacha20-poly1305, crate): 0.044 Tgas",
+   "node commitment + merkle path: 0.438 Tgas",
+   "total: 8.072 Tgas (matches commitment: true)"
   ]
  },
  {
@@ -55,27 +55,27 @@
   "method": "dispute_sha_ctr",
   "ok": true,
   "value": false,
-  "burnt_tgas": 9.420700585712,
-  "tx": "Fms9T5XJGtmiTVjw6pA2nnGsRdo8A5NMD36HLaQQ1BiN",
+  "burnt_tgas": 9.506602026437,
+  "tx": "7vcM2Tjk3mdqf4m5K4cH273494x7UM5S4W7h52UcmeY2",
   "logs": [
-   "args and setup: 0.283 Tgas",
-   "x25519 base-point (secret matches key): 3.535 Tgas",
+   "args and setup: 0.270 Tgas",
+   "x25519 base-point (secret matches key): 3.533 Tgas",
    "x25519 dh: 3.702 Tgas",
-   "kdf (sha-256): 0.034 Tgas",
-   "decrypt (sha-256 ctr): 0.020 Tgas",
-   "node commitment + merkle path: 0.339 Tgas",
-   "total: 7.959 Tgas (matches commitment: false)"
+   "kdf (sha-256): 0.040 Tgas",
+   "decrypt (sha-256 ctr): 0.025 Tgas",
+   "node commitment + merkle path: 0.430 Tgas",
+   "total: 8.045 Tgas (matches commitment: false)"
   ]
  },
  {
   "label": "x25519 once",
   "method": "x25519_once",
   "ok": true,
-  "value": "26d0276b158f38ff6c439a9f593c3b7cd756977b6cf0936cd048f578e9d8c224",
-  "burnt_tgas": 5.372008267844,
-  "tx": "4jqBcBMAkJMcg1oy3Xk6toD7fWTvCrkZ5teTnsKU6fEX",
+  "value": "dbe3f012818edd5c7b35df4e972f139417dbffe522b956aa3c79883074054f59",
+  "burnt_tgas": 5.353980859559,
+  "tx": "D8wWeQtHtgYYTSNZiqFqZvP3CdgBey1cbaJH3MTXbgoW",
   "logs": [
-   "x25519: 3.679 Tgas"
+   "x25519: 3.678 Tgas"
   ]
  },
  {
@@ -83,22 +83,22 @@
   "method": "merkle_only",
   "ok": true,
   "value": true,
-  "burnt_tgas": 2.038056766862,
-  "tx": "45vsgpLbtf6gR9LVNWDA1XZVxQkRTg8ntpYWeYFNUtRs",
+  "burnt_tgas": 2.105760301037,
+  "tx": "8gPGABCQFAdo2HiSsxczCzXWasUwnyJoFCjh7oL5Rbf1",
   "logs": [
-   "merkle: 0.313 Tgas"
+   "merkle: 0.394 Tgas"
   ]
  },
  {
   "label": "entry cipher, 160 bytes",
   "method": "entry_cipher",
   "ok": true,
-  "value": 266,
-  "burnt_tgas": 1.787639793565,
-  "tx": "7tsUSixSq8gZPZjXBsx9L96dGVapNW8zYpPawtnAGtLe",
+  "value": 317,
+  "burnt_tgas": 1.821010010878,
+  "tx": "AYAbaCHB1menYkDzdDGa4eb9wYa4dQ6DYiUm8ddpaRTJ",
   "logs": [
    "chacha20: 0.032 Tgas",
-   "sha-256 ctr: 0.066 Tgas"
+   "sha-256 ctr: 0.117 Tgas"
   ]
  }
 ]

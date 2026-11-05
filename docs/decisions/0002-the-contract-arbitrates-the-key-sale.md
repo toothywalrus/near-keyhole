@@ -2,7 +2,7 @@
 
 **Context.** Selling a key on-chain is a fair-exchange problem. If the trader delivers garbage, somebody has to rule. The
 options were a TEE (NOVA's choice for access, and our design's fallback), a human, or the contract. The contract can only rule
-if x25519, a cipher and a Merkle check fit into a transaction. That was the kill test, and it passed: 9.42 Tgas
+if x25519, a cipher and a Merkle check fit into a transaction. That was the kill test, and it passed: 9.50 Tgas
 for a whole dispute transaction on testnet (`docs/research/killtest-2026-11-05.md`), 3% of what a transaction may carry.
 
 **Decision.** There are two dispute proofs, both read from the sale's record in state and never from their arguments, and both end

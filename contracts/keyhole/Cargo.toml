@@ -1,0 +1,25 @@
+[package]
+name = "keyhole"
+description = "Sell a provable window into a private trade journal: GGM window keys, an on-chain fair exchange, a bonded PnL anyone holding the keys can fraud-prove"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+keyhole-core = { path = "../core" }
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
+keyhole-core = { path = "../core", features = ["sha2"] }
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(near)']
