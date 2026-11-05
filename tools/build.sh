@@ -8,7 +8,7 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/dev/.cargo-target-r6}"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo/contracts"
 # Panic messages carry source paths: without this, a build differs by where the clone and the home directory are. cargo-near takes rustflags only through --env.
-flags="--remap-path-prefix=$repo=/keyhole --remap-path-prefix=$HOME/.cargo/registry/src=/cargo"
+flags="--remap-path-prefix=$repo=/keyhole --remap-path-prefix=$CARGO_TARGET_DIR=/target --remap-path-prefix=$HOME/.cargo/registry/src=/cargo"
 # Never trust a cached core: cargo hashes a path dependency by its path inside the workspace, so a copy of this tree elsewhere shares its cache keys.
 touch core/src/*.rs */src/lib.rs
 for c in "$@"; do
