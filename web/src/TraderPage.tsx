@@ -100,7 +100,7 @@ export function TraderPage({ handle }: { handle: string }) {
       <div className="facts">
         <Fact label="Bond at risk" note={`${s.config.prover_bps / 100}% goes to whoever proves a false figure; the rest burns.`}>{r.bond.toFixed(2)} Ⓝ</Fact>
         <Fact label="Bond against the claim" note={r.bondPctOfPnl !== null && r.bondPctOfPnl < 60 ? "A lie worth more than what it risks can still pay." : "At $4.01 a NEAR, a recorded 1Click quote."}>{`≈$${Math.round(r.bondUsd).toLocaleString("en-US")}`}{r.bondPctOfPnl !== null ? ` / ${r.bondPctOfPnl.toFixed(1)}%` : ""}</Fact>
-        <Fact label="In escrow now" note={`A window losing over ${(t.floor_bps / 100).toFixed(1)}% of the book goes back to its buyer, and a penalty burns.`}>{lnear(t.liability)} Ⓝ</Fact>
+        <Fact label="In escrow now" note={`A window losing over ${(t.floor_bps / 100).toFixed(1)}% of the book goes back to its buyer. A true loss never touches the bond.`}>{lnear(t.liability)} Ⓝ</Fact>
         <Fact label="Age">{Math.floor(r.ageDays)} days</Fact>
         <Fact label="Trades written" note="Numbered, no gaps, each committed when written.">{t.next_seq}</Fact>
         <Fact label="Past buyers" note={`${r.covered} of ${r.posted} epochs checkable.`}>{t.buyers}</Fact>
