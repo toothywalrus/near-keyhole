@@ -7,3 +7,5 @@
 **Consequences.** "Past buyers" is only as real as what it costs to fake: a trader buying from himself through a second account pays only gas, as the price goes back to him. The prover's share has the same shape: a trader slashing himself recovers half the bond, and the rest stays locked, which is why it isn't higher. Both limits are stated in the README and the app.
 
 **Later (same day).** The prover's share here was half. A review showed a self-slash could recover the whole bond: [`0012`](0012-a-slash-splits-three-ways.md) replaces that part.
+
+**Later (same day).** [`0013`](0013-no-part-of-a-bond-reaches-a-buyer.md): a missed epoch or a refused delivery now counts against the shown figure, the bond is shown against the PnL, and the deflated Sharpe is blank on too few active days and floored against lumpy series.

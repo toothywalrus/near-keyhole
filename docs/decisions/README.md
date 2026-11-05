@@ -19,4 +19,6 @@ decision per file.
 | [0009](0009-attestation-adds-a-label-not-a-slash.md) | The attested path adds a figure labeled by code path, and moves no money |
 | [0010](0010-the-price-table.md) | A fraud proof reads a local append-only price table, with each feed's source labeled |
 | [0011](0011-confidential-quotes-need-a-user.md) | Live quotes are keyless and carry no `confidentiality` field: measured, it answers 401 without a user's auth |
-| [0012](0012-a-slash-splits-three-ways.md) | A slash splits three ways (prover, burn, buyers), and a window bought on its eve shares nothing: a review found a trader could otherwise recover his whole bond through a second account |
+| ~~[0012](0012-a-slash-splits-three-ways.md)~~ | ~~A slash splits three ways (prover, burn, buyers)~~: superseded by [0013](0013-no-part-of-a-bond-reaches-a-buyer.md) |
+| [0013](0013-no-part-of-a-bond-reaches-a-buyer.md) | No part of a bond ever reaches a buyer: refunds come from escrow, penalties and the rest of a slash burn, so a trader's second account can't pull it out. Gaps count against the public figure |
+| [0014](0014-what-is-guaranteed-about-a-journal.md) | A journal is what the trader wrote: a settlement reference is his unverified claim, nothing forces a fill before publishing, and the key covers the journal, not a real confidential trade |

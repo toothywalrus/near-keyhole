@@ -208,7 +208,7 @@ const out = {
   traders: { vega: vega.account, lucky: lucky.account, mallory: mallory.account }, buyer, tokens: { vega: tokenId, lucky: Number(b2.value), mallory: Number(b3.value) },
   steps,
 };
-writeFileSync(new URL(TESTNET ? "../docs/demo/testnet-run.json" : "../docs/research/gas-sandbox.json", import.meta.url), JSON.stringify(out, null, 1));
+if (TESTNET || process.argv.includes("--write")) writeFileSync(new URL(TESTNET ? "../docs/demo/testnet-run.json" : "../docs/research/gas-sandbox.json", import.meta.url), JSON.stringify(out, null, 1));
 w.stop();
 say(failures.length ? `\nFAILED:\n  ${failures.join("\n  ")}` : `\nThe whole moment ran. ${steps.length} transactions, every one above.`);
 process.exit(failures.length ? 1 : 0);

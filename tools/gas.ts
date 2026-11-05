@@ -1,5 +1,5 @@
 // The other half of the hard question: how much of a journal can the contract recompute? Measured on a local sandbox node, with real entries.
-// Run: npm run gas. Writes docs/research/gas-audit.json.
+// Run: npm run gas. It takes about 10 minutes, most of it waiting for a real epoch to end on the node. `-- --write` updates docs/research/gas-audit.json.
 import { writeFileSync } from "node:fs";
 import { near, NO_SETTLEMENT, type Config } from "../lib/src/client.ts";
 import { agent, sandboxWorld, FAST_CONFIG } from "./world.ts";
@@ -54,6 +54,6 @@ const ok = rows.filter((r) => r.ok && r.batch >= 10);
 const per = ok.length >= 2 ? (ok[ok.length - 1].burnt_tgas - ok[0].burnt_tgas) / (ok[ok.length - 1].batch - ok[0].batch) : 0;
 const fixed = ok.length ? ok[0].burnt_tgas - per * ok[0].batch : 0;
 console.log(`  about ${per.toFixed(3)} Tgas per entry + ${fixed.toFixed(2)} fixed, so about ${Math.floor((300 - fixed) / per)} entries fit in one 300 Tgas transaction, and an audit takes as many transactions as it needs.`);
-writeFileSync(new URL("../docs/research/gas-audit.json", import.meta.url), JSON.stringify({ measured: new Date().toISOString(), chain: "near-sandbox 2.14.0", entries: N, rows, conclude_tgas: Number(c.burntGas) / 1e12, per_entry_tgas: per, fixed_tgas: fixed, fits_in_300_tgas: Math.floor((300 - fixed) / per) }, null, 1));
+if (process.argv.includes("--write")) writeFileSync(new URL("../docs/research/gas-audit.json", import.meta.url), JSON.stringify({ measured: new Date().toISOString(), chain: "near-sandbox 2.14.0", entries: N, rows, conclude_tgas: Number(c.burntGas) / 1e12, per_entry_tgas: per, fixed_tgas: fixed, fits_in_300_tgas: Math.floor((300 - fixed) / per) }, null, 1));
 w.stop();
 process.exit(0);

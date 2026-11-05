@@ -743,6 +743,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await w.chain.advanceTo(Number((await rb.token()).deliver_by_ms) + 1);
     accepted("he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: rb.id }));
     const rs = await w.chain.view("score", { account: rf.account });
+    await solvent(w, "after a refusal, whose rows the token prepaid");
     check("REFUSED: two refused epochs cost him two charges on his public record", rs.refused === 2 && BigInt(rs.score_e6) === -BigInt(rs.missed + 2) * BigInt(rs.charge_per_missed_e6), JSON.stringify(rs));
   }
 
