@@ -70,6 +70,7 @@ npm run judge      # everything free, about 3 minutes, ends in a pass/fail table
 npm run attack     # every attack, against the real wasm
 npm run demo       # the complete moment on a local NEAR node, with gas
 npm run copy       # the copy trade, against the mainnet intents.near wasm
+npm run check-res  # needs Rust: is the committed wasm from the committed source?
 npm run verify     # re-read the testnet deployment from the chain`}</pre>
     </article>
   );

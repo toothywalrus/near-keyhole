@@ -6,7 +6,7 @@
 >
 > In the demo, the trader at the top of the board posts a great PnL. A buyer does the sum, and the NEAR contract does it too: it opens the entries, prices them against the oracle, sees the lie and hands the buyer 40% of the bond. A dispute costs about 10 Tgas: no operator, no TEE.
 >
-> A copy trade settles as a real NEP-413 token_diff on the intents.near wasm in a sandbox. Testnet only, and not investment advice.
+> A copy trade settles as a real NEP-413 token_diff on the intents.near wasm, in your tab, with a local solver. A journal is what a trader wrote: a checkable record, not a statement. Testnet only, and not investment advice.
 >
 > Built at NEAR HACKATHON with @NEARProtocol #NEARHackathon. Try it: <link once the owner has it hosted>
 
