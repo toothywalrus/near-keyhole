@@ -61,8 +61,8 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 | Do | See |
 |---|---|
 | `npm run judge` | Everything free in about 3 minutes, ending in a pass/fail table |
-| `npm run attack` | 309 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
-| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 198 checks (the other 111 need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
+| `npm run attack` | 311 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
+| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 199 checks (the other 112 need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |

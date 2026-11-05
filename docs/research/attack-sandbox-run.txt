@@ -22,4 +22,4 @@ Attack suite on a local NEAR sandbox node.
 
 -- The attested path --
 
-198/198 attack checks passed in 759.2 s
+199/199 attack checks passed in 776.9 s
