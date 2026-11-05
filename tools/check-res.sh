@@ -2,7 +2,7 @@
 # Does the committed wasm come from the committed source? Copies the repo at HEAD to a different path, builds there with an empty target directory, and compares with the committed
 # res/SHA256SUMS. It writes nothing here. Needs Rust 1.93, stable with wasm32-wasip2, and cargo-near 0.22. Run: npm run check-res
 set -e
-repo="$(cd "$(dirname "$0")/.." && pwd)"
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 work="$(mktemp -d)/somewhere-else"
 mkdir -p "$work"
 git -C "$repo" archive HEAD contracts tools job | tar -x -C "$work"

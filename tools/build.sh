@@ -5,7 +5,9 @@
 set -e
 export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/opt/rustup/bin:$PATH"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/dev/.cargo-target-r6}"
-repo="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$CARGO_TARGET_DIR"
+export CARGO_TARGET_DIR="$(cd "$CARGO_TARGET_DIR" && pwd -P)"
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 cd "$repo/contracts"
 # Panic messages carry source paths: without this, a build differs by where the clone and the home directory are. cargo-near takes rustflags only through --env.
 flags="--remap-path-prefix=$repo=/keyhole --remap-path-prefix=$CARGO_TARGET_DIR=/target --remap-path-prefix=$HOME/.cargo/registry/src=/cargo"
