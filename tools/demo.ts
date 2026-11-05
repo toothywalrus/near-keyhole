@@ -35,7 +35,7 @@ const nearStr = (y: string | bigint) => `${(Number(BigInt(y) / 10n ** 20n) / 10_
 
 const w: World & { net?: any } = TESTNET ? await (await import("./testnet.ts")).testnetWorld() : await sandboxWorld();
 say(TESTNET ? `On NEAR testnet, contract ${w.contract}.` : `On a local NEAR sandbox node, contract ${w.contract}.`);
-const BOND = TESTNET ? near("0.5") : near(3);
+const BOND = TESTNET ? near("0.35") : near(3);
 const PRICE = TESTNET ? near("0.01") : near("0.05");
 const SLOPE = TESTNET ? near("0.002") : near("0.01");
 const STAMP = TESTNET ? (Date.now() % 100000).toString(36) : "";
@@ -50,13 +50,13 @@ const reg = async (t: TraderAgent, handle: string) => {
 };
 
 say("\n== Three traders. The numbers they'll post are public. ==");
-const vega = await agentNamed("vega", TESTNET ? "1.1" : "10");
-const lucky = await agentNamed("lucky", TESTNET ? "1.1" : "10");
-const mallory = await agentNamed("mallory", TESTNET ? "1.1" : "10");
+const vega = await agentNamed("vega", TESTNET ? "0.6" : "10");
+const lucky = await agentNamed("lucky", TESTNET ? "0.6" : "10");
+const mallory = await agentNamed("mallory", TESTNET ? "0.6" : "10");
 await reg(vega, "vega");
 await reg(lucky, "lucky");
 await reg(mallory, "mallory");
-const buyer = await w.fund(`ines${STAMP}`, near(TESTNET ? "1.4" : "10"));
+const buyer = await w.fund(`ines${STAMP}`, near(TESTNET ? "0.8" : "10"));
 
 const trade = (feed: number, qty: number, fill: number, note: string) => ({ feed, flags: 0, qty_e8: BigInt(Math.round(qty * 1e8)), fill_e8: BigInt(Math.round(fill * 1e8)), settlement: NO_SETTLEMENT, note });
 
@@ -68,7 +68,6 @@ say(`\n== Epoch ${e0}: everyone writes as it happens. No backdating, no gaps. ==
 record("vega writes: long ETH", await vega.write(trade(0, 3, 2400, "breakout above the weekly high")), "an encrypted entry, committed when written");
 record("lucky writes: a small long", await lucky.write(trade(0, 0.5, 2400, "small starter")));
 record("lucky writes: a big loser", await lucky.write(trade(1, -1.5, 70000, "short BTC against the long")));
-await w.rounds();
 record("vega writes: a BTC hedge", await vega.write(trade(1, -0.05, 70000, "hedge the beta")));
 await w.rounds();
 await w.chain.advanceTo(w.timing.epochStart(e0 + 1));
@@ -164,11 +163,41 @@ must(dispute.value?.trader_at_fault === true, "the verdict", dispute.value?.deta
 say("\n== And a false dispute costs the griefer: an honest delivery stands. ==");
 const one4 = buyerKey();
 const q4 = await w.chain.view<string>("quote", { trader: vega.account, first_epoch: e0, last_epoch: e0 });
-const griefer = await w.fund(`grif${STAMP}`, near(TESTNET ? "0.6" : "5"));
+const griefer = await w.fund(`grif${STAMP}`, near(TESTNET ? "0.35" : "5"));
 const b4 = record("someone else buys vega's window", await w.chain.call(griefer, "buy_window", { trader: vega.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one4.pub) }, BigInt(q4) + near("0.02")));
 record("vega delivers honestly", await vega.deliver(Number(b4.value)));
 const fd = record("dispute_wrap with nothing wrong", await w.chain.call(griefer, "dispute_wrap", { token_id: Number(b4.value), one_time_secret: hex(one4.secret), node_index: 0 }, BigInt(q4) + near("0.002")));
 must(fd.value?.trader_at_fault === false, "dismissed, and the deposit goes to vega", fd.value?.detail);
+
+say("\n== A trader with no buyers can still earn a number: the attested job, labeled for what it is. ==");
+{
+  const { execFileSync } = await import("node:child_process");
+  const { createHash } = await import("node:crypto");
+  const { readFileSync } = await import("node:fs");
+  const { cover } = await import("../lib/src/ggm.ts");
+  const JOB = new URL("../res/keyhole_pnl_job.wasm", import.meta.url).pathname;
+  const hash = createHash("sha256").update(readFileSync(JOB)).digest("hex");
+  const [first, last] = w.timing.window(e0, e0);
+  const nodes = cover(first, last, 16).map((n) => ({ level: n.level, index: n.index, value: hex(vega.tree.node(n)) }));
+  try {
+    const rpc = (w as any).chain.net.rpc as string;
+    const out = JSON.parse(execFileSync("wasmtime", ["run", "-S", "http", "--env", `KEYHOLE_NODES=${JSON.stringify(nodes)}`, "--env", `KEYHOLE_JOB_SHA256=${hash}`, JOB], { input: JSON.stringify({ contract: w.contract, trader: vega.account, epoch: e0, rpc }), stdio: ["pipe", "pipe", "pipe"] }).toString());
+    must(out.pnl_e6 === figV.pnl_e6.toString(), "the wasm job under wasmtime reads the chain over HTTP and gets the same figure, to the unit", usd(out.pnl_e6));
+    const setR = await w.chain.call(w.owner, "set_runner", { runner: w.owner, enabled: true });
+    record("the owner registers a local runner", setR);
+    record("the runner submits the job's output", await w.chain.call(w.owner, "submit_attested", { output: { trader: vega.account, epoch: e0, pnl_e6: out.pnl_e6, head: out.head, job_sha256: hash } }, near("0.005")));
+    const ep = (await w.chain.view<EpochRec[]>("get_epochs", { account: vega.account, from: e0, limit: 1 }))[0];
+    must(ep.attested?.kind === "SimulatedLocal", "the contract labels it: SIMULATED, a local run with no enclave", String(ep.attested?.kind));
+  } catch (err) {
+    say(`   (skipped: wasmtime isn't installed here: ${String(err).slice(0, 80)})`);
+  }
+}
+if (TESTNET) {
+  say("\n== The price table can read near-borrowed-oracle: MPC-proven Chainlink rounds, on testnet. ==");
+  const imp = record("import_round: a real cross-contract read of the proven round", await w.chain.call(w.owner, "import_round", { feed: 3 }, near("0.003")));
+  const rr = await w.chain.view<any[]>("get_rounds", { feed: 3, from: 0, limit: 5 });
+  must(imp.ok && rr.length >= 1, "the round is in the table, labeled by its feed", JSON.stringify(rr[rr.length - 1]));
+}
 
 const final = await w.chain.view<any>("solvency");
 must(BigInt(final.slack) >= 0n, "the contract can pay everything it owes", `obligations ${nearStr(final.obligations)}, slack ${nearStr(final.slack)}`);

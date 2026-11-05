@@ -1,0 +1,88 @@
+// Drives the built web app in a headless browser, through the complete moment. Needs Playwright's Chromium (`npx playwright install chromium`). Run: npm run page-test
+import { createServer } from "node:http";
+import { existsSync, readFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import { chromium } from "playwright";
+
+const root = new URL("../web/dist/", import.meta.url).pathname;
+const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".wasm": "application/wasm", ".woff2": "font/woff2" };
+const server = createServer((req, res) => {
+  const p = join(root, decodeURIComponent((req.url ?? "/").split("?")[0]));
+  const f = existsSync(p) && !p.endsWith("/") ? p : join(root, "index.html");
+  res.setHeader("Content-Type", TYPES[extname(f)] ?? "application/octet-stream");
+  res.end(readFileSync(f));
+}).listen(0);
+await new Promise((ok) => server.once("listening", ok));
+const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/`;
+let bad = 0;
+let n = 0;
+const check = (name: string, ok: boolean, detail = "") => {
+  n++;
+  if (!ok) bad++;
+  console.log(`${ok ? "✓" : "✗"} ${name.padEnd(70)} ${detail}`);
+};
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+const errors: string[] = [];
+page.on("pageerror", (e) => errors.push(String(e)));
+await page.goto(url);
+await page.waitForSelector(".brow:not(.head)");
+check("the board loads, from the contract's views", (await page.locator(".brow:not(.head)").count()) === 7);
+check("every page says what is seeded", (await page.locator(".provenance").innerText()).includes("SEEDED DEMO"));
+check("the board's first row is the top PnL: lucky-seven", (await page.locator(".brow:not(.head) .who b").first().innerText()) === "lucky-seven");
+await page.click("text=lucky-seven");
+await page.waitForSelector(".cal");
+check("the trader page shows a window picker", (await page.locator(".day").count()) > 5);
+check("the journal is locked, ciphertext only", (await page.locator(".journal.locked .bar").count()) > 0);
+await page.click("button.primary");
+await page.waitForSelector(".check table", { timeout: 30000 });
+await page.waitForTimeout(800);
+check("buying goes through to delivery", (await page.locator(".blurb").innerText()).includes("Delivered"));
+const verifiedText = await page.locator(".drawn .caption").innerText();
+check("all of the delivered nodes check out against the commitments", /(\d+) of \1 check out/.test(verifiedText), verifiedText.slice(0, 70));
+check("the window's entries are readable", (await page.locator(".journal li.open").count()) > 0);
+check("the entries past the window are not", (await page.locator(".journal li.past .bar").count()) > 0);
+await page.locator(".past .link").first().click();
+await page.waitForSelector(".past .failmsg");
+const fail = await page.locator(".past .failmsg").first().innerText();
+check("trying the next entry really fails, offline", /None opened/.test(fail), fail.slice(0, 80));
+check("the page shows some figures as false", (await page.locator(".check tr.bad").count()) > 0);
+await page.locator(".check .link.danger").first().click();
+await page.waitForSelector(".audit-log .verdict", { timeout: 30000 });
+check("the audit slashes the liar", (await page.locator(".audit-log .verdict").innerText()).includes("Slashed"));
+const withdrawBtn = page.locator("button:has-text('Withdraw')");
+check("the money is there to withdraw", (await withdrawBtn.count()) > 0);
+await withdrawBtn.first().click();
+await page.waitForTimeout(100);
+check("and arrives in the balance", /You hold \d+/.test(await page.locator(".dateline").innerText()));
+await page.goto(`${url}#/`);
+await page.waitForSelector(".brow:not(.head)");
+await page.waitForTimeout(100);
+check("the board now marks the trader caught", (await page.locator(".brow.caught").count()) === 2);
+check("and the headline knows", (await page.locator(".lede h1").innerText()).includes("You caught"));
+
+// The garbage path.
+await page.goto(`${url}#/t/mistral`);
+await page.waitForSelector(".cal");
+await page.check(".cheat input");
+await page.click("button.primary");
+await page.waitForSelector(".verdict.alarm button", { timeout: 30000 });
+check("garbage for sale: the reader sees a node that doesn't match", (await page.locator(".verdict.alarm").first().innerText()).includes("doesn't match"));
+await page.click(".verdict.alarm button");
+await page.waitForSelector(".verdict.ok");
+check("the dispute slashes, in the real contract, in this tab", (await page.locator(".verdict.ok").first().innerText()).includes("slashed"));
+
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${url}#/`);
+await page.waitForSelector(".brow:not(.head)");
+const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+check("at phone width the page doesn't scroll sideways", overflow <= 0, `${overflow}px`);
+await page.goto(`${url}#/t/ox-and-ember`);
+await page.waitForSelector(".cal");
+const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+check("nor does a trader's page", overflow2 <= 0, `${overflow2}px`);
+check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 120));
+await browser.close();
+server.close();
+console.log(`\n${n - bad}/${n} page checks passed`);
+process.exit(bad ? 1 : 0);

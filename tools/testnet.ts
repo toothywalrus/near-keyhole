@@ -12,8 +12,8 @@ export const RPC = process.env.NEAR_RPC ?? "https://test.rpc.fastnear.com";
 export const CONTRACT = process.env.KEYHOLE_CONTRACT ?? `app.${ROOT}`;
 
 export const TESTNET_CONFIG = (recorder: string): Config => ({
-  slot_secs: 15, epoch_slots: 6, post_grace_secs: 90, delivery_lead_secs: 45, delivery_grace_secs: 120,
-  challenge_secs: 120, unbond_secs: 600, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 5000,
+  slot_secs: 20, epoch_slots: 9, post_grace_secs: 180, delivery_lead_secs: 60, delivery_grace_secs: 180,
+  challenge_secs: 180, unbond_secs: 600, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 5000,
   late_penalty_bps: 1000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.03").toString(), recorder,
 });
 
@@ -28,16 +28,18 @@ export async function ensure(net: Net, root: Named, name: string, nearAmount: st
   const key = KeyPair.fromRandom("ed25519");
   saveKey(id, key.toString());
   await root.account.createAccount({ newAccountId: id, publicKey: key.getPublicKey(), nearToTransfer: BigInt(Math.round(Number(nearAmount) * 1e6)) * 10n ** 18n });
+  for (let i = 0; i < 30 && !(await net.exists(id)); i++) await new Promise((ok) => setTimeout(ok, 1000));
   return net.named(id, key.toString());
 }
 
 export async function testnetWorld(opts: { fresh?: boolean } = {}): Promise<World & { chain: RpcChain; net: Net; root: Named }> {
   const net = new Net(RPC);
   const root = named(net, ROOT);
-  const contract = await ensure(net, root, "app", 4.9);
+  const contract = await ensure(net, root, "app", 4.6);
+  for (let i = 0; i < 30 && !(await net.exists(contract.id)); i++) await new Promise((ok) => setTimeout(ok, 1000));
   const code = await net.provider.viewAccount({ accountId: contract.id });
-  const recorderA = await ensure(net, root, "recorder", 0.4);
-  const ownerA = await ensure(net, root, "owner", 0.4);
+  const recorderA = await ensure(net, root, "recorder", 0.3);
+  const ownerA = await ensure(net, root, "owner", 0.25);
   const chain = new RpcChain(net, contract.id);
   chain.defaultTgas = 100n;
   chain.add(contract);

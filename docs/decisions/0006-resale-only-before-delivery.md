@@ -1,0 +1,7 @@
+# 0006: A window can be resold only while no keys exist
+
+**Context.** The design said a window token "can be resold before the window starts (the wrap is redone to the new holder)". But once a holder has unwrapped the nodes he has them for good, whoever holds the token afterwards. Nothing can take them back: that's the whole point of the construction. Re-wrapping to a new holder after delivery would sell a window to a second person while the first keeps reading.
+
+**Decision.** Delivery has a floor: the trader may deliver no earlier than `delivery_lead_secs` before the window starts. Until then no keys exist in anyone's hands, and the token moves freely: `nft_transfer` clears the one-time key, and the new holder registers his own (`set_wrap_key`); `buy_resale` pays the holder and replaces the key in one call. After delivery, or once the window has started, every way of moving the token is refused. A dispute checks the revealed secret against the current key only, so an old holder's secret proves nothing, and a trader who wraps to an old key is slashed by the new holder.
+
+**Consequences.** A buyer of a window that has already started gets his keys soon after purchase, and can't resell. The bonding curve's early-follower discount can be sold on, but only before the window opens. That's the friend.tech echo the design wanted, within what the mathematics allows.

@@ -64,7 +64,8 @@ const MUTANTS: M[] = [
 ];
 
 const QUICK = process.argv.includes("--quick");
-const list = QUICK ? MUTANTS.slice(0, 8) : MUTANTS;
+const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
+const list = only ? MUTANTS.filter((m) => m.name.includes(only)) : QUICK ? MUTANTS.slice(0, 8) : MUTANTS;
 const repo = new URL("..", import.meta.url).pathname;
 const env = { ...process.env, PATH: `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/opt/rustup/bin:${process.env.PATH}`, CARGO_TARGET_DIR: process.env.CARGO_TARGET_DIR ?? `${process.env.HOME}/dev/.cargo-target-r6` };
 const work = mkdtempSync(join(tmpdir(), "keyhole-mutants-"));
@@ -102,7 +103,7 @@ for (const m of list) {
   }
   const r = spawnSync("npx", ["tsx", "tools/attack.ts", "--quiet"], { cwd: repo, env: { ...process.env, KEYHOLE_WASM: wasm }, encoding: "utf8" });
   writeFileSync(path, original);
-  const failed = (r.stdout.match(/FAILED: (.*)/g) ?? []).map((l) => l.replace("  FAILED: ", "").split(":")[0]);
+  const failed = (r.stdout.match(/FAILED: (.*)/g) ?? []).map((l) => l.replace("FAILED: ", "").split(":").slice(0, 2).join(":"));
   if (r.status !== 0) {
     caught++;
     console.log(`✓ caught: ${m.name.padEnd(62)} by "${(failed[0] ?? "the suite").slice(0, 70)}"${failed.length > 1 ? ` and ${failed.length - 1} more` : ""}`);

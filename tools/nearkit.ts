@@ -8,6 +8,16 @@ import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
+// Public RPCs rate-limit (a shared IP does it quickly). A 429 changed nothing on the chain, so every request here just waits and tries again.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  for (let attempt = 0; ; attempt++) {
+    const res = await realFetch(input, init);
+    if (res.status !== 429 || attempt >= 40) return res;
+    await new Promise((ok) => setTimeout(ok, 3000 + attempt * 500));
+  }
+}) as typeof fetch;
+
 export type Named = { id: string; account: Account; key: string };
 export type CallResult = { ok: boolean; value?: unknown; reason?: string; tx?: string; logs: string[]; burntGas: bigint; receiptGas: bigint[] };
 

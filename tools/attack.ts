@@ -104,6 +104,12 @@ async function run(w: World): Promise<void> {
   const seqDup = await liar.write(trade(0, 0.5, "the entry the next one tries to overwrite"));
   accepted("the next entry, with the right number, is accepted", seqDup);
   refused("overwriting an entry by reusing its number is refused", await liar.write(trade(0, -5, "rewriting history"), { seq: 0 }), "no gaps");
+  {
+    const c0 = Number((await w.chain.view("clock")).slot);
+    const { ct, tag } = encryptEntry(liar.tree.leaf(c0), 1, c0, trade(0, 1));
+    refused("an entry that doesn't pay for its storage is refused", await w.chain.call(liar.account, "commit_entry", { seq: "1", slot: c0, ct: hex(ct), tag: hex(tag) }), "for ");
+    refused("a round that doesn't pay for its storage is refused", await w.chain.call(w.recorder, "record_round", { feed: 0, round_id: "9", answer_e8: 1, source_updated_at: "1" }), "for ");
+  }
   refused("an entry of the wrong size is refused", await w.chain.call(liar.account, "commit_entry", { seq: "1", slot: Number((await w.chain.view("clock")).slot), ct: "00".repeat(100), tag: "00".repeat(32) }, near("0.01")), "exactly 128");
   refused("only a registered trader can write", await w.chain.call(bob, "commit_entry", { seq: "0", slot: nowSlot, ct: "00".repeat(128), tag: "00".repeat(32) }, near("0.01")), "not a registered trader");
   refused("a figure before the epoch has ended is refused", await liar.post(e, 0n), "hasn't ended");

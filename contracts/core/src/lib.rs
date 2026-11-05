@@ -67,3 +67,59 @@ impl Hash for Sha2 {
         sha2::Sha256::digest(data).into()
     }
 }
+
+/// Proofs for the Kani model checker: `npm run kani`. They hold for every input, not a sample: see `docs/research/kani-2026-11-05.txt`.
+#[cfg(kani)]
+mod proofs {
+    use crate::ggm;
+    use crate::pnl::{pnl_e6, Book, DIV_E10, MAX_FEEDS};
+
+    /// Whatever a trader wrote, `apply` doesn't panic, and a void entry changes nothing but the void count.
+    #[kani::proof]
+    fn apply_is_total_and_void_changes_nothing() {
+        let mut b = Book::default();
+        b.positions[0] = kani::any();
+        b.cash_e16 = kani::any();
+        let before = b.clone();
+        let feed: usize = kani::any();
+        let qty: i64 = kani::any();
+        let price: i64 = kani::any();
+        let book: i128 = kani::any();
+        kani::assume(book >= 0 && book <= 1_000_000_000_000_000);
+        kani::assume(feed < MAX_FEEDS + 2);
+        if !b.apply(feed, qty, price, MAX_FEEDS, book) {
+            assert!(b.positions == before.positions && b.cash_e16 == before.cash_e16);
+        } else {
+            assert!(qty != 0 && price > 0 && feed < MAX_FEEDS);
+        }
+    }
+
+    /// The published figure is the floor of the exact total, over the range a book can reach.
+    #[kani::proof]
+    fn the_figure_is_the_floor() {
+        let total: i64 = kani::any();
+        let q = pnl_e6(total as i128);
+        assert!(q * DIV_E10 <= total as i128);
+        assert!(total as i128 - q * DIV_E10 < DIV_E10);
+    }
+
+    /// The cover of any window in a small tree is exact: its nodes' subtrees are disjoint, in order, and add up to exactly the window.
+    #[kani::proof]
+    #[kani::unwind(20)]
+    fn the_cover_is_exactly_the_window() {
+        const DEPTH: u8 = 3;
+        let first: u32 = kani::any();
+        let last: u32 = kani::any();
+        kani::assume(first <= last && last < 8);
+        let nodes = ggm::cover(first, last, DEPTH);
+        assert!(!nodes.is_empty() && nodes.len() <= 2 * DEPTH as usize);
+        let mut next = first;
+        for n in &nodes {
+            let (a, b) = n.slots(DEPTH);
+            assert!(a == next);
+            assert!(b <= last);
+            next = b + 1;
+        }
+        assert!(next == last + 1);
+    }
+}
