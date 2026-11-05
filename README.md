@@ -58,12 +58,12 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 |---|---|
 | `npm run judge` | Everything free in about 3 minutes, ending in a pass/fail table |
 | `npm run attack` | 270 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
-| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 211 checks, minus the ones that need the local host's controls, about 15 minutes |
+| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 211 checks (the other 59 need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto |
-| `npm run mutate` | Needs Rust. Breaks 62 security-critical lines one at a time and rebuilds: `N/N mutants caught`. Last full run: 58/62; the other 4 were then fixed and caught individually; a clean full rerun is unfinished. Last log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust. Breaks 62 security-critical lines one at a time and rebuilds: `62/62 mutants caught` in one pass, about 20 minutes. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction |

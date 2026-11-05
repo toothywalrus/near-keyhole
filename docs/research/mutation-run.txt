@@ -11,7 +11,7 @@ Mutating 62 security-critical lines. The attack suite must notice each.
 ✓ caught: commit_entry lets an entry into an epoch that's over           by "an entry for the last slot of the epoch that just ended is refused: AC"
 ✓ caught: post_epoch takes a figure before the epoch ends                by "a figure before the epoch has ended is refused: ACCEPTED" and 1 more
 ✓ caught: post_epoch takes a figure after the grace                      by "LAPSE: a figure after the grace is refused" and 3 more
-✗ the line for "buy_window takes a low-order one-time key" isn't in keyhole/src/sale.rs any more
+✓ caught: buy_window takes a low-order one-time key                      by "a low-order one-time key is refused at purchase: ACCEPTED"
 ✓ caught: deliver takes a low-order ephemeral key                        by "a low-order ephemeral key is refused: ACCEPTED" and 2 more
 ✓ caught: anyone can deliver                                             by "delivery by anyone but the trader is refused: ACCEPTED" and 9 more
 ✓ caught: delivery before the window is near is allowed                  by "delivering too early is refused: until then the token can be resold" and 12 more
@@ -37,7 +37,7 @@ Mutating 62 security-critical lines. The attack suite must notice each.
 ✓ caught: a price hint can be before the trade                           by "audit: a price hint before the trade is refused" and 3 more
 ✓ caught: a claim that no round follows needn't be true                  by "audit: a wrong mark hint is refused" and 1 more
 ✓ caught: a claim that no round follows needn't wait                     by "before the wait is over, claiming no round is refused: ACCEPTED" and 1 more
-✗ SURVIVED: a round long after the trade still prices it
+✓ caught: a round long after the trade still prices it                   by "and the contract agrees: that round prices nothing"
 ✓ caught: anyone can record a round                                      by "only the recorder may record rounds: attach 810000000000000000000 yoct" and 1 more
 ✓ caught: rounds can be rewritten in time                                by "ORACLE: a round at the same moment as the last is refused"
 ✓ caught: a failed withdrawal loses the money                            by "FAILED TRANSFER: the credit is restored in full"
@@ -48,11 +48,11 @@ Mutating 62 security-critical lines. The attack suite must notice each.
 ✓ caught: a token can move while delivery is open                        by "once delivery can begin the token can't move: a trader must be able to" and 2 more
 ✓ caught: a window bought on the eve of a slash shares the bond          by "SELF-SLASH: he recovers the prover's share of the bond and no more"
 ✓ caught: a window already past its floor can be bought                  by "KNOWN BAD: a window already past its floor isn't for sale, or it would" and 1 more
-✓ caught: a window with a missed figure can be bought                    by "KNOWN BAD: a window with a missed figure isn't for sale, or it would b" and 2 more
+✓ caught: a window with a missed figure can be bought                    by "KNOWN BAD: a window with a missed figure isn't for sale, or it would b"
 ✓ caught: a trader can leave right after a late figure                   by "LATE LIE: she can't leave with it unaudited" and 1 more
-✗ SURVIVED: a token that comes back keeps its listing
+✓ caught: a token that comes back keeps its listing                      by "a receiver that lists it and hands it back leaves no listing behind: f"
 ✓ caught: a slashed trader can be slashed again                          by "a slashed trader can't be slashed twice: ACCEPTED"
-✗ SURVIVED: a bond leaves before the delay
+✓ caught: a bond leaves before the delay                                 by "the bond stays at risk through the delay: ACCEPTED" and 1 more
 ✓ caught: a local runner's figure reads as the enclave's                 by "SIMULATED: a local run is labeled as one, by the code path, with no wa" and 1 more
 ✓ caught: anyone can report an attested figure                           by "a non-runner can't report an attested figure: not a registered trader"
 ✓ caught: buy_window charges no storage                                  by "the suite ran to the end: Error"
@@ -63,11 +63,4 @@ Mutating 62 security-critical lines. The attack suite must notice each.
 ✓ caught: the exposure limit is gone                                     by "EXPOSURE: the contract agrees to the unit, voids included"
 ✓ caught: an entry's tag isn't checked when opening                      by "audit: a bad key is refused and records nothing" and 12 more
 
-58/62 mutants caught, in 1123 s
-Survived:
-  buy_window takes a low-order one-time key (stale)
-  a round long after the trade still prices it
-  a token that comes back keeps its listing
-  a bond leaves before the delay
-
-The four above were then fixed in the tests or the pattern, and each caught when rerun alone (npx tsx tools/mutate.ts --only "<name>"). A full clean rerun was not finished.
+62/62 mutants caught, in 1099 s

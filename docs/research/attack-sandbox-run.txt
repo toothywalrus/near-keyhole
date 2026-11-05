@@ -1,0 +1,25 @@
+Attack suite on a local NEAR sandbox node.
+
+-- Journal: backdating, deleting losers, posting --
+
+-- A false figure: every buyer is an auditor --
+
+-- The key sale: garbage, forgery, griefing --
+
+-- A tree that isn't one --
+
+-- The window: exactly its slots, nothing past them --
+
+-- Resale before the start: replay and overreach --
+
+-- Deadlines and settlement --
+
+-- The floor and the lapse: refunds from the bond --
+
+-- Exposure, malformed entries and exact figures --
+
+-- The bond, the oracle, the attested path, private methods --
+
+-- The attested path --
+
+211/211 attack checks passed in 839.5 s
