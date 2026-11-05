@@ -67,7 +67,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto |
-| `npm run mutate` | Needs Rust. Breaks 75 security-critical lines one at a time and rebuilds: `75/75 mutants caught` in one pass, about 20 minutes. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust. Breaks 75 security-critical lines one at a time and rebuilds: `75/75 mutants caught` in one pass, about 25 minutes. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction. About 10 minutes, most of it waiting for a real epoch to end on the node |
