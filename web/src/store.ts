@@ -126,7 +126,7 @@ export function rowOf(t: TraderRec): Row {
     } else {
       v = -charge;
     }
-    if (e && e.refused_sales > 0) v -= charge;
+    if (e && e.refused_sales > 0) v = -charge; // a figure nobody may check doesn't count
     series.push(v);
     c += v;
     cum.push(c);
