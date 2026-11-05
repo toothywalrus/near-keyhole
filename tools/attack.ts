@@ -267,6 +267,8 @@ async function run(w: World): Promise<void> {
   const ids = cover(rt.first_slot, rt.last_slot, DEPTH);
   const idx = ids.findIndex((n) => (ents[0].slot >= n.index * 2 ** (DEPTH - n.level)) && (ents[0].slot < (n.index + 1) * 2 ** (DEPTH - n.level)));
   refused("a number that doesn't fit is refused, not truncated into another entry's", await w.chain.call(bob, "dispute_entry", { token_id: rs.id, node_index: idx, node: hex(rr.nodes[idx].value), seq: "4294967297" }, near(1)), "out of range");
+  refused("dispute_entry: a deposit below the price is refused", await w.chain.call(bob, "dispute_entry", { token_id: rs.id, node_index: idx, node: hex(rr.nodes[idx].value), seq: "0" }, 1n), "deposit");
+  refused("dispute_entry: only the holder can bring it", await w.chain.call(carol, "dispute_entry", { token_id: rs.id, node_index: idx, node: hex(rr.nodes[idx].value), seq: "0" }, near(1)), "only the holder");
   refused("dispute_entry: a node that isn't the delivered one is refused", await w.chain.call(bob, "dispute_entry", { token_id: rs.id, node_index: idx, node: "22".repeat(32), seq: "0" }, near(1)), "isn't the node delivered");
   const wrongIdx = ids.findIndex((n, i) => i !== idx);
   if (wrongIdx >= 0) refused("dispute_entry: an entry that isn't under the node is refused", await w.chain.call(bob, "dispute_entry", { token_id: rs.id, node_index: wrongIdx, node: hex(rr.nodes[wrongIdx].value), seq: "0" }, near(1)), "isn't under this node");
@@ -723,6 +725,34 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const c2 = await w.chain.call(stranger, "audit_cancel", { audit: open2.value });
     check("and an audit stuck behind it gets its whole deposit back, the trader being slashed", c2.ok && BigInt(await w.chain.view("credit_of", { account: stranger })) - s0 === dep, String(c2.value ?? c2.reason));
     await solvent(w, "after the junk entry");
+  }
+
+  console.log("\n-- Who earns the enclave's label --");
+  {
+    const at = new TraderAgent(w.chain, await w.fund("attested", near(100)), seedOf("shared"), w.timing);
+    accepted("a trader with no buyers", await at.register("attested", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const ae = await nextEpoch(w);
+    await w.chain.advanceTo(w.timing.epochStart(ae + 1) + 1000);
+    accepted("he posts two empty epochs", await at.post(ae, 0n));
+    await w.chain.advanceTo(w.timing.epochStart(ae + 2) + 1000);
+    accepted("the second", await at.post(ae + 1, 0n));
+    const head = (await at.record()).head;
+    const job = (epoch: number) => (m: string) => {
+      if (m !== "request_execution") throw new Error("unexpected");
+      return { Json: { trader: at.account, epoch, pnl_e6: "0", head, job_sha256: "the job's word" } };
+    };
+    const cfg = (contract: string) => ({ outlayer: { contract, rpc: "x", wasm_url: "x", wasm_hash: "aa".repeat(32), max_instructions: "1", max_execution_seconds: "1" } });
+    vm.mock("stand-in.test", job(ae));
+    accepted("the owner points the contract at a stand-in", await w.chain.call(w.owner, "set_outlayer", cfg("stand-in.test")));
+    const ra = await w.chain.call(at.account, "request_attested", { epoch: ae }, near("0.02"));
+    const rr1 = (await w.chain.view("get_epochs", { account: at.account, from: ae, limit: 1 }))[0];
+    check("STAND-IN: a callback from any other contract can't earn the enclave's label", ra.ok && rr1.attested?.kind === "OutLayerStandIn" && rr1.attested?.job_sha256 === "aa".repeat(32), JSON.stringify(rr1.attested?.kind ?? ra.reason));
+    vm.mock("outlayer.testnet", job(ae + 1));
+    accepted("and at OutLayer's own account", await w.chain.call(w.owner, "set_outlayer", cfg("outlayer.testnet")));
+    await w.chain.call(at.account, "request_attested", { epoch: ae + 1 }, near("0.02"));
+    const rr2 = (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0];
+    check("only a callback from OutLayer's own account gets it", rr2.attested?.kind === "OutLayerTee", JSON.stringify(rr2.attested?.kind));
+    refused("a deposit that can't pay for the callback's storage is refused", await w.chain.call(at.account, "request_attested", { epoch: ae }, 1n), "storage");
   }
 
   console.log("\n-- Posting winners only --");

@@ -52,6 +52,8 @@ const MUTANTS: M[] = [
   { name: "a transfer keeps the old one-time key", file: `${K}nft.rs`, from: `// The old holder's one-time key dies with the transfer.\n        k.buyer_pub = None;`, to: "" },
   { name: "anyone can dispute", file: `${K}dispute.rs`, from: `require!(&k.owner == who, "only the holder can dispute");`, to: "" },
   { name: "a dispute needs no deposit", file: `${K}dispute.rs`, from: `require!(env::attached_deposit().as_yoctonear() >= k.price.0.max(self.config.min_dispute.0), "a dispute's deposit is at least the window's price");`, to: "" },
+  { name: "dispute_wrap needs no deposit", file: `${K}dispute.rs`, from: `require!(self.now_ms() < k.settle_at_ms.0, "the challenge window is over");\n        require!(env::attached_deposit().as_yoctonear() >= k.price.0.max(self.config.min_dispute.0), "a dispute's deposit is at least the window's price");`, to: `require!(self.now_ms() < k.settle_at_ms.0, "the challenge window is over");` },
+  { name: "anyone can dispute a wrap", file: `${K}dispute.rs`, from: `let k = self.token(token_id);\n        require!(&k.owner == who, "only the holder can dispute");`, to: `let k = self.token(token_id);` },
   { name: "disputes never end", file: `${K}dispute.rs`, from: `require!(self.now_ms() < k.settle_at_ms.0, "the challenge window is over");`, to: "" },
   { name: "dispute_entry takes any node", file: `${K}dispute.rs`, from: `require!(ggm::commit::<types::NearHash>(&node.0) == commit.0, "that isn't the node delivered: its commitment differs");`, to: "let _ = commit;" },
   { name: "dispute_entry slashes when the entry opens", file: `${K}dispute.rs`, from: `self.rule(token_id, who, !opens,`, to: `self.rule(token_id, who, opens,` },
