@@ -1,4 +1,4 @@
-// One command, free, no keys, about 4 minutes: everything that can be checked from a fresh clone, ending in a table.
+// One command, free, no keys, about 3 minutes: everything that can be checked from a fresh clone, ending in a table.
 //   npm run judge            the default
 //   npm run judge -- --full  also every mutant and the contract's Rust tests (needs Rust and cargo-near; ten more minutes)
 // Anything that needs a tool you don't have says "skipped" and why, rather than failing. Sandboxes run in parallel.
@@ -73,7 +73,7 @@ if (FULL) {
   r = await run("cargo", ["test", "--release", "-p", "keyhole"], "contracts");
   add("Rust contract: property tests of the money arithmetic", r, tally(r.out, /test result: ok\. \d+ passed/));
 } else {
-  console.log("\nNot in this run: `npm run mutate` (50 mutants, needs Rust; the last full log is docs/research/mutation-run.txt), `npm run attack -- --sandbox` (the attack suite on a real node, 13 minutes), `npm run verify` (re-reads testnet).");
+  console.log("\nNot in this run: `npm run mutate` (needs Rust; the last full log is docs/research/mutation-run.txt), `npm run attack -- --sandbox` (the attack suite on a real node, about 15 minutes), `npm run verify` (re-reads testnet).");
 }
 
 const w = Math.max(...rows.map((x) => x.step.length));

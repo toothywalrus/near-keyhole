@@ -1,41 +1,41 @@
 {
- "measured": "2026-11-05T12:19:31.920Z",
+ "measured": "2026-11-05T13:14:40.467Z",
  "chain": "near-sandbox 2.14.0",
  "entries": 260,
  "rows": [
   {
    "batch": 1,
    "entries_opened": 1,
-   "burnt_tgas": 2.481029188648,
+   "burnt_tgas": 2.489982674552,
    "ok": true
   },
   {
    "batch": 10,
    "entries_opened": 10,
-   "burnt_tgas": 4.095751565413,
+   "burnt_tgas": 4.105370660921,
    "ok": true
   },
   {
    "batch": 40,
    "entries_opened": 40,
-   "burnt_tgas": 8.72584476628,
+   "burnt_tgas": 8.737685302988,
    "ok": true
   },
   {
    "batch": 80,
    "entries_opened": 80,
-   "burnt_tgas": 14.83917592944,
+   "burnt_tgas": 14.853978387748,
    "ok": true
   },
   {
    "batch": 120,
    "entries_opened": 120,
-   "burnt_tgas": 20.954478728423,
+   "burnt_tgas": 20.973004980387,
    "ok": true
   }
  ],
- "conclude_tgas": 2.835814529057,
- "per_entry_tgas": 0.15326115602736362,
- "fixed_tgas": 2.563140005139364,
- "fits_in_300_tgas": 1940
+ "conclude_tgas": 2.844851936073,
+ "per_entry_tgas": 0.15334213017696363,
+ "fixed_tgas": 2.571949359151364,
+ "fits_in_300_tgas": 1939
 }

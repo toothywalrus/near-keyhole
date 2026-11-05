@@ -703,7 +703,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const c3 = new VmChain("kh3.test", Date.UTC(2026, 9, 1));
     const v3 = c3.vm;
     for (const a of ["o.test", "liar.test", "aud.test", "r.test"]) v3.fund(a, near(100));
-    accepted("a deployment with a feed that will never get another round", v3.call("o.test", "new", { owner: "o.test", config: { ...w.config, recorder: "r.test" }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }, { symbol: "QUIET", source: "Recorded" }] }));
+    accepted("a deployment with a feed that will never get another round", v3.call("o.test", "new", { owner: "o.test", config: { ...w.config, recorder: "r.test", max_round_gap_secs: 72000 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }, { symbol: "QUIET", source: "Recorded" }] }));
     v3.call("r.test", "record_round", { feed: 0, round_id: "1", answer_e8: 200_000_000_000, source_updated_at: "1" }, near("0.01"));
     const t3 = await Timing.read(c3);
     const p3 = new Prices(c3);
@@ -718,7 +718,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const [e3] = await loadEntries(c3, "liar.test", 0, 1);
     const key3 = hex(liar3.keyOf(e3));
     refused("before the wait is over, claiming no round is refused", await c3.call("aud.test", "audit_step", { audit: open3.value, openings: [{ key: key3, price_index: 0 }] }), "no such round yet");
-    await c3.advanceTo(Number(e3.at_ms) + 2 * w.config.max_round_gap_secs * 1000 + 1000);
+    await c3.advanceTo(Number(e3.at_ms) + 2 * 72000 * 1000 + 1000);
     accepted("after it, the entry is void and the audit goes on", await c3.call("aud.test", "audit_step", { audit: open3.value, openings: [{ key: key3, price_index: 0 }] }));
     const v3r = await c3.call("aud.test", "audit_conclude", { audit: open3.value, mark_indices: [null, null, null, null] });
     check("DEAD FEED: the figure out of nothing is proven false", v3r.ok && v3r.value.trader_at_fault === true, v3r.value?.detail ?? v3r.reason ?? "");
@@ -750,13 +750,15 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const eL = t3.epochOf(await c3.nowMs()) + 1;
     await c3.advanceTo(t3.epochStart(eL));
     accepted("a trade", await late.write({ feed: 0, flags: 0, qty_e8: 100_000_000n, fill_e8: 1n, settlement: NO_SETTLEMENT, note: "the feed then goes quiet" }));
-    await c3.advanceTo(await c3.nowMs() + (w.config.max_round_gap_secs + 60) * 1000);
+    await c3.advanceTo(await c3.nowMs() + (72000 + 60) * 1000);
     v3.call("r.test", "record_round", { feed: 0, round_id: "4", answer_e8: 900_000_000_000, source_updated_at: "4" }, near("0.01"));
     await p3.load();
     const fl = await late.figure(eL, p3);
     check("a round that comes after the gap prices nothing: the trade is void, so a stale feed can't be a free option", fl.book.void === 1 && fl.pnl_e6 === 0n, `void ${fl.book.void}, figure ${fl.pnl_e6}`);
-    const open5 = await c3.call("aud.test", "audit_open", { trader: "aud2.test", epoch: eL }, near(1));
-    void open5;
+    await c3.advanceTo(t3.epochStart(eL + 1));
+    accepted("she posts the zero", await late.post(eL, fl.pnl_e6));
+    const a5 = await runAudit(c3, "aud.test", "aud2.test", eL, fl, { bond: near(1) });
+    check("and the contract agrees: that round prices nothing", a5.verdict.ok && a5.verdict.value.trader_at_fault === false, a5.verdict.value?.detail ?? a5.verdict.reason ?? "");
   }
 
   console.log("\n-- NEP-171 transfer_call --");

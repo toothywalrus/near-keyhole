@@ -27,13 +27,13 @@ Three things stand in the way. Nobody can check a private trader's PnL before pa
 
 **1. A window key that is mathematics, not access control.** Each entry is encrypted under a leaf of a GGM tree over time slots: a binary hash tree from one secret seed. To sell a window, the trader hands over the few inner nodes that cover it: at most 32, for 65,536 slots. The buyer can read exactly that window, with no revocation, no rotation, no TEE and no online seller.
 
-**2. A key sale with no operator.** The nodes are wrapped to a one-time key the buyer made for this purchase. The contract computes the cover itself and checks each node's commitment against a Merkle root posted before any sale. Payment sits in escrow. If the wrap is garbage, the buyer reveals the one-time secret, and **the contract itself runs x25519 and ChaCha20**, compares, refunds and slashes. A second proof catches a trader who commits to one tree and encrypts with another.
+**2. A key sale with no operator.** The nodes are wrapped to a one-time key the buyer made for this purchase. The contract computes the cover itself and checks each node's commitment against a Merkle root posted before any sale. Payment sits in escrow. If the wrap is garbage, the buyer reveals the one-time secret, and **the contract itself runs x25519 and ChaCha20**, compares, refunds and slashes the bond: 40% to the prover, 20% burned, the rest backing older windows' refunds. A second proof catches a trader who commits to one tree and encrypts with another.
 
 **3. PnL you can trust before you pay.** Entries are committed when written, numbered in a hash chain, with the slot checked against the block's clock. PnL is posted per epoch with a bond behind it. Anyone holding an epoch's keys can open them in the contract, which recomputes the figure in exact integers against oracle prices. One unit of difference slashes. A stranger can trust the public number as far as the bond and the past buyers go, and that's what the board shows.
 
 **4. Copying.** A follower's app decrypts locally, applies its owner's limits, gets a live 1Click dry quote, and in the sandbox executes a real NEP-413 `token_diff` against the mainnet `intents.near` wasm. The trader's fill comes first by construction: an entry is published after the fill.
 
-Window keys are priced on a **bonding curve per trader**. A purchase is a **NEP-171 token**, resellable until keys are delivered. If audited PnL in a sold window falls past the trader's stated floor, or he stops posting, buyers get a **pro-rata refund from the bond**.
+Window keys are priced on a **bonding curve per trader**. A purchase is a **NEP-171 token**, resellable until delivery can begin. If audited PnL in a sold window falls past the trader's stated floor, or he stops posting, buyers get a **pro-rata refund from the bond**.
 
 ## The hard question, answered with numbers
 
@@ -48,7 +48,7 @@ Window keys are priced on a **bonding curve per trader**. A purchase is a **NEP-
 
 Details and every step's cost: [`docs/research/killtest-2026-11-05.md`](docs/research/killtest-2026-11-05.md), [`docs/research/gas-audit.json`](docs/research/gas-audit.json). No fallback was needed. A trap on the way: built without `cargo near`, near-sdk quietly compiles SHA-256 into the wasm and panics lose their messages.
 
-**Can a stranger trust the PnL?** As far as the bond and the buyers go, and no further. A false figure is provable by anyone with the keys, to the unit. An unchecked figure is only as good as its bond. One account can't prove it isn't the luckiest of ten, and the board says so, next to a deflated Sharpe.
+**Can a stranger trust the PnL?** As far as the bond and the buyers go, and no further. A false figure is provable by anyone with the keys, to the unit, and costs its trader 60% of his bond at least (40% to the prover, 20% burned). An unchecked figure is only as good as its bond. One account can't prove it isn't the luckiest of ten, and the board says so, next to a deflated Sharpe.
 
 ## Do this, see that
 
@@ -56,14 +56,15 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 
 | Do | See |
 |---|---|
-| `npm run judge` | Everything free in about 4 minutes, ending in a pass/fail table |
-| `npm run attack` | 222 attack checks on the real wasm, in about 10 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
-| `npm run attack -- --sandbox` | The same attacks on a real local NEAR node, about 13 minutes |
+| `npm run judge` | Everything free in about 3 minutes, ending in a pass/fail table |
+| `npm run attack` | @@ATTACKS@@ attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
+| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: @@SANDBOX@@ checks, minus the ones that need the local host's controls, about 15 minutes |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto |
-| `npm run mutate` | Needs Rust. Breaks 50 security-critical lines one at a time and rebuilds: `50/50 mutants caught`. Last log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust. Breaks @@MUTANTS@@ security-critical lines one at a time and rebuilds: `@@MUTANTS@@/@@MUTANTS@@ mutants caught`. Last log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction |
 | `npm run verify` | Re-reads the testnet deployment from the chain: code hash, slashed traders, the hash chain recomputed, feeds' labels |
@@ -78,7 +79,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 1. **The board.** Seven books. PnL, bond, age, trades, buyers, how many epochs a past buyer could check, and a deflated Sharpe with the number of assumed journals you choose. See that the top number comes with a bond. "One of these numbers is false."
 2. **`lucky-seven`.** The public journal is black bars with real ciphertext inside. Buy seven days. A one-time key is made in the tab, and the trader's agent, played by the page, wraps the nodes.
 3. **The reader.** The ruler draws what you bought. Entries in the window decrypt. **"Try to open it anyway"** on the next day's entry tries every key your window can derive, and none opens.
-4. **Check the figures.** Your tab recomputes each epoch. They don't match. **"Prove it"** runs `audit_open`, `audit_step` and `audit_conclude`. The trader is slashed, half the bond is yours, and the board now says so for good.
+4. **Check the figures.** Your tab recomputes each epoch. They don't match. **"Prove it"** runs `audit_open`, `audit_step` and `audit_conclude`. The trader is slashed, 40% of the bond is yours, and the board now says so for good.
 5. Tick **"let this trader send garbage"** on another book, buy, and dispute.
 
 All of it runs **the real contract wasm in your tab** on a local chain with no gas metering (`docs/decisions/0007`). Journals are SEEDED, and every page says so. Reloading restarts the chain. "Proof" lists the testnet run and reads the testnet contract live.
@@ -92,6 +93,10 @@ Contract [`@@CONTRACT@@`](https://testnet.nearblocks.io/address/@@CONTRACT@@). S
 @@TXTABLE@@
 
 Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a funded account in your keychain).
+
+## What a review found
+
+After the attack suite and the mutants all passed, a separate AI reviewer read the contract cold, and found seven real problems they had missed. The worst let any buyer slash an honest trader. All are fixed and tested: [`docs/research/review-2026-11-05.md`](docs/research/review-2026-11-05.md). Counts here say the checks are load-bearing, not that the checks are complete. **No human has audited this contract.**
 
 ## How NEAR is used, concretely
 
@@ -114,7 +119,7 @@ Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a fun
 - **A dispute publishes.** Revealing the one-time secret makes that sale's nodes public, so a false dispute gives the window away. The griefer loses a deposit of at least the price to the trader, but the leak has no fix short of zero knowledge. An audit publishes one epoch's trades, which is why a trader can't be slashed without them.
 - **One account can't prove it isn't one of ten.** Bond, age, trades and the deflated Sharpe price that doubt.
 - **A buyer count is only as real as what it costs to fake.** A trader buying from himself pays only gas.
-- **Slashing yourself recovers half the bond** through a second account. The rest backs buyers' refunds or stays locked. So a lie with no buyers costs half the bond.
+- **Slashing yourself recovers up to 40% of the bond** through a fresh second account, and more with a window that account has held through the challenge period, with its own money in escrow. 20% always burns. So a lie is never free, but it isn't always the full bond (`docs/decisions/0012`).
 - **A journal is a signal record.** An entry committed before the outcome is a valid record even if never executed. Only an entry with a settlement reference shows a fill, and real confidential trades live on mainnet, with history invite-only.
 - **A figure with no buyers is checked by nobody.** Only its bond stands behind it, unless the attested job has run, and that's SIMULATED until it runs in an enclave.
 - **Recorded prices are trusted to the recorder.** A proven feed is only as dense as its relayers: a trader could try to relay only favourable rounds (`docs/decisions/0010`).
@@ -132,7 +137,7 @@ Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a fun
 | Paying and access | Pay, then the seller checks and admits. No escrow yet (its own README says so) | One sale in the contract: escrow, delivery, dispute, refund |
 | Where it runs | **Mainnet, real USDC, the real Agent API.** Further along than this | Testnet and a sandbox |
 | Copies | Dry quotes, inside owner-signed policies enforced by the Agent API | A real signed `token_diff` against the Intents wasm in a sandbox, plus live dry quotes. Limits are the app's, not a signed policy |
-| Trust in the journal | NOVA's TEE and contract for keys | Only the chain, and SHA-256. x25519 for the wrap |
+| Trust in the journal | NOVA's TEE and contract for keys | Only the chain, SHA-256 and ChaCha20. x25519 for the wrap |
 
 Others in the field, as of Nov 5 (145 entries, read from the hackathon's API): nobody else found building this exact design. GitHub search misses private repos, and most teams submit late, so that's a floor.
 

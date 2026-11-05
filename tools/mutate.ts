@@ -22,7 +22,7 @@ const MUTANTS: M[] = [
   { name: "commit_entry lets an entry into an epoch that's over", file: `${K}journal.rs`, from: `require!(epoch == self.epoch_of_slot(current), "that slot's epoch is over");`, to: "" },
   { name: "post_epoch takes a figure before the epoch ends", file: `${K}journal.rs`, from: `require!(now >= ended, "that epoch hasn't ended");`, to: "" },
   { name: "post_epoch takes a figure after the grace", file: `${K}journal.rs`, from: `require!(now <= ended + self.config.post_grace_secs as u64 * 1000, "too late: that epoch's posting grace is over");`, to: "" },
-  { name: "buy_window takes a low-order one-time key", file: `${K}sale.rs`, from: `require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");\n        let (first_slot`, to: `let (first_slot` },
+  { name: "buy_window takes a low-order one-time key", file: `${K}sale.rs`, from: `require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");\n        self.refuse_known_bad`, to: `self.refuse_known_bad` },
   { name: "deliver takes a low-order ephemeral key", file: `${K}sale.rs`, from: `require!(!low_order(&eph.0), "that ephemeral key is a low-order point");`, to: "" },
   { name: "anyone can deliver", file: `${K}sale.rs`, from: `require!(who == t.account, "only this window's trader can deliver");`, to: "" },
   { name: "delivery before the window is near is allowed", file: `${K}sale.rs`, from: `require!(now >= earliest, "too early: until the window is near, the token can still be resold");`, to: "" },

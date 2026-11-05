@@ -66,7 +66,7 @@ export function Proof() {
 
       <h2>Run it</h2>
       <pre>{`git clone … && cd near-keyhole && npm ci
-npm run judge      # everything free, about 5 minutes, ends in a pass/fail table
+npm run judge      # everything free, about 3 minutes, ends in a pass/fail table
 npm run attack     # every attack, against the real wasm
 npm run demo       # the complete moment on a local NEAR node, with gas
 npm run copy       # the copy trade, against the mainnet intents.near wasm

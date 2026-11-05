@@ -242,7 +242,7 @@ export function Reader({ id }: { id: number }) {
                   <span className="when">{timeOf(Number(e.at_ms))}</span>
                   <span className="body">
                     <span className="trade"><Decrypted text={entry ? line(entry) : "malformed: void by the PnL rule"} ct={e.ct} /></span>
-                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}</span> : null}
+                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="An entry carrying a settlement reference shows a real fill. Every seeded journal is a signal record."> {entry.flags & 1 ? "settled" : "signal record"}</em></span> : null}
                     {entry ? (
                       <span className="copy-row">
                         <button className="link" onClick={() => getQuote(e, entry)}>Quote a copy</button>

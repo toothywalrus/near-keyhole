@@ -81,7 +81,6 @@ record(`lucky posts a LIE: ${usd(LIE)} (truth: ${usd(figL.pnl_e6)})`, await luck
 record("mallory posts an empty epoch", await mallory.post(e0, 0n));
 
 say(`\n== Epoch ${e0 + 1}: the day after. ==`);
-const e1 = e0 + 1;
 const nextDay = await vega.write(trade(0, -3, 2410, "taking profit: past any window ending yesterday"));
 record("vega writes the next day's entry", nextDay);
 await w.rounds();
@@ -152,8 +151,8 @@ void refund;
 
 say("\n== Garbage for sale: the dispute the kill test was about, on the real contract. ==");
 const one3 = buyerKey();
-const q3 = await w.chain.view<string>("quote", { trader: mallory.account, first_epoch: e0, last_epoch: e1 });
-const b3 = record("she buys two epochs of mallory's journal", await w.chain.call(buyer, "buy_window", { trader: mallory.account, first_epoch: e0, last_epoch: e1, buyer_pub: hex(one3.pub) }, BigInt(q3) + near("0.02")));
+const q3 = await w.chain.view<string>("quote", { trader: mallory.account, first_epoch: e0, last_epoch: e0 });
+const b3 = record("she buys a window of mallory's journal", await w.chain.call(buyer, "buy_window", { trader: mallory.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one3.pub) }, BigInt(q3) + near("0.02")));
 record("mallory delivers garbage for one node", await mallory.deliver(Number(b3.value), { garbage: 0 }));
 const t3 = await w.chain.view<TokenRec>("get_token", { token_id: Number(b3.value) });
 must(new WindowReader(t3, one3).verifyNodes()[0] === false, "she sees it at once: that node doesn't match its commitment");
