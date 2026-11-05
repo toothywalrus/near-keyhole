@@ -61,13 +61,13 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 | Do | See |
 |---|---|
 | `npm run judge` | Everything free in about 3 minutes, ending in a pass/fail table |
-| `npm run attack` | 295 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
-| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 198 checks (the other 97 need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
+| `npm run attack` | 309 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
+| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 198 checks (the other 111 need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto |
-| `npm run mutate` | Needs Rust. Breaks 75 security-critical lines one at a time and rebuilds: `75/75 mutants caught` in one pass, about 25 minutes. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust. Breaks 78 security-critical lines one at a time and rebuilds: `78/78 mutants caught` in one pass, about 25 minutes. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction (measured before `0013`, which left the audit path unchanged). About 10 minutes, most of it waiting for a real epoch to end on the node |
@@ -96,24 +96,24 @@ Contract [`app.keyhole-g1zo8i.testnet`](https://testnet.nearblocks.io/address/ap
 
 | Step | Tgas | Transaction |
 |---|---:|---|
-| vega registers: a bond, a root committing to a key tree | 2.65 | [`AbTZDaA1hy…`](https://testnet.nearblocks.io/txns/AbTZDaA1hyTNoi8HjsgvXp2xhJ6cfTW3W4qwkQ1HjYQn) |
-| vega writes: long ETH | 3.69 | [`GENQPRZWe1…`](https://testnet.nearblocks.io/txns/GENQPRZWe171YkfnSBzpd2LaQ3Zski1gS9AFu7mq9ePj) |
-| lucky posts a LIE: $25380.47 (truth: $380.47) | 3.42 | [`kNe4hNjVpF…`](https://testnet.nearblocks.io/txns/kNe4hNjVpFTgFPSWEHsuRnE4fRUSqKGnnjhcHaDUSNF) |
-| buy epoch 1 of vega's journal, a NEP-171 token | 7.61 | [`8iGkrtF7Mw…`](https://testnet.nearblocks.io/txns/8iGkrtF7MwFEWci21odczaMDBiSMnG1Jwuhp5SbNnXXi) |
-| vega delivers: nodes wrapped to her one-time key | 8.41 | [`F4Th1YrwZU…`](https://testnet.nearblocks.io/txns/F4Th1YrwZUmPUg5tu8XZCP4SXA6jX6MnUmmUJwPjfe2u) |
-| buy epoch 1 of lucky's journal | 7.63 | [`BrHVKPb8Py…`](https://testnet.nearblocks.io/txns/BrHVKPb8PyA19Rdr9pzemDNhtZbDzTQHmQ4zy6hdbMa3) |
-| lucky delivers honestly: the journal itself isn't the lie | 8.41 | [`8oAtw3UAjd…`](https://testnet.nearblocks.io/txns/8oAtw3UAjdGRNSr4tFNv1wVszdD7t2Nv296ABkvvwD1x) |
-| audit_open: the deposit goes at risk | 3.32 | [`H3qGfB8ECL…`](https://testnet.nearblocks.io/txns/H3qGfB8ECLB3WvYvuVhhQKGoQ1Lk49KUWtfgwqMo9VF1) |
-| audit_step: 2 entries opened in the contract | 3.10 | [`EbJvp29n9w…`](https://testnet.nearblocks.io/txns/EbJvp29n9wbYNbHkPiF1R5DhKxChkMw4yWndoEcM4kn7) |
-| audit_conclude: recomputed, compared, slashed | 3.41 | [`AzJbf47m7i…`](https://testnet.nearblocks.io/txns/AzJbf47m7igN9BLxrRosHoPLGZShV4swAm66ERFJ4CSh) |
-| claim_refund: the escrow back | 2.93 | [`7iFJAAvSLd…`](https://testnet.nearblocks.io/txns/7iFJAAvSLdNjjxHJdP5oqyrkSkQ2hraSBVjDXfD4C3Q5) |
-| withdraw | 5.40 | [`9crhRhWJzs…`](https://testnet.nearblocks.io/txns/9crhRhWJzsxkdFXGKC6HkJeKoR6BezUFnJEQ9pFvuVk9) |
-| she buys a window of mallory's journal | 7.64 | [`GbwvFAwTSH…`](https://testnet.nearblocks.io/txns/GbwvFAwTSHLoHFikBBTY5AS4iDrmEmjs6LXYko8g1BTC) |
-| mallory delivers garbage for one node | 8.41 | [`DSZ5caRqKR…`](https://testnet.nearblocks.io/txns/DSZ5caRqKRjNBJrzrdYphQmtHKz2uDUwd8mLfuXfPa4f) |
-| dispute_wrap: secret revealed, the contract unwraps and compares | 10.42 | [`HsVMANmSd1…`](https://testnet.nearblocks.io/txns/HsVMANmSd1DShxc7BAehGAog3WNKoNSM2ceVfWgc4CGx) |
-| dispute_wrap with nothing wrong | 10.02 | [`aS9bFm8W2e…`](https://testnet.nearblocks.io/txns/aS9bFm8W2eP7AqsP8cTCid2n8SnHuxZP2RYmiwvwrgE) |
-| the runner submits the job's output | 3.45 | [`9Md4C6fsRB…`](https://testnet.nearblocks.io/txns/9Md4C6fsRBwvKYxhExXqkcw9xqaWjAgK8LTAUqeSUEv5) |
-| import_round: a real cross-contract read of the proven round | 6.67 | [`4dZwr3C75u…`](https://testnet.nearblocks.io/txns/4dZwr3C75uqj9L5nYZgrixgtq2sVL6Le8688sDuTcxgB) |
+| vega registers: a bond, a root committing to a key tree | 2.65 | [`D9iMUZFJ1n…`](https://testnet.nearblocks.io/txns/D9iMUZFJ1n5kv9agTr2qkwMGL39sN5TZbjJ9bXEFanvJ) |
+| vega writes: long ETH | 3.69 | [`9cd1wxmc72…`](https://testnet.nearblocks.io/txns/9cd1wxmc72a6pFvaKyHvFPXXukBWBZCQCKarR9Y7TsFV) |
+| lucky posts a LIE: $25380.47 (truth: $380.47) | 3.42 | [`BWjN1svmfn…`](https://testnet.nearblocks.io/txns/BWjN1svmfnutr3Pnpy2b5YtFdxvoSRpJR949JDvbLVvf) |
+| buy epoch 1 of vega's journal, a NEP-171 token | 7.61 | [`H2QQFYDoPZ…`](https://testnet.nearblocks.io/txns/H2QQFYDoPZE6Dkpjx8ftQg8SM8eC84ujmN1KaVcYpDQm) |
+| vega delivers: nodes wrapped to her one-time key | 8.41 | [`H5vJfcqZaX…`](https://testnet.nearblocks.io/txns/H5vJfcqZaX4p5zXWaoh53ZRnftwM2L4nJY5Dg9m1susq) |
+| buy epoch 1 of lucky's journal | 7.64 | [`F43QjxHrt1…`](https://testnet.nearblocks.io/txns/F43QjxHrt1SFeS1bNTHTGFKgAunPY2Z2v52bqSUe846N) |
+| lucky delivers honestly: the journal itself isn't the lie | 8.41 | [`HaNiv6GN6Y…`](https://testnet.nearblocks.io/txns/HaNiv6GN6YXwokwrHvmQ5wA29u6ZZmpyqeLP67rACx39) |
+| audit_open: the deposit goes at risk | 3.33 | [`HN2v1sAKS7…`](https://testnet.nearblocks.io/txns/HN2v1sAKS7CC1ukdVWG3pevQTutaAVQkgvDph8BoBpqX) |
+| audit_step: 2 entries opened in the contract | 3.10 | [`E7ddKoHifC…`](https://testnet.nearblocks.io/txns/E7ddKoHifCmJNMgXFCJ5mg5uH5d59Waugtz46XWnzFRx) |
+| audit_conclude: recomputed, compared, slashed | 3.42 | [`5EhD1PQ3Wn…`](https://testnet.nearblocks.io/txns/5EhD1PQ3Wn1P1PuSmqmfTUYDKkF7yUdTcCEpsuMhAZyM) |
+| claim_refund: the escrow back | 2.93 | [`HFVYsvn54J…`](https://testnet.nearblocks.io/txns/HFVYsvn54JJ1H4TvvHH4y2PH7JuJpyaqDhGQWHH9Twdu) |
+| withdraw | 5.40 | [`AMdHhhVX8v…`](https://testnet.nearblocks.io/txns/AMdHhhVX8vq4Z8RtJt3FuVppVfWYXQk9yLH6rmzvBtXn) |
+| she buys a window of mallory's journal | 7.64 | [`4AFiFh36hu…`](https://testnet.nearblocks.io/txns/4AFiFh36huStopxaxLVFHJSbgVzKvdH6bvzXX3jTubSZ) |
+| mallory delivers garbage for one node | 8.41 | [`9DF9BkMuTy…`](https://testnet.nearblocks.io/txns/9DF9BkMuTy7K1BdyfE7JVT41ufdyd13rMroZWfTEoG3g) |
+| dispute_wrap: secret revealed, the contract unwraps and compares | 10.42 | [`8jVc4xfLuD…`](https://testnet.nearblocks.io/txns/8jVc4xfLuDy7ncchnmWtRf4uwvkaithATSaaB45U3WZa) |
+| dispute_wrap with nothing wrong | 10.03 | [`5hngZzdQRB…`](https://testnet.nearblocks.io/txns/5hngZzdQRBbCykg9wuc4HkMgbJgKxR6eUDQ5BwD9V7o) |
+| the runner submits the job's output | 3.45 | [`GVzJ9DrHDe…`](https://testnet.nearblocks.io/txns/GVzJ9DrHDeAykD7Qf7pFqARUv8CAQU3wMocHT6tqKrsk) |
+| import_round: a real cross-contract read of the proven round | 6.67 | [`3LYvkmgkJa…`](https://testnet.nearblocks.io/txns/3LYvkmgkJapietYgDK37xtvktquSWLh96ieipGcyXbjG) |
 
 Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a funded account in your keychain).
 
