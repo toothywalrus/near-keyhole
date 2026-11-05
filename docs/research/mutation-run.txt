@@ -1,4 +1,4 @@
-Mutating 73 security-critical lines. The attack suite must notice each.
+Mutating 75 security-critical lines. The attack suite must notice each.
 
 ✓ caught: dispute_wrap accepts a secret that isn't the buyer's key       by "dispute: a wrong secret proves nothing and is refused" and 5 more
 ✓ caught: dispute_wrap slashes when the node matches, not when it doesn't by "GARBAGE KEY: the contract unwraps, compares and slashes" and 7 more
@@ -19,20 +19,20 @@ Mutating 73 security-critical lines. The attack suite must notice each.
 ✓ caught: a bond needn't cover a sale                                    by "COVERAGE: a sale the bond can't cover is refused"
 ✓ caught: a settled window's escrow can be taken twice                   by "settling twice is refused: amount underflow" and 2 more
 ✓ caught: settle before the challenge window ends                        by "settling before the challenge window ends is refused: ACCEPTED" and 2 more
-✗ SURVIVED: anyone can claim someone's refund
+✓ caught: anyone can claim someone's refund                              by "nobody else can claim his escrow: ACCEPTED" and 2 more
 ✓ caught: a refused delivery pays its penalty to the holder instead of burning it by "the refund is the whole price and not a yocto more: the penalty burns," and 1 more
 ✓ caught: a breached window still pays the trader                        by "the holder gets the whole price, whatever the size of the bond: " and 1 more
 ✓ caught: a breach burns nothing                                         by "and a penalty burns from the bond: nobody collects it" and 1 more
-✗ SURVIVED: a trader below the minimum bond keeps selling
+✓ caught: a trader below the minimum bond keeps selling                  by "BOND ESCAPE: below the minimum, the trader isn't selling"
 ✓ caught: a paid window counts as checkable before any keys exist        by "CHECKABLE: a refused window counts as refused on its epoch, not as som"
 ✓ caught: a refusal leaves no mark on its epochs                         by "CHECKABLE: a refused window counts as refused on its epoch, not as som"
 ✓ caught: dispute_entry ends at settlement                               by "JUNK ENTRY: the holder can still prove it after settlement" and 2 more
 ✓ caught: cancelling an audit returns the whole deposit                  by "the auditor can give up: half the deposit back while the trader stands"
-✗ SURVIVED: anyone can cancel someone's audit
+✓ caught: anyone can cancel someone's audit                              by "nobody can cancel someone else's audit: ACCEPTED" and 1 more
 ✓ caught: a missed epoch costs nothing on the record                     by "SKIPPED LOSER: the missed epoch counts against him, at the worse of hi" and 1 more
 ✓ caught: silence after the last figure isn't counted                    by "and silence after his last figure counts too, once the grace is over: "
 ✓ caught: a refused window costs nothing on the record                   by "REFUSED: two refused epochs cost him two charges on his public record"
-✗ SURVIVED: a stand-in earns the enclave's label
+✓ caught: a stand-in earns the enclave's label                           by "STAND-IN: a callback from any other contract can't earn the enclave's "
 ✓ caught: the floor never triggers                                       by "FLOOR: a window past the floor goes back to its holder" and 3 more
 ✓ caught: a missing figure doesn't count as a breach                     by "LAPSE: a window with a missing figure goes back to its holder" and 1 more
 ✓ caught: buy_resale keeps the old holder's key                          by "RESALE RACE: a delivery for a key that's no longer the holder's is ref" and 3 more
@@ -40,7 +40,9 @@ Mutating 73 security-critical lines. The attack suite must notice each.
 ✓ caught: anyone can transfer a token                                    by "a transfer by someone else is refused: ACCEPTED" and 1 more
 ✓ caught: a transfer keeps the old one-time key                          by "the transfer clears the old one-time key: " and 4 more
 ✓ caught: anyone can dispute                                             by "dispute: only the holder can dispute" and 4 more
-✗ SURVIVED: a dispute needs no deposit
+✓ caught: a dispute needs no deposit                                     by "dispute_entry: a deposit below the price is refused" and 4 more
+✓ caught: dispute_wrap needs no deposit                                  by "dispute: a deposit below the price is refused" and 2 more
+✓ caught: anyone can dispute a wrap                                      by "dispute: only the holder can dispute" and 4 more
 ✓ caught: disputes never end                                             by "a dispute after the challenge window is refused: ACCEPTED"
 ✓ caught: dispute_entry takes any node                                   by "dispute_entry: a node that isn't the delivered one is refused" and 3 more
 ✓ caught: dispute_entry slashes when the entry opens                     by "dispute_entry on the entry that does open is dismissed: the entry open" and 4 more
@@ -74,10 +76,4 @@ Mutating 73 security-critical lines. The attack suite must notice each.
 ✓ caught: the exposure limit is gone                                     by "EXPOSURE: the contract agrees to the unit, voids included"
 ✓ caught: an entry's tag isn't checked when opening                      by "audit: a bad key is refused and records nothing" and 13 more
 
-68/73 mutants caught, in 1453 s
-Survived:
-  anyone can claim someone's refund
-  a trader below the minimum bond keeps selling
-  anyone can cancel someone's audit
-  a stand-in earns the enclave's label
-  a dispute needs no deposit
+75/75 mutants caught, in 1478 s
