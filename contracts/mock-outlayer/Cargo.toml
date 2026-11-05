@@ -1,0 +1,18 @@
+[package]
+name = "mock-outlayer"
+description = "SANDBOX ONLY: OutLayer's request_execution / resolve_execution shape with real yield/resume, so the contract's production callback path runs end to end without OutLayer"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(near)']

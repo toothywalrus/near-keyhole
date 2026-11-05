@@ -11,6 +11,8 @@ use std::collections::HashMap;
 
 const GAS_ON_TRANSFER: Gas = Gas::from_tgas(25);
 const GAS_RESOLVE: Gas = Gas::from_tgas(10);
+/// What each token prepaid at mint for its next holder's entry in `owned`.
+pub const TRANSFER_ALLOWANCE_BYTES: u64 = 200;
 
 #[near(serializers = [json])]
 pub struct NftContractMetadata {
@@ -130,7 +132,7 @@ impl Keyhole {
         let before = env::storage_usage();
         self.transfer(&sender, &receiver_id, &token_id, approval_id, memo);
         self.flush_all();
-        require!(env::storage_usage() <= before + 16, "the receiver needs room: use buy_resale, which pays for it");
+        require!(env::storage_usage() <= before + TRANSFER_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
     }
 
     #[payable]

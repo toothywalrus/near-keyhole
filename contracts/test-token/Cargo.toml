@@ -1,0 +1,19 @@
+[package]
+name = "test-token"
+description = "SANDBOX ONLY: a small NEP-141 token that anyone can mint, standing in for wNEAR and USDC in the Intents sandbox"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+near-contract-standards = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(near)']

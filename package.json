@@ -2,15 +2,24 @@
   "name": "near-keyhole",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
-  "workspaces": ["web"],
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "killtest": "tsx tools/killtest.ts"
+    "killtest": "tsx tools/killtest.ts",
+    "build": "sh tools/build.sh",
+    "attack": "tsx tools/attack.ts",
+    "copy": "tsx tools/copy-sandbox.ts",
+    "test": "tsx --test lib/test/*.test.ts"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
+    "@scure/base": "^2.0.0",
     "near-api-js": "7.4.0",
     "tsx": "4.23.15"
   },

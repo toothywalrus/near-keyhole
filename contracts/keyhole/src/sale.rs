@@ -132,7 +132,10 @@ impl Keyhole {
         self.put_trader(t);
         self.obligations = checked_add(self.obligations, price);
         self.flush_all();
-        self.charge_storage(before, attached - price, &who);
+        // Every token carries a small allowance, so a plain NEP-171 transfer (one yocto) can pay for the receiver's entry in `owned`.
+        let allowance = nft::TRANSFER_ALLOWANCE_BYTES as u128 * env::storage_byte_cost().as_yoctonear();
+        require!(attached >= checked_add(price, allowance), "attach a little more, for storage");
+        self.charge_storage(before, attached - price - allowance, &who);
         nft::emit_mint(&who, token_id);
         token_id
     }
@@ -316,8 +319,16 @@ impl Keyhole {
     }
 
     pub(crate) fn disown(&mut self, who: &AccountId, id: u64) {
-        if let Some(v) = self.owned.get_mut(who) {
-            v.retain(|x| *x != id);
+        let empty = match self.owned.get_mut(who) {
+            Some(v) => {
+                v.retain(|x| *x != id);
+                v.is_empty()
+            }
+            None => false,
+        };
+        // No empty lists left behind: a token moving from hand to hand can't grow the state without bound.
+        if empty {
+            self.owned.remove(who);
         }
     }
 
@@ -327,16 +338,12 @@ impl Keyhole {
         checked_mul(per_epoch, (last_epoch - first_epoch + 1) as u128)
     }
 
-    /// `price * min(bond, liability) / liability`, without overflowing u128 on yoctoNEAR amounts: the fraction is taken in parts per 10^12.
-    /// Rounding is down, so claims can never exceed the bond.
+    /// `price * min(bond, liability) / liability`, rounded down, so claims can never exceed the bond.
     pub(crate) fn pro_rata(&self, price: u128, bond: u128, liability: u128) -> u128 {
         if liability == 0 {
             return 0;
         }
-        const PARTS: u128 = 1_000_000_000_000;
-        let covered = bond.min(liability);
-        let fraction = checked_mul(covered, PARTS) / liability;
-        checked_mul(price / PARTS, fraction) + checked_mul(price % PARTS, fraction) / PARTS
+        keyhole_core::mul_div(price, bond.min(liability), liability).unwrap_or_else(|| env::panic_str("amount overflow"))
     }
 
     /// Did this window lose past the floor, or lack a figure?

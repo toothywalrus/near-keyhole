@@ -142,6 +142,8 @@ pub enum AttestKind {
 #[derive(Clone, Debug)]
 pub struct Attested {
     pub kind: AttestKind,
+    /// The account that delivered it: the local runner, or the OutLayer contract. In the sandbox that's a mock, and its name says so.
+    pub via: AccountId,
     pub pnl_e6: I128,
     pub job_sha256: String,
     pub at_ms: U64,

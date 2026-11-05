@@ -134,6 +134,23 @@ proptest! {
         prop_assert_eq!(entry::open::<S>(&key, seq, slot.wrapping_add(1), &ct, &tag), None);
     }
 
+    /// `mul_div` agrees with exact arithmetic where that's checkable, rounds down, and is never wrong near the top of the range.
+    #[test]
+    fn mul_div_is_exact(a in any::<u128>(), b in any::<u128>(), d in 1u128..) {
+        match keyhole_core::mul_div(a, b, d) {
+            Some(q) => {
+                // Check q * d <= a * b < (q + 1) * d in 256 bits, by comparing (hi, lo) pairs.
+                let p = wide(a, b);
+                let low = wide(q, d);
+                prop_assert!(low <= p);
+                if let Some(q1) = q.checked_add(1) {
+                    prop_assert!(wide(q1, d) > p);
+                }
+            }
+            None => prop_assert!(wide(a, b).0 >= d),
+        }
+    }
+
     /// `parse` never panics on arbitrary bytes.
     #[test]
     fn parse_is_total(p in prop::collection::vec(any::<u8>(), 0..200)) {
@@ -163,6 +180,24 @@ proptest! {
         prop_assert_eq!(total, qty as i128 * (m as i128 - p as i128));
         prop_assert_eq!(pnl_e6(total), (qty as i128 * (m as i128 - p as i128)).div_euclid(10_000_000_000));
     }
+}
+
+/// a * b as (hi, lo), for the test above.
+fn wide(a: u128, b: u128) -> (u128, u128) {
+    let m = u64::MAX as u128;
+    let (a1, a0, b1, b0) = (a >> 64, a & m, b >> 64, b & m);
+    let (p00, p01, p10, p11) = (a0 * b0, a0 * b1, a1 * b0, a1 * b1);
+    let mid = (p00 >> 64) + (p01 & m) + (p10 & m);
+    ((p11 + (p01 >> 64) + (p10 >> 64) + (mid >> 64)), (p00 & m) | (mid << 64))
+}
+
+#[test]
+fn mul_div_known_values() {
+    assert_eq!(keyhole_core::mul_div(10, 10, 4), Some(25));
+    assert_eq!(keyhole_core::mul_div(u128::MAX, u128::MAX, u128::MAX), Some(u128::MAX));
+    assert_eq!(keyhole_core::mul_div(u128::MAX, 1, 2), Some(u128::MAX / 2));
+    assert_eq!(keyhole_core::mul_div(1, 1, 0), None);
+    assert_eq!(keyhole_core::mul_div(u128::MAX, 2, 1), None);
 }
 
 #[test]

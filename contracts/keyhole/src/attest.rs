@@ -58,7 +58,7 @@ impl Keyhole {
     /// A registered runner reports what the job printed. It is always labeled `SimulatedLocal`: this method has no other way to write it.
     pub fn submit_attested(&mut self, output: JobOutput) {
         require!(self.runners.contains_key(&env::predecessor_account_id()), "not a registered runner");
-        self.write_attested(output, AttestKind::SimulatedLocal);
+        self.write_attested(output, AttestKind::SimulatedLocal, env::predecessor_account_id());
     }
 
     /// The trader asks OutLayer to run the job over one epoch. The key material reaches the job as an OutLayer secret, inside the enclave.
@@ -95,7 +95,7 @@ impl Keyhole {
             }
         };
         let body = value.get("Json").cloned().unwrap_or(value);
-        let out: JobOutput = match serde_json::from_value(body) {
+        let mut out: JobOutput = match serde_json::from_value(body) {
             Ok(o) => o,
             Err(_) => {
                 env::log_str("OutLayer's result isn't a job output");
@@ -106,13 +106,16 @@ impl Keyhole {
             env::log_str("OutLayer's result is for another epoch");
             return false;
         }
-        self.write_attested(out, AttestKind::OutLayerTee);
+        // The hash the worker was pinned to, never the job's own word for it.
+        let o = self.outlayer.clone().unwrap_or_else(|| env::panic_str("no OutLayer configured"));
+        out.job_sha256 = o.wasm_hash;
+        self.write_attested(out, AttestKind::OutLayerTee, o.contract);
         true
     }
 }
 
 impl Keyhole {
-    fn write_attested(&mut self, out: JobOutput, kind: AttestKind) {
+    fn write_attested(&mut self, out: JobOutput, kind: AttestKind, via: AccountId) {
         let id = self.tid(&out.trader);
         let t = self.trader(id);
         let mut rec = self.epoch_rec(id, out.epoch);
@@ -125,7 +128,7 @@ impl Keyhole {
         } else {
             require!(t.head == out.head || t.next_seq.0 == 0, "the job read another journal");
         }
-        rec.attested = Some(Attested { kind, pnl_e6: out.pnl_e6, job_sha256: out.job_sha256, at_ms: U64(self.now_ms()) });
+        rec.attested = Some(Attested { kind, via, pnl_e6: out.pnl_e6, job_sha256: out.job_sha256, at_ms: U64(self.now_ms()) });
         self.epochs.insert(Self::key(id, out.epoch as u64), rec);
     }
 }

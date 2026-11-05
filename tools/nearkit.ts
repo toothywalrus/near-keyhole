@@ -24,6 +24,8 @@ function panicOf(text: string): string {
 
 export class Net {
   provider: JsonRpcProvider;
+  /** On a one-validator sandbox there's nothing to wait for beyond execution, which makes transactions several times faster. */
+  fast = false;
   constructor(public rpc: string) {
     this.provider = new JsonRpcProvider({ url: rpc });
   }
@@ -31,7 +33,7 @@ export class Net {
     return { id, key, account: new Account(id, this.provider, key as KeyPairString) };
   }
   view<T = any>(contractId: string, method: string, args: Record<string, unknown> = {}): Promise<T> {
-    return this.provider.callFunction({ contractId, method, args }) as Promise<T>;
+    return this.provider.callFunction({ contractId, method, args, ...(this.fast ? { blockQuery: { finality: "optimistic" } } : {}) } as never) as Promise<T>;
   }
   async balance(id: string): Promise<bigint> {
     return BigInt((await this.provider.viewAccount({ accountId: id })).amount);
@@ -51,7 +53,7 @@ export class Net {
   /** Call a contract; a refusal comes back as `{ok:false, reason}` with the contract's own words. */
   async call(who: Named, contractId: string, method: string, args: Record<string, unknown>, deposit: bigint = 0n, gas: bigint = 300n): Promise<CallResult> {
     try {
-      const r = await who.account.callFunctionRaw({ contractId, methodName: method, args, deposit, gas: gas * 10n ** 12n, waitUntil: "FINAL" });
+      const r = await who.account.callFunctionRaw({ contractId, methodName: method, args, deposit, gas: gas * 10n ** 12n, waitUntil: this.fast ? "EXECUTED_OPTIMISTIC" : "FINAL" });
       return this.outcome(r);
     } catch (e) {
       return { ok: false, reason: panicOf(String((e as Error)?.message ?? e)), logs: [], burntGas: 0n, receiptGas: [] };
@@ -121,6 +123,7 @@ export async function startSandbox(): Promise<Sandbox> {
   process.on("exit", stop);
   const rpc = `http://127.0.0.1:${rpcPort}`;
   const net = new Net(rpc);
+  net.fast = true;
   const validator = JSON.parse(readFileSync(join(home, "validator_key.json"), "utf8"));
   for (let i = 0; i < 120; i++) {
     try {

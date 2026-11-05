@@ -133,6 +133,7 @@ export class Timing {
     const [config, clock] = await Promise.all([chain.view<Config>("get_config"), chain.view<Clock>("clock")]);
     return new Timing(config, Number(clock.genesis_ms));
   }
+  get slotMsOf(): number { return this.slotMs; }
   get epochMs(): number { return this.config.epoch_slots * this.config.slot_secs * 1000; }
   get slotMs(): number { return this.config.slot_secs * 1000; }
   epochStart(e: number): number { return this.genesisMs + e * this.epochMs; }

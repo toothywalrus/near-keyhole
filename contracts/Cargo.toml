@@ -1,5 +1,5 @@
 [workspace]
-members = ["killtest", "core", "keyhole"]
+members = ["killtest", "core", "keyhole", "mock-outlayer", "test-token"]
 resolver = "2"
 
 [workspace.package]
@@ -9,6 +9,7 @@ repository = "https://github.com/toothywalrus/near-keyhole"
 
 [workspace.dependencies]
 near-sdk = "=5.29.1"
+near-contract-standards = "=5.29.1"
 
 [profile.release]
 codegen-units = 1
