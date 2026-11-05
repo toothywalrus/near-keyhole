@@ -36,3 +36,4 @@ Repo-specific specifics:
 - **The contract's state layout is load-bearing for the testnet deploy.** A new field on a stored struct breaks reads of old records. The demo deploy is cheap to replace; `tools/testnet.ts` deploys only to an empty account.
 - **The mutation tool matches source lines exactly.** Change a mutated line and `npm run mutate` says the line is stale.
 - **The review in `docs/research/review-2026-11-05.md` found bugs the suite missed.** Passing numbers say the checks are load-bearing, not complete. After a change to the money or the sale, get a cold read.
+- **Mutants build in their own target directory** (`tools/mutate.ts`). A shared one would leave a mutant at `near/keyhole/keyhole.wasm`. A clean rebuild of everything in `res/` matched byte for byte on 2026-11-05.

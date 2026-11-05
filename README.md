@@ -191,6 +191,6 @@ Others in the field, as of Nov 5 (145 entries, read from the hackathon's API): n
 
 ## Rebuild
 
-`npm run build -- keyhole test-token mock-outlayer killtest` needs Rust 1.93 (pinned) and `cargo-near`. The job: `cd job && cargo build --release --target wasm32-wasip2` on stable. The wasm in `res/` is what's deployed: `npm run verify` compares the code hash on testnet with it.
+`npm run build -- keyhole test-token mock-outlayer killtest` needs Rust 1.93 (pinned) and `cargo-near`. The job: `cd job && cargo build --release --target wasm32-wasip2` on stable. The wasm in `res/` is what's deployed: `npm run verify` compares the code hash on testnet with it. Rebuilt in an empty target directory on 2026-11-05 (cargo-near 0.22 on macOS arm64), all five files matched `res/SHA256SUMS` byte for byte.
 
 MIT licensed.

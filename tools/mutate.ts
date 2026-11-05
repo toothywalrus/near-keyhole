@@ -1,7 +1,7 @@
 // Mutation check: break one security-critical line of the contract, rebuild, and show that the attack suite notices. Every mutant must be caught.
 //   npm run mutate            all of them (needs Rust and cargo-near; about 10 s each)
 //   npm run mutate -- --quick the first 8
-// It works on a temporary copy of contracts/, so the repo is never touched.
+// It works on a temporary copy of contracts/ with a target directory of its own, so neither the repo nor anyone's build cache can pick up a mutant.
 import { execFileSync, spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -79,7 +79,7 @@ const QUICK = process.argv.includes("--quick");
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
 const list = only ? MUTANTS.filter((m) => m.name.includes(only)) : QUICK ? MUTANTS.slice(0, 8) : MUTANTS;
 const repo = new URL("..", import.meta.url).pathname;
-const env = { ...process.env, PATH: `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/opt/rustup/bin:${process.env.PATH}`, CARGO_TARGET_DIR: process.env.CARGO_TARGET_DIR ?? `${process.env.HOME}/dev/.cargo-target-r6` };
+const env = { ...process.env, PATH: `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/opt/homebrew/opt/rustup/bin:${process.env.PATH}`, CARGO_TARGET_DIR: process.env.KEYHOLE_MUTANT_TARGET ?? join(tmpdir(), "keyhole-mutants-target") };
 const work = mkdtempSync(join(tmpdir(), "keyhole-mutants-"));
 cpSync(join(repo, "contracts"), join(work, "contracts"), { recursive: true, filter: (s) => !s.includes("/target") });
 process.on("exit", () => rmSync(work, { recursive: true, force: true }));
