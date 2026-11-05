@@ -15,7 +15,14 @@ flags="--remap-path-prefix=$repo=/keyhole --remap-path-prefix=$CARGO_TARGET_DIR=
 touch core/src/*.rs */src/lib.rs
 for c in "$@"; do
   if [ "$c" = job ]; then
-    (cd "$repo/job" && RUSTFLAGS="$flags" cargo build --release --target wasm32-wasip2 >/dev/null 2>&1)
+    # The job is its own workspace, so cargo hashes its path dependency on the core by absolute path, and that hash shapes the binary. Build it from one fixed place.
+    fixed=/tmp/keyhole-reproducible-job
+    mkdir -p "$fixed/contracts"
+    rsync -a --delete "$repo/job/" "$fixed/job/" --exclude target
+    rsync -a --delete "$repo/contracts/core/" "$fixed/contracts/core/" --exclude target
+    sed 's/^members = .*/members = ["core"]/' "$repo/contracts/Cargo.toml" > "$fixed/contracts/Cargo.toml"
+    fixed="$(cd "$fixed" && pwd -P)"
+    (cd "$fixed/job" && RUSTFLAGS="--remap-path-prefix=$fixed=/keyhole --remap-path-prefix=$CARGO_TARGET_DIR=/target --remap-path-prefix=$HOME/.cargo/registry/src=/cargo" cargo build --release --target wasm32-wasip2 >/dev/null 2>&1)
     n=keyhole_pnl_job
     out="$CARGO_TARGET_DIR/wasm32-wasip2/release/keyhole-pnl-job.wasm"
   else
