@@ -2,7 +2,7 @@
 
 > Following a trader means trusting a screenshot. And once you've paid for a "viewing key", you're trusting them to revoke it, or to keep posting the truth.
 >
-> Keyhole: buy seven days of someone's private trades. You read exactly those seven days. The next day's entry stays sealed, with nobody revoking anything.
+> Keyhole: buy seven days of someone's private trade journal. You read exactly those seven days. The next day's entry stays sealed, with nobody revoking anything.
 >
 > In the demo, the trader at the top of the board posts a great PnL. A buyer does the sum, and the NEAR contract does it too: it opens the entries, prices them against the oracle, sees the lie and hands the buyer 40% of the bond. A dispute costs about 10 Tgas: no operator, no TEE.
 >

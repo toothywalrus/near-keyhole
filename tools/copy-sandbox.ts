@@ -120,7 +120,7 @@ try {
   const qtyE8 = (gotEth * 10n ** 8n) / 10n ** 6n;
   const fillE8 = BigInt(Math.round(traderPrice * 1e8));
   const w = await agent.write({ feed: 0, flags: FLAG_SETTLED, qty_e8: qtyE8, fill_e8: fillE8, settlement: hexToBytes(refHex(signedT)), note: "long ETH, filled by token_diff" });
-  check("the entry is written after the fill, carrying the signed intent's hash", w.ok, `settled badge: flag ${FLAG_SETTLED}, ref ${refHex(signedT).slice(0, 16)}…`);
+  check("the entry is written after the fill, carrying the signed intent's hash", w.ok, `his claim of a fill: flag ${FLAG_SETTLED}, ref ${refHex(signedT).slice(0, 16)}…`);
   await round(0, 2);
   await chain.advanceTo(timing.epochStart(e + 1));
   await round(0, 1);
