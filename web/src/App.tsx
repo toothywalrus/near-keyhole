@@ -34,7 +34,7 @@ export function App() {
       <div className="page">
         <header className="mast">
           <a className="logo" href="#/"><Glyph size={22} /><span>Keyhole</span></a>
-          <p className="motto">Sell a window into your private trades.<br />The PnL is bonded, and any buyer can prove it false.</p>
+          <p className="motto">Sell a window into your private trade journal.<br />The PnL is bonded, and any buyer can prove it false.</p>
           <nav>
             <a className={here === "" ? "on" : ""} href="#/">The board</a>
             <a className={here === "how" ? "on" : ""} href="#/how">How it holds</a>
