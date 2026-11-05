@@ -47,6 +47,8 @@ pub struct WindowToken {
     pub wrapped: Vec<H32>,
     pub commits: Vec<H32>,
     pub disputes_lost: u32,
+    /// Bit i: epoch `first_epoch + i` already had a figure when the window was bought.
+    pub known_mask: u32,
 }
 
 fn low_order(point: &[u8; 32]) -> bool {
@@ -71,6 +73,7 @@ impl Keyhole {
         let mut t = self.trader(id);
         require!(t.status == TraderStatus::Active, "this trader isn't selling");
         require!(t.bond.0 >= self.config.min_bond.0, "this trader's bond is below the minimum, so he isn't selling");
+        require!(!t.paused, "this trader has paused his sales");
         require!(who != t.account, "a trader can't buy his own window");
         require!(first_epoch <= last_epoch, "the window is backwards");
         require!(last_epoch - first_epoch < self.config.max_window_epochs, "that window is too long");
@@ -91,7 +94,14 @@ impl Keyhole {
         let start = self.epoch_start_ms(first_epoch);
         let end = self.epoch_start_ms(last_epoch + 1);
         let earliest = start.saturating_sub(self.config.delivery_lead_secs as u64 * 1000);
-        let deliver_by = earliest.max(now) + self.config.delivery_grace_secs as u64 * 1000;
+        let deliver_by = if now >= end { now + self.config.catchup_grace_secs as u64 * 1000 } else { earliest.max(now) + self.config.delivery_grace_secs as u64 * 1000 };
+        // Which epochs already had a figure: a loss known at purchase can't make the window refundable, or reading a known drawdown would be free.
+        let mut known_mask: u32 = 0;
+        for (i, e) in (first_epoch..=last_epoch).enumerate() {
+            if self.epoch_rec(id, e).posted_e6.is_some() {
+                known_mask |= 1 << i;
+            }
+        }
         let settle_at = end.max(deliver_by) + self.config.challenge_secs as u64 * 1000;
         let token_id = self.next_token;
         self.next_token += 1;
@@ -116,6 +126,7 @@ impl Keyhole {
                 wrapped: vec![],
                 commits: vec![],
                 disputes_lost: 0,
+                known_mask,
             },
         );
         self.own(&who, token_id);
@@ -323,14 +334,15 @@ impl Keyhole {
     fn refund_undelivered(&mut self, mut k: WindowToken) -> u128 {
         let mut t = self.trader(k.trader);
         let price = k.price.0;
-        let penalty = self.penalty_of(price);
-        self.burn(&mut t, penalty);
         t.liability = U128(checked_sub(t.liability.0, price));
         t.late_deliveries = t.late_deliveries.saturating_add(1);
+        let epochs = (k.last_epoch - k.first_epoch + 1) as u128;
+        let mut newly_refused: u128 = 0;
         // A refusal can hide a false figure, since only a holder of the keys can prove one: it goes on the record of every epoch it covers.
         for e in k.first_epoch..=k.last_epoch {
             let mut rec = self.epoch_rec(k.trader, e);
             if rec.refused_sales == 0 {
+                newly_refused += 1;
                 t.refused_epochs = t.refused_epochs.saturating_add(1);
                 // A figure nobody may check stops counting: refusing to deliver can keep a lie from being proven, but not from being believed.
                 if let Some(p) = rec.posted_e6 {
@@ -338,12 +350,15 @@ impl Keyhole {
                         EpochVerdict::False { recomputed_e6 } => recomputed_e6.0,
                         EpochVerdict::Unchallenged => p.0,
                     };
-                    t.voided_e6 = I128(t.voided_e6.0.saturating_add(figure));
+                    t.voided_e6 = I128(t.voided_e6.0.saturating_add(figure.max(0)));
                 }
             }
             rec.refused_sales = rec.refused_sales.saturating_add(1);
             self.epochs.insert(Self::key(k.trader, e as u64), rec);
         }
+        // The penalty is for what was really withheld: epochs refused for the first time. The same epochs refused again burn nothing more.
+        let penalty = keyhole_core::mul_div(self.penalty_of(price), newly_refused, epochs).unwrap_or_else(|| env::panic_str("amount overflow"));
+        self.burn(&mut t, penalty);
         self.put_trader(t);
         let (id, owner) = (k.id, k.owner.clone());
         k.state = TokenState::Refunded;
@@ -393,7 +408,13 @@ impl Keyhole {
     /// Did this window lack a figure, or lose past the floor?
     pub(crate) fn window_breach(&self, t: &Trader, k: &WindowToken) -> Breach {
         let mut total: i128 = 0;
-        for e in k.first_epoch..=k.last_epoch {
+        let mut unknown = false;
+        for (i, e) in (k.first_epoch..=k.last_epoch).enumerate() {
+            // Only what was unknown at purchase counts: a known loss was there to see.
+            if k.known_mask & (1 << i) != 0 {
+                continue;
+            }
+            unknown = true;
             let rec = self.epoch_rec(k.trader, e);
             match rec.posted_e6 {
                 None => return Breach::MissingFigure,
@@ -407,7 +428,7 @@ impl Keyhole {
             }
         }
         let floor = (t.book_usd_e6.0 as i128).saturating_mul(t.floor_bps as i128) / 10_000;
-        if total < -floor {
+        if unknown && total < -floor {
             Breach::PastFloor
         } else {
             Breach::None

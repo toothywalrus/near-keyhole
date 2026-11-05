@@ -61,11 +61,15 @@ pub struct Config {
     pub delivery_lead_secs: u32,
     /// How long the trader has to deliver.
     pub delivery_grace_secs: u32,
+    /// How long he has for a window that is already over when it's bought: anyone can buy one at any moment, so this must outlast an agent that's down for a while.
+    pub catchup_grace_secs: u32,
     /// After the window ends, how long the buyer may dispute before the escrow is released.
     pub challenge_secs: u32,
     /// How long after asking to leave a trader's bond stays at risk.
     pub unbond_secs: u32,
     pub min_bond: U128,
+    /// The least price per epoch a trader may set: a near-free window would make a refusal cost nothing.
+    pub min_price: U128,
     /// A sale must leave the bond at least this share of outstanding sales, in basis points.
     pub min_coverage_bps: u32,
     /// The prover's share of a slashed bond, in basis points. The rest burns: nobody can claim it, so proving yourself a liar through a second account always costs the rest.
@@ -129,9 +133,11 @@ pub struct Trader {
     pub sold: u32,
     pub buyers: u32,
     pub late_deliveries: u32,
+    /// Paused by the trader: no new sales, for when his agent will be down.
+    pub paused: bool,
     /// Epochs on which a buyer has been refused delivery. A refusal can hide a false figure, so each counts against the record like a missed epoch.
     pub refused_epochs: u32,
-    /// The figures of those epochs, which no longer count on the public record.
+    /// The gains among those epochs, which no longer count on the public record. A loss still counts: voiding it would launder it.
     pub voided_e6: I128,
     /// What slashes and penalties have burned from the bond.
     pub burned: U128,
@@ -238,6 +244,8 @@ impl Keyhole {
         require!(config.slot_secs > 0 && config.epoch_slots > 0, "a slot and an epoch can't be empty");
         require!(config.prover_bps <= 10_000, "prover_bps is at most 10000");
         require!(config.max_round_gap_secs > 0, "the round gap can't be zero");
+        // An oracle outage can hold a figure up for twice the round gap (`price_at`): the grace must outlast it, or an honest trader would lapse.
+        require!(config.post_grace_secs as u64 > 2 * config.max_round_gap_secs as u64, "the posting grace must outlast twice the round gap");
         require!(config.challenge_secs > config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
         require!(!feeds.is_empty() && feeds.len() <= keyhole_core::pnl::MAX_FEEDS, "1 to 4 feeds");
         let feeds = feeds.into_iter().map(oracle::Feed::from_init).collect();

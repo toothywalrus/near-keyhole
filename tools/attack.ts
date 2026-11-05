@@ -114,7 +114,7 @@ async function run(w: World): Promise<void> {
   refused("only a registered trader can write", await w.chain.call(bob, "commit_entry", { seq: "0", slot: nowSlot, ct: "00".repeat(128), tag: "00".repeat(32) }, near("0.01")), "not a registered trader");
   refused("a figure before the epoch has ended is refused", await liar.post(e, 0n), "hasn't ended");
   refused("registering twice is refused", await w.chain.call(liar.account, "register_trader", { handle: "again", root: "00".repeat(32), book_usd_e6: "1", floor_bps: 1, base_price: "1", slope: "0" }, near(2)), "already registered");
-  refused("a bond below the minimum is refused", await w.chain.call(dave, "register_trader", { handle: "cheap", root: "00".repeat(32), book_usd_e6: "1000000", floor_bps: 100, base_price: "1", slope: "0" }, near("0.5")), "minimum bond");
+  refused("a bond below the minimum is refused", await w.chain.call(dave, "register_trader", { handle: "cheap", root: "00".repeat(32), book_usd_e6: "1000000", floor_bps: 100, base_price: near(1).toString(), slope: "0" }, near("0.5")), "minimum bond");
   await solvent(w, "after the journal attacks");
 
   console.log("\n-- A false figure: every buyer is an auditor --");
@@ -721,6 +721,79 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await solvent(w, "after the drawdown");
   }
 
+  console.log("\n-- The third read: an offline trader, a laundered loss, a free read --");
+  {
+    // R1. A stranger buys many windows over the same past epochs while the trader's agent is down. A missed delivery must cost in proportion to
+    // what was really withheld: each epoch once, not once per window.
+    const off = new TraderAgent(w.chain, await w.fund("offline", near(200)), seedOf("shared"), w.timing);
+    accepted("an honest trader with a 10 NEAR bond", await off.register("offline", { book_usd: 100_000, floor_bps: 1000, base_price: near("0.3"), slope: 0n, bond: near(10) }));
+    const oe = await nextEpoch(w);
+    for (let i = 0; i < 3; i++) {
+      await w.chain.advanceTo(w.timing.epochStart(oe + i + 1) + 1000);
+      accepted(`a true figure, day ${i + 1}`, await off.post(oe + i, 800_000_000n));
+    }
+    const stranger = await w.fund("burner", near(200));
+    const ks: { id: number; one: ReturnType<typeof buyerKey> }[] = [];
+    for (let i = 0; i < 3; i++) {
+      const one = buyerKey();
+      const r = await w.chain.call(stranger, "buy_window", { trader: off.account, first_epoch: oe, last_epoch: oe + 2, buyer_pub: hex(one.pub) }, near(5));
+      if (!r.ok) throw new Error(r.reason);
+      ks.push({ id: Number(r.value), one });
+    }
+    const tk0 = await w.chain.view<TokenRec>("get_token", { token_id: ks[0].id });
+    check("a window already past gets a longer grace to deliver, for a trader's agent that's down for a while", Number(tk0.deliver_by_ms) - Number(tk0.bought_ms) >= w.config.delivery_grace_secs * 1000 * 4, `${(Number(tk0.deliver_by_ms) - Number(tk0.bought_ms)) / 3600_000} h`);
+    await w.chain.advanceTo(Number(tk0.deliver_by_ms) + 1);
+    const ob0 = BigInt((await off.record()).bond);
+    for (const k of ks) accepted("the stranger claims a refused window", await w.chain.call(stranger, "claim_undelivered", { token_id: k.id }));
+    const orec = await off.record();
+    const oneWindow = BigInt((await w.chain.view<TokenRec>("get_token", { token_id: ks[0].id })).price);
+    check("OFFLINE: the same epochs refused three times burn once, in proportion to what was withheld", ob0 - BigInt(orec.bond) === oneWindow / 2n, `burned ${Number((ob0 - BigInt(orec.bond)) / 10n ** 21n) / 1000} NEAR for three windows of ${Number(oneWindow / 10n ** 21n) / 1000}`);
+    accepted("a trader can pause his sales", await w.chain.call(off.account, "set_paused", { paused: true }));
+    refused("a paused trader isn't selling", await w.chain.call(stranger, "buy_window", { trader: off.account, first_epoch: oe, last_epoch: oe, buyer_pub: hex(buyerKey().pub) }, near(5)), "paused");
+    refused("only the trader can pause", await w.chain.call(stranger, "set_paused", { paused: false }), "not a registered trader");
+    accepted("and resume", await w.chain.call(off.account, "set_paused", { paused: false }));
+
+    // R2. Voiding a loss must never raise the record.
+    const lau = new TraderAgent(w.chain, await w.fund("launderer", near(200)), seedOf("shared"), w.timing);
+    refused("a price below the minimum is refused at registration", await lau.register("cheap", { book_usd: 100_000, floor_bps: 200, base_price: 1n, slope: 0n, bond: near(10) }), "minimum");
+    accepted("a trader with a 2% floor", await lau.register("launderer", { book_usd: 100_000, floor_bps: 200, base_price: near("0.1"), slope: 0n, bond: near(10) }));
+    const le = await nextEpoch(w);
+    await w.chain.advanceTo(w.timing.epochStart(le + 1) + 1000);
+    accepted("he posts a big loss", await lau.post(le, -10_000_000_000n));
+    const sybil = await w.fund("launder-sybil", near(100));
+    const before = await w.chain.view("score", { account: lau.account });
+    const one = buyerKey();
+    const lb = await w.chain.call(sybil, "buy_window", { trader: lau.account, first_epoch: le, last_epoch: le + 1, buyer_pub: hex(one.pub) }, near(5));
+    accepted("his sybil buys a window over the loss and today", lb);
+    await w.chain.advanceTo(Number((await w.chain.view<TokenRec>("get_token", { token_id: Number(lb.value) })).deliver_by_ms) + 1);
+    accepted("and is refused", await w.chain.call(sybil, "claim_undelivered", { token_id: Number(lb.value) }));
+    const after = await w.chain.view("score", { account: lau.account });
+    check("LAUNDERED LOSS: refusing his own buyer can't raise his record: only a gain stops counting", BigInt(after.score_e6) <= BigInt(before.score_e6), `${before.score_e6} -> ${after.score_e6}`);
+
+    // R3. A window whose loss was already posted can't be read for free by adding today.
+    const dd = new TraderAgent(w.chain, await w.fund("known-loss", near(200)), seedOf("shared"), w.timing);
+    accepted("a trader with a 1% floor", await dd.register("known-loss", { book_usd: 10_000, floor_bps: 100, base_price: near("0.5"), slope: 0n, bond: near(10) }));
+    const de = await nextEpoch(w);
+    await w.chain.advanceTo(w.timing.epochStart(de + 1) + 1000);
+    accepted("he posts a loss past his floor", await dd.post(de, -1_000_000_000n));
+    const reader = await w.fund("free-reader", near(100));
+    const fr = await buy(w, reader, dd, de, de + 1);
+    accepted("he delivers", await dd.deliver(fr.id));
+    await w.chain.advanceTo(w.timing.epochStart(de + 2) + 1000);
+    accepted("and posts a flat day", await dd.post(de + 1, 0n));
+    await w.chain.advanceTo(Number((await fr.token()).settle_at_ms));
+    const ddc = BigInt(await w.chain.view("credit_of", { account: dd.account }));
+    const fs = await w.chain.call(reader, "settle", { token_id: fr.id });
+    check("FREE READ: a loss already posted when the window was bought can't make it refundable", fs.ok && fs.value === "closed" && BigInt(await w.chain.view("credit_of", { account: dd.account })) - ddc === BigInt((await fr.token()).price), String(fs.value ?? fs.reason));
+
+    // R4. An oracle outage must never stop an honest trader posting in time.
+    const { VmChain } = await import("./vmchain.ts");
+    const c5 = new VmChain("kh5.test", Date.UTC(2026, 9, 1));
+    c5.vm.fund("o.test", near(10));
+    refused("ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice the round gap is refused", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, post_grace_secs: 3600, max_round_gap_secs: 3600 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }), "round gap");
+    await solvent(w, "after the third read");
+  }
+
   console.log("\n-- An entry nobody can open --");
   {
     const j = new TraderAgent(w.chain, await w.fund("junker", near(100)), seedOf("shared"), w.timing);
@@ -832,7 +905,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await w.chain.advanceTo(Number((await vb.token()).deliver_by_ms) + 1);
     accepted("a buyer asks to check it, and he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: vb.id }));
     const after13 = await w.chain.view("score", { account: rv.account });
-    check("SHIELDED FIGURE: a figure he refuses to let anyone check stops counting, and costs a charge on top", BigInt(after13.voided_e6) === 9_000_000_000n && BigInt(after13.score_e6) === BigInt(before13.score_e6) - 9_000_000_000n - BigInt(after13.charge_per_missed_e6), `${before13.score_e6} -> ${after13.score_e6}`);
+    check("SHIELDED FIGURE: a figure he refuses to let anyone check stops counting, and costs a charge on top", BigInt(after13.voided_e6) === 9_000_000_000n && after13.refused === 1 && BigInt(after13.score_e6) === BigInt(after13.posted_e6) - 9_000_000_000n - BigInt(after13.missed + after13.refused) * BigInt(after13.charge_per_missed_e6), `${before13.score_e6} -> ${after13.score_e6}`);
     check("REFUSED: two refused epochs cost him two charges on his public record", rs.refused === 2 && BigInt(rs.score_e6) === -BigInt(rs.missed + 2) * BigInt(rs.charge_per_missed_e6), JSON.stringify(rs));
   }
 
@@ -860,7 +933,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const c3 = new VmChain("kh3.test", Date.UTC(2026, 9, 1));
     const v3 = c3.vm;
     for (const a of ["o.test", "liar.test", "aud.test", "r.test"]) v3.fund(a, near(100));
-    accepted("a deployment with a feed that will never get another round", v3.call("o.test", "new", { owner: "o.test", config: { ...w.config, recorder: "r.test", max_round_gap_secs: 72000 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }, { symbol: "QUIET", source: "Recorded" }] }));
+    accepted("a deployment with a feed that will never get another round", v3.call("o.test", "new", { owner: "o.test", config: { ...w.config, recorder: "r.test", max_round_gap_secs: 72000, post_grace_secs: 150000, challenge_secs: 160000 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }, { symbol: "QUIET", source: "Recorded" }] }));
     v3.call("r.test", "record_round", { feed: 0, round_id: "1", answer_e8: 200_000_000_000, source_updated_at: "1" }, near("0.01"));
     const t3 = await Timing.read(c3);
     const p3 = new Prices(c3);

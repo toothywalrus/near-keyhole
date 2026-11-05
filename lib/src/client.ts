@@ -25,7 +25,7 @@ export const near = (n: number | string): bigint => {
 const STORAGE = near("0.01");
 
 export type Config = {
-  slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number;
+  slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number; catchup_grace_secs: number; min_price: string;
   challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; penalty_bps: number;
   max_window_epochs: number; min_dispute: string; audit_bond: string; recorder: string | null;
 };
@@ -36,13 +36,13 @@ export type Round = { round_id: string; answer_e8: number; t_ms: string; source_
 export type TraderRec = {
   id: number; account: string; handle: string; root: string; registered_ms: string; first_epoch: number; status: any; bond: string; liability: string;
   book_usd_e6: string; floor_bps: number; base_price: string; slope: string; next_seq: string; head: string; next_epoch: number; posted_epochs: number;
-  missed_epochs: number; cum_pnl_e6: string; sold: number; buyers: number; late_deliveries: number; refused_epochs: number; voided_e6: string; burned: string; last_post_ms: string;
+  missed_epochs: number; cum_pnl_e6: string; sold: number; buyers: number; late_deliveries: number; paused: boolean; refused_epochs: number; voided_e6: string; burned: string; last_post_ms: string;
 };
 export type Score = { posted_e6: string; missed: number; refused: number; voided_e6: string; charge_per_missed_e6: string; score_e6: string };
 export type TokenRec = {
   id: number; trader: number; first_epoch: number; last_epoch: number; first_slot: number; last_slot: number; owner: string; price: string;
   buyer_pub: string | null; state: string; bought_ms: string; deliver_by_ms: string; settle_at_ms: string; resale_price: string | null;
-  eph: string | null; wrapped: string[]; commits: string[]; disputes_lost: number;
+  eph: string | null; wrapped: string[]; commits: string[]; disputes_lost: number; known_mask: number;
 };
 
 /** The index of the first round at or after `at` (binary search over a time-sorted list), or -1. */

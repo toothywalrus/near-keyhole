@@ -18,7 +18,7 @@ impl Keyhole {
         require!(!handle.is_empty() && handle.len() <= MAX_HANDLE, "a handle is 1 to 32 bytes");
         require!(book_usd_e6.0 > 0 && book_usd_e6.0 <= 1_000_000_000_000_000, "a book is between $0 and $1B");
         require!(floor_bps > 0 && floor_bps <= 10_000, "floor_bps is in (0, 10000]");
-        require!(base_price.0 > 0, "a window can't be free");
+        require!(base_price.0 >= self.config.min_price.0 && base_price.0 > 0, "the price per epoch is below the minimum");
         let before = env::storage_usage();
         let attached = env::attached_deposit().as_yoctonear();
         require!(attached >= self.config.min_bond.0, "attach at least the minimum bond");
@@ -49,6 +49,7 @@ impl Keyhole {
             sold: 0,
             buyers: 0,
             late_deliveries: 0,
+            paused: false,
             refused_epochs: 0,
             voided_e6: I128(0),
             burned: U128(0),
@@ -76,6 +77,14 @@ impl Keyhole {
         let amount = env::attached_deposit().as_yoctonear();
         t.bond = U128(checked_add(t.bond.0, amount));
         self.obligations = checked_add(self.obligations, amount);
+        self.put_trader(t);
+    }
+
+    /// Stop or resume selling, for when the trader's agent will be down: a window bought then could only be refused.
+    pub fn set_paused(&mut self, paused: bool) {
+        let id = self.tid(&env::predecessor_account_id());
+        let mut t = self.trader(id);
+        t.paused = paused;
         self.put_trader(t);
     }
 
@@ -162,8 +171,8 @@ impl Keyhole {
         let before = env::storage_usage();
         let mut rec = self.epoch_rec(id, epoch);
         if rec.refused_sales > 0 {
-            // A figure for an epoch already refused to a buyer is voided as it's posted.
-            t.voided_e6 = I128(t.voided_e6.0.saturating_add(pnl_e6.0));
+            // A gain for an epoch already refused to a buyer is voided as it's posted.
+            t.voided_e6 = I128(t.voided_e6.0.saturating_add(pnl_e6.0.max(0)));
         }
         rec.posted_e6 = Some(pnl_e6);
         rec.posted_ms = Some(U64(now));

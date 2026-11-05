@@ -148,7 +148,7 @@ impl Keyhole {
             if rec.verdict == EpochVerdict::Unchallenged {
                 t.cum_pnl_e6 = I128(t.cum_pnl_e6.0.saturating_sub(posted).saturating_add(recomputed));
                 if rec.refused_sales > 0 {
-                    t.voided_e6 = I128(t.voided_e6.0.saturating_sub(posted).saturating_add(recomputed));
+                    t.voided_e6 = I128(t.voided_e6.0.saturating_sub(posted.max(0)).saturating_add(recomputed.max(0)));
                 }
             }
             rec.verdict = EpochVerdict::False { recomputed_e6: I128(recomputed) };

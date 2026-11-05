@@ -13,8 +13,8 @@ export const NEAR_USD = 4.01;
 export const demoSeed = (handle: string): Uint8Array => sha256(utf8(`keyhole demo journal (public fixture, no value): ${handle}`));
 
 export const SEED_CONFIG = (recorder: string): Config => ({
-  slot_secs: 3600, epoch_slots: 24, post_grace_secs: 36 * 3600, delivery_lead_secs: 6 * 3600, delivery_grace_secs: 12 * 3600,
-  challenge_secs: 40 * 3600, unbond_secs: 30 * 86400, max_round_gap_secs: 30 * 3600, min_bond: near(5).toString(), min_coverage_bps: 5000, prover_bps: 4000,
+  slot_secs: 3600, epoch_slots: 24, post_grace_secs: 62 * 3600, delivery_lead_secs: 6 * 3600, delivery_grace_secs: 12 * 3600, catchup_grace_secs: 48 * 3600, min_price: near("0.01").toString(),
+  challenge_secs: 70 * 3600, unbond_secs: 30 * 86400, max_round_gap_secs: 30 * 3600, min_bond: near(5).toString(), min_coverage_bps: 5000, prover_bps: 4000,
   penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.1").toString(), audit_bond: near(2).toString(), recorder,
 });
 
