@@ -55,8 +55,7 @@ a.brow:hover { background: var(--paper-2); box-shadow: -10px 0 0 var(--paper-2),
 .brow .who small { display: block; margin-top: 3px; font: italic 400 14px/1.25 var(--serif); color: var(--ink-2); }
 .brow .big { font-size: 16px; font-weight: 600; }
 .brow .big small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-3); margin-top: 2px; }
-.brow.caught .who b, .brow.caught .big { text-decoration: line-through; text-decoration-thickness: 1.5px; }
-.brow.caught .big small { text-decoration: none; display: block; }
+.brow.caught .who b, .brow.caught .figure { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 .loss { color: var(--loss); }
 .spark .zero { stroke: var(--hair); stroke-width: 1; }
 .spark path { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
