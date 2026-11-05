@@ -572,6 +572,7 @@ async function run(w: World): Promise<void> {
   console.log("\n-- The bond, the oracle, the attested path, private methods --");
   const bea = await newTrader(w, "bea");
   refused("unbonding is a two-step exit", await w.chain.call(bea.account, "withdraw_bond", {}), "begin unbonding");
+  await w.chain.advanceTo((await w.chain.nowMs()) + (w.config.unbond_secs + 1) * 1000);
   accepted("she asks to leave", await w.chain.call(bea.account, "begin_unbond", {}));
   refused("an unbonding trader can't sell", await w.chain.call(bob, "buy_window", { trader: bea.account, first_epoch: await currentEpoch(w), last_epoch: await currentEpoch(w), buyer_pub: hex(buyerKey().pub) }, near(3)), "isn't selling");
   refused("the bond stays at risk through the delay", await w.chain.call(bea.account, "withdraw_bond", {}), "still at risk");
@@ -773,10 +774,13 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   const tc = await w.chain.call(buyer, "nft_transfer_call", { receiver_id: "market.test", token_id: String(nb.id), msg: "return it" }, 1n);
   check("a receiver that returns true gives the token back", tc.ok && (await nb.token()).owner === buyer, JSON.stringify(tc.value ?? tc.reason));
   check("and the one-time key has to be set again", (await nb.token()).buyer_pub === null);
-  vm.mock("lister.test", () => true);
-  accepted("the holder lists it", await w.chain.call(buyer, "list_resale", { token_id: nb.id, price: near(9).toString() }));
+  let listedInCallback = false;
+  vm.mock("lister.test", (_m: string, args: any) => {
+    listedInCallback = vm.nested("lister.test", "list_resale", { token_id: Number(args.token_id), price: "1" }).ok;
+    return true;
+  });
   const tl = await w.chain.call(buyer, "nft_transfer_call", { receiver_id: "lister.test", token_id: String(nb.id), msg: "" }, 1n);
-  check("a token that comes back has no listing left on it", tl.ok && (await nb.token()).resale_price === null && (await nb.token()).owner === buyer, JSON.stringify(tl.value ?? tl.reason));
+  check("a receiver that lists it and hands it back leaves no listing behind", tl.ok && listedInCallback && (await nb.token()).resale_price === null && (await nb.token()).owner === buyer, JSON.stringify(tl.value ?? tl.reason));
   const tk = await w.chain.call(buyer, "nft_transfer_call", { receiver_id: "market.test", token_id: String(nb.id), msg: "keep" }, 1n);
   check("a receiver that keeps it holds it", tk.ok && (await nb.token()).owner === "market.test", JSON.stringify(tk.value ?? tk.reason));
   const nc = await w.chain.call(buyer, "nft_transfer_call", { receiver_id: "no-such-contract.test", token_id: String(nb.id), msg: "" }, 1n);

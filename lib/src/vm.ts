@@ -125,6 +125,12 @@ export class MiniNear {
     return { ok: final.ok, value, ...(final.ok ? {} : { reason: final.reason }), ...base };
   }
 
+  /** A call made from inside a mock, as a receiver contract's own cross-contract call would be. Its receipts stay queued. */
+  nested(signer: string, method: string, args: Record<string, unknown>): { ok: boolean; reason?: string } {
+    const r = this.run(method, enc.encode(JSON.stringify(args)), signer, 0n, 0n, []);
+    return { ok: r.ok, reason: r.reason };
+  }
+
   /** Run every queued receipt whose dependencies are done, in the order NEAR would. */
   private drain(ret: number | undefined, bytes: Uint8Array, logs: string[]): { ok: boolean; bytes: Uint8Array; reason?: string } {
     for (let guard = 0; guard < 64; guard++) {

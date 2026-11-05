@@ -10,7 +10,7 @@ It came out of `toothywalrus/near-lab` (round six, that repo's `0010` and `docs/
 
 ## Rules that are load-bearing
 
-1. **This is a hackathon entry, judged partly by AI.** Claude Code and Codex run the README. Every feature must be reachable by "do X, see Y" steps a judge can run for free. Keep `README.md` and `JUDGES.md` true at every commit. `npm run judge` must stay under about 5 minutes.
+1. **This is a hackathon entry, judged partly by AI.** Claude Code and Codex run the README. Every feature must be reachable by "do X, see Y" steps a judge can run for free. Keep `README.md` and `JUDGES.md` true at every commit. `npm run judge` must stay under about 5 minutes (it takes about 3).
 2. **A simulated attestation must never pass for a real one.** `AttestKind` is set by the code path (`docs/decisions/0009`). Seeded journals are labeled SEEDED on every page.
 3. **The owner does every irreversible or outward step himself:** making the repo public, posting on X, the submission, anything on mainnet, signing up anywhere. Prepare these and wait.
 4. **Testnet by default. No secrets in git,** not even gitignored files: keys live in the macOS keychain (service `near-lab-testnet`) or in environment variables.
@@ -31,7 +31,8 @@ Repo-specific specifics:
 - **`res/` is checked in** and `web/public/keyhole.wasm` is copied from it. After changing the contract: `npm run build -- keyhole`, `npm run seed` (the seeded state must match the wasm; a test checks this), `npm run web:build`.
 - **Toolchains.** The contracts build on Rust 1.93 (`contracts/rust-toolchain.toml`); the job builds on stable (`wasm32-wasip2` is there).
 - **near-sdk's `store` collections write on flush.** `env::storage_usage()` doesn't see their writes until `flush()`, so flush before `charge_storage`, or the call is under-charged. The attack suite's slack check catches this.
-- **Sandbox timing.** `npm run attack -- --sandbox` uses real short epochs and takes about 13 minutes; the local host covers the same in seconds. A sandbox transaction takes about 0.4 s with optimistic waits. On testnet `Net.call` waits for FINAL, so reads see the callbacks.
+- **Sandbox timing.** `npm run attack -- --sandbox` uses real short epochs and takes about 15 minutes; the local host covers the same in seconds. A sandbox transaction takes about 0.4 s with optimistic waits. On testnet `Net.call` waits for FINAL, so reads see the callbacks.
 - **Testnet prepays gas.** 100 Tgas needs about 0.1 NEAR available up front, refunded after. `tools/testnet.ts` defaults to 100 Tgas, which every path fits in.
 - **The contract's state layout is load-bearing for the testnet deploy.** A new field on a stored struct breaks reads of old records. The demo deploy is cheap to replace; `tools/testnet.ts` deploys only to an empty account.
 - **The mutation tool matches source lines exactly.** Change a mutated line and `npm run mutate` says the line is stale.
+- **The review in `docs/research/review-2026-11-05.md` found bugs the suite missed.** Passing numbers say the checks are load-bearing, not complete. After a change to the money or the sale, get a cold read.

@@ -2,7 +2,9 @@
 
 > **Status (2026-11-05)**
 >
-> **Real, on NEAR testnet:** the contract [`@@CONTRACT@@`](https://testnet.nearblocks.io/address/@@CONTRACT@@), and one complete run with explorer links: sale, delivery, a false figure proven and slashed by the contract's own recomputation, garbage keys proven and slashed, a false dispute dismissed. A real cross-contract read of a round from near-borrowed-oracle. `npm run verify` re-reads all of it from the chain.
+> **Real, on NEAR testnet:** the contract [`app.keyhole-g1zo8i.testnet`](https://testnet.nearblocks.io/address/app.keyhole-g1zo8i.testnet), and one complete run with explorer links: sale, delivery, a false figure proven and slashed by the contract's own recomputation, garbage keys proven and slashed, a false dispute dismissed. A real cross-contract read of a round from near-borrowed-oracle. `npm run verify` re-reads all of it from the chain.
+>
+> **Unfinished:** the transaction links below are from the run before the review's fixes. The current wasm was redeployed to the same account and its rerun was cut short, so `npm run verify` needs `npm run demo -- --testnet` rerun against a fresh deploy (`npx tsx tools/testnet-reset.ts` first). Gas may differ slightly.
 >
 > **Real, in a local sandbox:** a NEP-413 `token_diff` copy trade settling on the **mainnet `intents.near` wasm**, with limits and slippage. Live keyless 1Click dry quotes. The attack suite on a real node.
 >
@@ -41,10 +43,10 @@ Window keys are priced on a **bonding curve per trader**. A purchase is a **NEP-
 
 | Measured on testnet | Tgas | Of a 300 Tgas transaction |
 |---|---:|---:|
-| A whole dispute over a wrapped node, in the real contract: x25519 twice, ChaCha20, a commitment | **@@DISPUTE@@** | 3% |
-| `deliver`: the cover checked against the Merkle root | @@DELIVER@@ | 2% |
+| A whole dispute over a wrapped node, in the real contract: x25519 twice, ChaCha20, a commitment | **10.2** | 3% |
+| `deliver`: the cover checked against the Merkle root | 8.2 | 2% |
 | `audit_step`, in the sandbox: per entry opened and priced | 0.15 | about 1,900 entries in one transaction |
-| `audit_conclude` | @@CONCLUDE@@ | 1% |
+| `audit_conclude` | 3.4 | 1% |
 
 Details and every step's cost: [`docs/research/killtest-2026-11-05.md`](docs/research/killtest-2026-11-05.md), [`docs/research/gas-audit.json`](docs/research/gas-audit.json). No fallback was needed. A trap on the way: built without `cargo near`, near-sdk quietly compiles SHA-256 into the wasm and panics lose their messages.
 
@@ -57,13 +59,13 @@ From a fresh clone: `npm ci`. Node 20+ is enough for most of it, since the built
 | Do | See |
 |---|---|
 | `npm run judge` | Everything free in about 3 minutes, ending in a pass/fail table |
-| `npm run attack` | @@ATTACKS@@ attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
-| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: @@SANDBOX@@ checks, minus the ones that need the local host's controls, about 15 minutes |
+| `npm run attack` | 270 attack checks on the real wasm, in about 15 seconds. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, and more |
+| `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 211 checks, minus the ones that need the local host's controls, about 15 minutes |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto |
-| `npm run mutate` | Needs Rust. Breaks @@MUTANTS@@ security-critical lines one at a time and rebuilds: `@@MUTANTS@@/@@MUTANTS@@ mutants caught`. Last log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust. Breaks 62 security-critical lines one at a time and rebuilds: `N/N mutants caught`. Last full run: 58/62; the other 4 were then fixed and caught individually; a clean full rerun is unfinished. Last log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction |
@@ -88,9 +90,28 @@ Screenshots: [board](docs/demo/board.png), [reader](docs/demo/reader.png), [caug
 
 ## On testnet
 
-Contract [`@@CONTRACT@@`](https://testnet.nearblocks.io/address/@@CONTRACT@@). Slots are 20 s and epochs 3 minutes, so that the demo runs in minutes. The whole run is in [`docs/demo/testnet-run.json`](docs/demo/testnet-run.json).
+Contract [`app.keyhole-g1zo8i.testnet`](https://testnet.nearblocks.io/address/app.keyhole-g1zo8i.testnet). Slots are 20 s and epochs 3 minutes, so that the demo runs in minutes. The whole run is in [`docs/demo/testnet-run.json`](docs/demo/testnet-run.json).
 
-@@TXTABLE@@
+| Step | Tgas | Transaction |
+|---|---:|---|
+| vega registers: a bond, a root committing to a key tree | 2.64 | [`v2G6yPXFUa…`](https://testnet.nearblocks.io/txns/v2G6yPXFUa4Hnxetg8KQULLVUk5vpqEVVMpSvGptuaY) |
+| vega writes: long ETH | 3.68 | [`mLrRi12bD1…`](https://testnet.nearblocks.io/txns/mLrRi12bD1QKUpXoz432rwruBoQRqkWqAkjMKYNKtqg) |
+| lucky posts a LIE: $25380.47 (truth: $380.47) | 3.41 | [`514Gfe1LsH…`](https://testnet.nearblocks.io/txns/514Gfe1LsHdgPQQSfm2zDviz8zw6RKtFzTFVXzuc5WjU) |
+| buy epoch 1 of vega's journal, a NEP-171 token | 7.74 | [`9ofDMjyD1w…`](https://testnet.nearblocks.io/txns/9ofDMjyD1wHfC229TMcXghbcbLNEKgAJgkQ8PUnL9RyV) |
+| vega delivers: nodes wrapped to her one-time key | 8.16 | [`4gu3uKA8xG…`](https://testnet.nearblocks.io/txns/4gu3uKA8xG6tx7JYtbhtEiZek5jw8uGMMNXXdZFcwf1e) |
+| buy epoch 1 of lucky's journal | 7.77 | [`BWMxH8Wsm2…`](https://testnet.nearblocks.io/txns/BWMxH8Wsm2pwBCaAbFoNMw6LtNiCu3g6ZsjYgjTzSaJH) |
+| lucky delivers honestly: the journal itself isn't the lie | 8.16 | [`AALxYA4sYP…`](https://testnet.nearblocks.io/txns/AALxYA4sYPp5Emr7W3MAThXoYjkzvwkDZKqGshwRtVR7) |
+| audit_open: the deposit goes at risk | 3.31 | [`7yGJ3RDvXS…`](https://testnet.nearblocks.io/txns/7yGJ3RDvXSNAHpk93uKfH5yBbFHzyDe4ajxfui4rWbz8) |
+| audit_step: 2 entries opened in the contract | 3.09 | [`5MGQD4WYQ9…`](https://testnet.nearblocks.io/txns/5MGQD4WYQ921W4sw1jR3bf5kF56oLPEfwNPKjtmHTs5P) |
+| audit_conclude: recomputed, compared, slashed | 3.40 | [`QAhtEU8uFf…`](https://testnet.nearblocks.io/txns/QAhtEU8uFfh3en64ts84wNrWEBLbaytQMjc3dvzC3np) |
+| claim_refund: the escrow back, and a share of the rest of the bond | 2.93 | [`FYrq62Mv5R…`](https://testnet.nearblocks.io/txns/FYrq62Mv5Rbh4MAZxUeyxsq63AUmSJUX4vWMkTQfbm9R) |
+| withdraw | 5.38 | [`5EtEad9pQ5…`](https://testnet.nearblocks.io/txns/5EtEad9pQ5knbkWyEsuhGFsYFAGt9RxaavhP7BxJxdWX) |
+| she buys two epochs of mallory's journal | 7.96 | [`5WHYrXCNqR…`](https://testnet.nearblocks.io/txns/5WHYrXCNqRAAdFB4j2BHL8t4K9k6sWWfgq5uX2k4Vv77) |
+| mallory delivers garbage for one node | 8.33 | [`6qGeh18D6Z…`](https://testnet.nearblocks.io/txns/6qGeh18D6ZG1P4sb1Fz1NKTDMkphVBcfia9V9BNpfmhc) |
+| dispute_wrap: secret revealed, the contract unwraps and compares | 10.21 | [`8CcfgpBmUx…`](https://testnet.nearblocks.io/txns/8CcfgpBmUxq7n8AjZno1i6ZLLTSNv1kA3TPwfMfjTWGx) |
+| dispute_wrap with nothing wrong | 10.02 | [`DRNYgpXkPk…`](https://testnet.nearblocks.io/txns/DRNYgpXkPkHC1qzBp9YyUVNxsQJtRHr2miWRvXiGxMBC) |
+| the runner submits the job's output | 3.44 | [`6fuzvSTYyp…`](https://testnet.nearblocks.io/txns/6fuzvSTYypLKqAKZRjTJCwAAe1djfkAa7A7cJPFznY2e) |
+| import_round: a real cross-contract read of the proven round | 6.65 | [`G4Zhh7nPGM…`](https://testnet.nearblocks.io/txns/G4Zhh7nPGMC4LXVgPmecEa3NRFR3wtr2w9DiijmvRdar) |
 
 Run it yourself on your own deploy with `npm run demo -- --testnet` (needs a funded account in your keychain).
 
@@ -156,9 +177,9 @@ Others in the field, as of Nov 5 (145 entries, read from the hackathon's API): n
 1. **OutLayer's hosted job**, after `res/keyhole_pnl_job.wasm` has a public URL:
    ```sh
    # as the contract's owner account, once:
-   near call @@CONTRACT@@ set_outlayer '{"outlayer":{"contract":"outlayer.testnet","wasm_url":"<public URL of res/keyhole_pnl_job.wasm>","wasm_hash":"@@JOBHASH@@","max_instructions":"10000000000","max_execution_seconds":"60"}}' --accountId owner.keyhole-g1zo8i.testnet
+   near call app.keyhole-g1zo8i.testnet set_outlayer '{"outlayer":{"contract":"outlayer.testnet","wasm_url":"<public URL of res/keyhole_pnl_job.wasm>","wasm_hash":"e2b0dd898fa714dbd85447f6d2785e2acc2fa7c56327489ca65fbe2454ab4793","max_instructions":"10000000000","max_execution_seconds":"60"}}' --accountId owner.keyhole-g1zo8i.testnet
    # as a trader, with the epoch's nodes as an OutLayer secret named KEYHOLE_NODES:
-   near call @@CONTRACT@@ request_attested '{"epoch":<epoch>,"secrets_ref":{"profile":"<yours>","account_id":"<yours>"}}' --accountId <trader> --deposit 0.03 --gas 300000000000000
+   near call app.keyhole-g1zo8i.testnet request_attested '{"epoch":<epoch>,"secrets_ref":{"profile":"<yours>","account_id":"<yours>"}}' --accountId <trader> --deposit 0.03 --gas 300000000000000
    ```
 2. **The X post** ([`docs/demo/x-post.md`](docs/demo/x-post.md)) and **the submission**.
 3. **Hosting**: `web/dist/` is built and ready for near.toothywalrus.dev.
