@@ -4,7 +4,7 @@
 //!   `buy_window` (payment into escrow, a token with the buyer's one-time key)
 //!   `deliver` (from `delivery_lead_secs` before the window; the contract checks the commitments against the trader's root)
 //!   `dispute_wrap` / `dispute_entry` (until `settle_at`)
-//!   `settle` (the escrow goes to the trader) and, if the window breached the floor or a figure is missing, `claim_refund`.
+//!   `settle`: the escrow goes to the trader, or back to the holder with a penalty burned from the bond, if the window breached the floor or a figure is missing.
 //! Until delivery can begin the token can be resold: no keys exist in anyone's hands, so nothing is left behind (`docs/decisions/0006`).
 use crate::types::{checked_add, checked_mul, checked_sub};
 use crate::*;
@@ -18,11 +18,9 @@ pub enum TokenState {
     Pending,
     /// Delivered: resale is closed for good, the challenge is running.
     Delivered,
-    /// The escrow went to the trader, and the window can't claim against the bond: nothing further can happen.
+    /// The escrow went to the trader.
     Closed,
-    /// The escrow went to the trader, and the window breached the floor or lacks a figure: the holder can claim from the bond.
-    Refundable,
-    /// Refunded, by any path.
+    /// The escrow went back to the holder, by any path.
     Refunded,
 }
 
@@ -72,6 +70,7 @@ impl Keyhole {
         let id = self.tid(&trader);
         let mut t = self.trader(id);
         require!(t.status == TraderStatus::Active, "this trader isn't selling");
+        require!(t.bond.0 >= self.config.min_bond.0, "this trader's bond is below the minimum, so he isn't selling");
         require!(who != t.account, "a trader can't buy his own window");
         require!(first_epoch <= last_epoch, "the window is backwards");
         require!(last_epoch - first_epoch < self.config.max_window_epochs, "that window is too long");
@@ -120,11 +119,6 @@ impl Keyhole {
             },
         );
         self.own(&who, token_id);
-        for e in first_epoch..=last_epoch {
-            let mut rec = self.epoch_rec(id, e);
-            rec.covering_sales += 1;
-            self.epochs.insert(Self::key(id, e as u64), rec);
-        }
         let seen_key = env::sha256_array(&[&id.to_le_bytes()[..], who.as_bytes()].concat());
         if self.seen.insert(seen_key) {
             t.buyers += 1;
@@ -134,7 +128,7 @@ impl Keyhole {
         self.put_trader(t);
         self.obligations = checked_add(self.obligations, price);
         self.flush_all();
-        let allowance = nft::TOKEN_ALLOWANCE_BYTES as u128 * env::storage_byte_cost().as_yoctonear();
+        let allowance = (nft::TOKEN_ALLOWANCE_BYTES + nft::TOKEN_ALLOWANCE_PER_EPOCH * (last_epoch - first_epoch + 1) as u64) as u128 * env::storage_byte_cost().as_yoctonear();
         require!(attached >= checked_add(price, allowance), "attach a little more, for storage");
         self.charge_storage(before, attached - price - allowance, &who);
         nft::emit_mint(&who, token_id);
@@ -171,12 +165,19 @@ impl Keyhole {
         k.commits = commits;
         k.state = TokenState::Delivered;
         k.resale_price = None;
+        // Somebody can check these epochs now: not when the window was paid for.
+        for e in k.first_epoch..=k.last_epoch {
+            let mut rec = self.epoch_rec(k.trader, e);
+            rec.covering_sales += 1;
+            self.epochs.insert(Self::key(k.trader, e as u64), rec);
+        }
         self.tokens.insert(token_id, k);
         self.tokens.flush();
+        self.epochs.flush();
         self.charge_storage(before, env::attached_deposit().as_yoctonear(), &who);
     }
 
-    /// The holder's refund when the trader never delivered: the whole escrow, plus a penalty from the bond.
+    /// The holder's refund when the trader never delivered: the whole escrow. The trader's penalty burns: it goes to nobody, so nobody can farm it.
     pub fn claim_undelivered(&mut self, token_id: u64) -> U128 {
         let who = env::predecessor_account_id();
         let k = self.token(token_id);
@@ -187,8 +188,8 @@ impl Keyhole {
         U128(self.refund_undelivered(k))
     }
 
-    /// Anyone, after the challenge window: the escrow goes to the trader. A window that breached the floor, or that lacks a figure, stays
-    /// open for its holder to claim from the bond. A window the trader never delivered goes back to its holder, so that nobody has to come back for it.
+    /// Anyone, after the challenge window. A healthy window: the escrow goes to the trader. A window that lost past the floor or lacks a figure: the escrow goes back to its holder, and
+    /// a penalty burns from the bond. A window the trader never delivered goes back to its holder as well, so that nobody has to come back for it.
     pub fn settle(&mut self, token_id: u64) -> String {
         let mut k = self.token(token_id);
         let mut t = self.trader(k.trader);
@@ -202,53 +203,35 @@ impl Keyhole {
         require!(k.state == TokenState::Delivered || holder_absent, "this window can't be settled");
         let price = k.price.0;
         let breached = self.window_breached(&t, &k);
-        k.state = if breached { TokenState::Refundable } else { TokenState::Closed };
-        if !breached {
-            t.liability = U128(checked_sub(t.liability.0, price));
-        }
-        let account = t.account.clone();
+        t.liability = U128(checked_sub(t.liability.0, price));
+        let payee = if breached {
+            let penalty = self.penalty_of(price);
+            self.burn(&mut t, penalty);
+            k.owner.clone()
+        } else {
+            t.account.clone()
+        };
+        k.state = if breached { TokenState::Refunded } else { TokenState::Closed };
         self.put_trader(t);
         self.tokens.insert(token_id, k);
-        self.move_to_credit(&account, price);
-        (if breached { "refundable" } else { "closed" }).to_string()
+        self.move_to_credit(&payee, price);
+        (if breached { "refunded" } else { "closed" }).to_string()
     }
 
-    /// Anyone, once a refund has gone unclaimed for `unbond_secs`: the window stops counting against the bond, so an absent holder can't lock a trader in.
-    pub fn close_unclaimed(&mut self, token_id: u64) {
-        let mut k = self.token(token_id);
-        let mut t = self.trader(k.trader);
-        require!(k.state == TokenState::Refundable, "this window has no refund waiting");
-        require!(self.now_ms() >= k.settle_at_ms.0 + self.config.unbond_secs as u64 * 1000, "the holder still has time to claim");
-        t.liability = U128(checked_sub(t.liability.0, k.price.0));
-        k.state = TokenState::Closed;
-        self.put_trader(t);
-        self.tokens.insert(token_id, k);
-    }
-
-    /// The holder's claim against the bond, pro rata: every open sale gets the same fraction of its price, whatever the order of claims.
-    /// On a slashed trader this works for any open window, and the unsettled escrow comes back as well.
+    /// The holder of an open window on a slashed trader takes the escrow back, whole.
     pub fn claim_refund(&mut self, token_id: u64) -> U128 {
         let who = env::predecessor_account_id();
         let mut k = self.token(token_id);
         let mut t = self.trader(k.trader);
         require!(k.owner == who, "only the holder can claim");
-        let slashed = matches!(t.status, TraderStatus::Slashed { .. });
+        require!(matches!(t.status, TraderStatus::Slashed { .. }) && matches!(k.state, TokenState::Pending | TokenState::Delivered), "this window can't claim a refund");
         let price = k.price.0;
-        let escrow_back = match (&k.state, slashed) {
-            (TokenState::Refundable, _) => 0,
-            (TokenState::Pending | TokenState::Delivered, true) => price,
-            _ => env::panic_str("this window can't claim a refund"),
-        };
-        require!(t.liability.0 >= price, "liability underflow");
-        let from_bond = self.bond_share(&t, &k);
-        t.bond = U128(checked_sub(t.bond.0, from_bond));
         t.liability = U128(checked_sub(t.liability.0, price));
         self.put_trader(t);
         k.state = TokenState::Refunded;
         self.tokens.insert(token_id, k);
-        let total = checked_add(escrow_back, from_bond);
-        self.move_to_credit(&who, total);
-        U128(total)
+        self.move_to_credit(&who, price);
+        U128(price)
     }
 
     /// The holder of a token waiting for delivery registers a new one-time key, after a plain transfer.
@@ -332,31 +315,29 @@ impl Keyhole {
         require!(!complete || total >= -floor, "that window is already past its floor, so its refund is already owed: it isn't for sale");
     }
 
-    /// What a window can claim from a bond. After a slash, a window sold within the challenge period before it gets nothing from the bond, only its escrow back: buying in
-    /// while watching an audit, or selling yourself a window to slash through, can't dilute the buyers who were really there.
-    pub(crate) fn bond_share(&self, t: &Trader, k: &WindowToken) -> u128 {
-        if let TraderStatus::Slashed { at_ms, .. } = &t.status {
-            if k.bought_ms.0 + self.config.challenge_secs as u64 * 1000 > at_ms.0 {
-                return 0;
-            }
-        }
-        self.pro_rata(k.price.0, t.bond.0, t.liability.0)
+    fn penalty_of(&self, price: u128) -> u128 {
+        keyhole_core::mul_div(price, self.config.penalty_bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"))
     }
 
     fn refund_undelivered(&mut self, mut k: WindowToken) -> u128 {
         let mut t = self.trader(k.trader);
         let price = k.price.0;
-        let penalty = (price / 10_000 * self.config.late_penalty_bps as u128).min(t.bond.0);
-        t.bond = U128(checked_sub(t.bond.0, penalty));
+        let penalty = self.penalty_of(price);
+        self.burn(&mut t, penalty);
         t.liability = U128(checked_sub(t.liability.0, price));
         t.late_deliveries = t.late_deliveries.saturating_add(1);
+        // A refusal can hide a false figure, since only a holder of the keys can prove one: it goes on the record of every epoch it covers.
+        for e in k.first_epoch..=k.last_epoch {
+            let mut rec = self.epoch_rec(k.trader, e);
+            rec.refused_sales = rec.refused_sales.saturating_add(1);
+            self.epochs.insert(Self::key(k.trader, e as u64), rec);
+        }
         self.put_trader(t);
         let (id, owner) = (k.id, k.owner.clone());
         k.state = TokenState::Refunded;
         self.tokens.insert(id, k);
-        let total = checked_add(price, penalty);
-        self.move_to_credit(&owner, total);
-        total
+        self.move_to_credit(&owner, price);
+        price
     }
 
     pub(crate) fn token(&self, id: u64) -> WindowToken {
@@ -395,14 +376,6 @@ impl Keyhole {
         require!(first_epoch <= last_epoch, "the window is backwards");
         let per_epoch = checked_add(t.base_price.0, checked_mul(t.slope.0, t.sold as u128));
         checked_mul(per_epoch, (last_epoch - first_epoch + 1) as u128)
-    }
-
-    /// `price * min(bond, liability) / liability`, rounded down, so claims can never exceed the bond.
-    pub(crate) fn pro_rata(&self, price: u128, bond: u128, liability: u128) -> u128 {
-        if liability == 0 {
-            return 0;
-        }
-        keyhole_core::mul_div(price, bond.min(liability), liability).unwrap_or_else(|| env::panic_str("amount overflow"))
     }
 
     /// Did this window lose past the floor, or lack a figure?

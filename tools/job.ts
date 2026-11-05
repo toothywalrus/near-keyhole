@@ -75,20 +75,22 @@ try {
   (w.chain as any).add(mock);
   const initM = await (w.chain as any).net.call(mock, mock.id, "new", { operator: worker });
   check("the stand-in deploys", initM.ok, initM.reason ?? "");
-  const cfg = await w.chain.call(w.owner, "set_outlayer", { outlayer: { contract: mock.id, wasm_url: "https://example.invalid/keyhole_pnl_job.wasm", wasm_hash: jobHash, max_instructions: "10000000000", max_execution_seconds: "60" } });
+  const cfg = await w.chain.call(w.owner, "set_outlayer", { outlayer: { contract: mock.id, rpc: w.sb!.rpc, wasm_url: "https://example.invalid/keyhole_pnl_job.wasm", wasm_hash: jobHash, max_instructions: "10000000000", max_execution_seconds: "60" } });
   check("the owner points the contract at it, pinned to the job's sha256", cfg.ok, jobHash.slice(0, 16) + "…");
   const pending = t.chain.call(account, "request_attested", { epoch: e, secrets_ref: null }, near("0.03"));
   await new Promise((ok) => setTimeout(ok, 2000));
   const open = await (w.chain as any).net.view(mock.id, "pending", {});
   check("request_attested is waiting on the yield", open.length === 1, `input: ${open[0]?.input_data}`);
   const reqInput = JSON.parse(open[0].input_data);
-  const workerOut = run({ ...reqInput, rpc: w.sb!.rpc }, env);
-  const resolved = await (w.chain as any).net.call((w.chain as any).accounts.get(worker), mock.id, "resolve_execution", { request_id: open[0].request_id, response: { success: true, output: { Json: { trader: account, epoch: e, pnl_e6: workerOut.out.pnl_e6, head: workerOut.out.head, job_sha256: "the job's own word, which is ignored" } }, error: null } });
+  // The worker runs the job with exactly what the contract sent, and hands back exactly what it printed.
+  const workerOut = run(reqInput, env);
+  check("the job runs on exactly the input the contract sent: `rpc` comes from the contract", workerOut.ok && reqInput.rpc === w.sb!.rpc, workerOut.ok ? `figure ${workerOut.out.pnl_e6}` : workerOut.err?.slice(0, 80));
+  const resolved = await (w.chain as any).net.call((w.chain as any).accounts.get(worker), mock.id, "resolve_execution", { request_id: open[0].request_id, response: { success: true, output: { Json: workerOut.out }, error: null } });
   check("the stand-in's worker runs the job and resolves", resolved.ok, resolved.reason ?? "");
   const final = await pending;
   check("the yield resumes into the contract's callback", final.ok && final.value === true, JSON.stringify(final.value ?? final.reason));
   ep = (await w.chain.view<EpochRec[]>("get_epochs", { account, from: e, limit: 1 }))[0];
-  check("the callback writes the enclave's label, naming who delivered it", ep.attested?.kind === "OutLayerTee" && ep.attested?.via === mock.id, `kind ${ep.attested?.kind}, via ${ep.attested?.via}`);
+  check("STAND-IN: a callback from anything but OutLayer's own account can't earn the enclave's label", ep.attested?.kind === "OutLayerStandIn" && ep.attested?.via === mock.id, `kind ${ep.attested?.kind}, via ${ep.attested?.via}`);
   check("and the pinned hash, not the job's word for it", ep.attested?.job_sha256 === jobHash);
   const rec = await w.chain.view<TraderRec>("get_trader", { account });
   check("an attestation changes no money and no status", rec.status === "Active");

@@ -156,7 +156,7 @@ async function run(w: World): Promise<void> {
   const bondBefore = BigInt((await liar.record()).bond);
   const verdict = await w.chain.call(bob, "audit_conclude", { audit: auditId, mark_indices: local.mark_indices });
   check("FALSE PNL: the contract recomputes the figure and slashes", verdict.ok && verdict.value.trader_at_fault === true, verdict.value?.detail ?? verdict.reason ?? "");
-  check("the prover takes its share of the bond, and a share burns", BigInt(verdict.value?.slashed_to_prover ?? 0) === (bondBefore * 4000n) / 10_000n && BigInt((await liar.record()).burned) === (bondBefore * 2000n) / 10_000n, `${verdict.value?.slashed_to_prover}`);
+  check("the prover takes its share of the bond, and the rest burns", BigInt(verdict.value?.slashed_to_prover ?? 0) === (bondBefore * 4000n) / 10_000n && BigInt((await liar.record()).burned) === bondBefore - (bondBefore * 4000n) / 10_000n && BigInt((await liar.record()).bond) === 0n, `${verdict.value?.slashed_to_prover}`);
   check("the audit deposit comes back to the prover", BigInt(verdict.value?.refunded ?? 0) === near("0.2"));
   const after = await liar.record();
   check("the trader is marked slashed, for good", JSON.stringify(after.status).includes("Slashed"), JSON.stringify(after.status).slice(0, 80));
@@ -380,8 +380,10 @@ async function run(w: World): Promise<void> {
   refused("settling before the challenge window ends is refused", await w.chain.call(dave, "settle", { token_id: u1.id }), "still open");
   const cu0 = BigInt(await w.chain.view("credit_of", { account: bob }));
   accepted("the holder of an undelivered window claims", await w.chain.call(bob, "claim_undelivered", { token_id: u1.id }));
-  const penalty = PRICE / 10_000n * 1000n;
-  check("the refund is the whole price plus the penalty from the bond", BigInt(await w.chain.view("credit_of", { account: bob })) - cu0 === PRICE + penalty);
+  const unaAfter = await una.record();
+  check("the refund is the whole price and not a yocto more: the penalty burns, so no second account can farm it", BigInt(await w.chain.view("credit_of", { account: bob })) - cu0 === PRICE && BigInt(unaAfter.burned) === PRICE / 2n, `burned ${unaAfter.burned}`);
+  const refusedRow = (await w.chain.view("get_epochs", { account: una.account, from: e, limit: 1 }))[0];
+  check("CHECKABLE: a refused window counts as refused on its epoch, not as somebody holding the keys", refusedRow.refused_sales === 1 && refusedRow.covering_sales === 0, JSON.stringify({ refused: refusedRow.refused_sales, covering: refusedRow.covering_sales }));
   check("the late delivery is on the trader's public record", (await una.record()).late_deliveries === 1);
   refused("it can't be claimed twice", await w.chain.call(bob, "claim_undelivered", { token_id: u1.id }), "delivered or closed");
   const u2 = await buy(w, carol, una, e, e);
@@ -429,18 +431,17 @@ async function run(w: World): Promise<void> {
   accepted("he posts his real loss", await xan.post(e, xf.pnl_e6));
   refused("KNOWN BAD: a window already past its floor isn't for sale, or it would be free reading", await w.chain.call(dave, "buy_window", { trader: xan.account, first_epoch: e, last_epoch: e, buyer_pub: hex(buyerKey().pub) }, near(3)), "past its floor");
   await w.chain.advanceTo(Number((await x2.token()).settle_at_ms));
-  const s1 = await w.chain.call(dave, "settle", { token_id: x1.id });
-  check("FLOOR: a window past the floor settles as refundable", s1.ok && s1.value === "refundable", `figure ${xf.pnl_e6}, floor -100000000: ${s1.value ?? s1.reason}`);
-  const s2 = await w.chain.call(dave, "settle", { token_id: x2.id });
-  accepted("the other too", s2);
   const xr = await xan.record();
-  const c0 = BigInt(await w.chain.view("credit_of", { account: bob }));
-  accepted("the first holder claims", await w.chain.call(bob, "claim_refund", { token_id: x1.id }));
-  const paid = BigInt(await w.chain.view("credit_of", { account: bob })) - c0;
-  check("with a bond that covers it, the holder gets the whole price from the bond", paid === BigInt((await x1.token()).price), `${paid}`);
-  check("the bond really paid", BigInt((await xan.record()).bond) === BigInt(xr.bond) - paid);
-  refused("someone else's token can't be claimed", await w.chain.call(bob, "claim_refund", { token_id: x2.id }), "only the holder");
-  accepted("the second holder claims", await w.chain.call(carol, "claim_refund", { token_id: x2.id }));
+  const xb0 = BigInt(await w.chain.view("credit_of", { account: bob }));
+  const xt0 = BigInt(await w.chain.view("credit_of", { account: xan.account }));
+  const s1 = await w.chain.call(dave, "settle", { token_id: x1.id });
+  check("FLOOR: a window past the floor goes back to its holder", s1.ok && s1.value === "refunded", `figure ${xf.pnl_e6}, floor -100000000: ${s1.value ?? s1.reason}`);
+  const xprice = BigInt((await x1.token()).price);
+  check("the holder gets the whole price, whatever the size of the bond", BigInt(await w.chain.view("credit_of", { account: bob })) - xb0 === xprice);
+  check("the trader doesn't get the escrow", BigInt(await w.chain.view("credit_of", { account: xan.account })) === xt0);
+  check("and a penalty burns from the bond: nobody collects it", BigInt((await xan.record()).burned) === xprice / 2n && BigInt((await xan.record()).bond) === BigInt(xr.bond) - xprice / 2n);
+  accepted("the other window too", await w.chain.call(dave, "settle", { token_id: x2.id }));
+  refused("it can't be settled twice", await w.chain.call(dave, "settle", { token_id: x2.id }), "can't be settled");
   check("no liability is left", BigInt((await xan.record()).liability) === 0n);
   await solvent(w, "after the floor");
 
@@ -454,54 +455,13 @@ async function run(w: World): Promise<void> {
   refused("LAPSE: a figure after the grace is refused", await yan.post(e, 0n), "too late");
   await w.chain.advanceTo(Number((await y1.token()).settle_at_ms));
   const ys = await w.chain.call(dave, "settle", { token_id: y1.id });
-  check("LAPSE: a window with a missing figure settles as refundable", ys.ok && ys.value === "refundable", String(ys.value ?? ys.reason));
-  accepted("the holder claims from the bond", await w.chain.call(bob, "claim_refund", { token_id: y1.id }));
+  check("LAPSE: a window with a missing figure goes back to its holder", ys.ok && ys.value === "refunded", String(ys.value ?? ys.reason));
   refused("KNOWN BAD: a window with a missed figure isn't for sale, or it would be free reading", await w.chain.call(dave, "buy_window", { trader: yan.account, first_epoch: e, last_epoch: e, buyer_pub: hex(buyerKey().pub) }, near(3)), "no figure");
   await solvent(w, "after the lapse");
 
-  // A holder who never claims can't lock the trader's bond for ever.
-  await w.rounds();
   const zoe = await newTrader(w, "zoe");
   e = await nextEpoch(w);
-  const z1 = await buy(w, bob, zoe, e, e);
-  accepted("delivery", await zoe.deliver(z1.id));
-  await w.chain.advanceTo(Number((await z1.token()).settle_at_ms));
-  accepted("no figure, so the window settles as refundable", await w.chain.call(dave, "settle", { token_id: z1.id }));
-  refused("closing it before the holder's time is up is refused", await w.chain.call(dave, "close_unclaimed", { token_id: z1.id }), "still has time");
-  await w.chain.advanceTo(Number((await z1.token()).settle_at_ms) + w.config.unbond_secs * 1000);
-  accepted("ABSENT HOLDER: after the delay, anyone can close the unclaimed refund", await w.chain.call(dave, "close_unclaimed", { token_id: z1.id }));
-  check("and the bond is free of it", BigInt((await zoe.record()).liability) === 0n);
-  refused("a closed window can't claim", await w.chain.call(bob, "claim_refund", { token_id: z1.id }), "can't claim");
   refused("a window too far ahead is refused", await w.chain.call(bob, "buy_window", { trader: zoe.account, first_epoch: (await currentEpoch(w)) + 40, last_epoch: (await currentEpoch(w)) + 40, buyer_pub: hex(buyerKey().pub) }, near(3)), "too far ahead");
-
-  // Pro rata: the bond can't cover everyone, and the order of claims doesn't matter.
-  await w.rounds();
-  const pia = await newTrader(w, "pia", "shared", { floor_bps: 1, book: 10_000, base: near(1), slope: 0n, bond: near("1.2") });
-  e = await nextEpoch(w);
-  await pia.write(trade(0, 1, "long into a fall"));
-  const q1 = await buy(w, bob, pia, e, e);
-  const q2 = await buy(w, carol, pia, e, e);
-  accepted("delivery", await pia.deliver(q1.id));
-  accepted("delivery", await pia.deliver(q2.id));
-  await w.roundAt(0, 300_000_000_000n);
-  await closeEpoch(w, e);
-  await w.chain.advanceTo((await w.chain.nowMs()) + 1);
-  await w.roundAt(0, 270_000_000_000n);
-  await w.prices.load();
-  accepted("she posts the loss", await pia.post(e, (await pia.figure(e, w.prices)).pnl_e6));
-  await w.chain.advanceTo(Number((await q2.token()).settle_at_ms));
-  await w.chain.call(dave, "settle", { token_id: q1.id });
-  await w.chain.call(dave, "settle", { token_id: q2.id });
-  const pb = BigInt((await pia.record()).bond);
-  const bc0 = BigInt(await w.chain.view("credit_of", { account: bob }));
-  accepted("the first holder claims", await w.chain.call(bob, "claim_refund", { token_id: q1.id }));
-  const bc1 = BigInt(await w.chain.view("credit_of", { account: bob })) - bc0;
-  const cc0 = BigInt(await w.chain.view("credit_of", { account: carol }));
-  accepted("the second holder claims", await w.chain.call(carol, "claim_refund", { token_id: q2.id }));
-  const cc1 = BigInt(await w.chain.view("credit_of", { account: carol })) - cc0;
-  check("PRO RATA: both get the same fraction whatever the order", bc1 > 0n && (bc1 > cc1 ? bc1 - cc1 : cc1 - bc1) <= 2n, `${Number(bc1 / 10n ** 21n) / 1000} and ${Number(cc1 / 10n ** 21n) / 1000} NEAR of a 1.2 NEAR bond`);
-  check("claims never exceed the bond", bc1 + cc1 <= pb, `left ${pb - bc1 - cc1} yocto`);
-  await solvent(w, "after the pro rata");
 
   // Somebody takes a token and never registers a key: the trader isn't at fault.
   await w.rounds();
@@ -642,42 +602,138 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   check("FAILED TRANSFER: the credit is restored in full", BigInt(await w.chain.view("credit_of", { account: brokenId })) === c0);
   await solvent(w, "after the failed transfer");
 
-  console.log("\n-- Slashing yourself, and buying in on a slash --");
+  console.log("\n-- Can a trader's second account pull the bond out? --");
   {
-    const selfT = new TraderAgent(w.chain, await w.fund("self-slasher", near(100)), seedOf("shared"), w.timing);
-    const bond = near(10);
-    accepted("a trader with a bond", await selfT.register("self", { book_usd: 100_000, floor_bps: 1000, base_price: near(5), slope: 0n, bond }));
-    const sybil = await w.fund("his-sybil", near(100));
+    // Every way a bond can reach a buyer: a refused delivery, a lapse, a floor, a slash. Sock is the trader's own second account: count what the pair of them end up with.
+    const pairWorth = async (t: TraderAgent, sock: string) => vm.balance(t.account) + vm.balance(sock) + BigInt(await w.chain.view("credit_of", { account: t.account })) + BigInt(await w.chain.view("credit_of", { account: sock }));
+    const buyAt = async (sock: string, t: TraderAgent, first: number, last: number) => {
+      const one = buyerKey();
+      const b = await w.chain.call(sock, "buy_window", { trader: t.account, first_epoch: first, last_epoch: last, buyer_pub: hex(one.pub) }, near(60));
+      if (!b.ok) throw new Error(`buy: ${b.reason}`);
+      return { id: Number(b.value), one, token: () => w.chain.view<TokenRec>("get_token", { token_id: Number(b.value) }) };
+    };
+
+    const dr = new TraderAgent(w.chain, await w.fund("drainer", near(200)), seedOf("shared"), w.timing);
+    accepted("a trader, with a 10 NEAR bond", await dr.register("drainer", { book_usd: 100_000, floor_bps: 1000, base_price: near("0.6"), slope: 0n, bond: near(10) }));
+    const sock = await w.fund("sock", near(2000));
+    const drW0 = await pairWorth(dr, sock);
+    let lastBond = BigInt((await dr.record()).bond);
+    let cycles = 0;
+    for (; cycles < 12; cycles++) {
+      const rec = await dr.record();
+      const ep = await currentEpoch(w);
+      const epochs = Math.min(31, Number((BigInt(rec.bond) * 2n) / BigInt(rec.base_price)));
+      if (epochs < 1) break;
+      const one = buyerKey();
+      const b = await w.chain.call(sock, "buy_window", { trader: dr.account, first_epoch: ep, last_epoch: ep + epochs - 1, buyer_pub: hex(one.pub) }, near(60));
+      if (!b.ok) { refused("BOND ESCAPE: once the bond is below the minimum, the trader isn't selling", b, "below the minimum"); break; }
+      const tok = await w.chain.view<TokenRec>("get_token", { token_id: Number(b.value) });
+      await w.chain.advanceTo(Number(tok.deliver_by_ms) + 1);
+      const c = await w.chain.call(sock, "claim_undelivered", { token_id: Number(b.value) });
+      if (!c.ok) throw new Error(c.reason);
+      lastBond = BigInt((await dr.record()).bond);
+    }
+    const drW1 = await pairWorth(dr, sock);
+    const drRec = await dr.record();
+    check("BOND ESCAPE, refused deliveries: the pair gain nothing, and what left the bond burned", drW1 <= drW0 && BigInt(drRec.burned) > 0n, `${cycles} cycles: bond ${Number(lastBond / 10n ** 21n) / 1000} NEAR, burned ${Number(BigInt(drRec.burned) / 10n ** 21n) / 1000}, the pair down ${Number((drW0 - drW1) / 10n ** 21n) / 1000}`);
+    check("and the refusals are on the public record", drRec.late_deliveries === cycles, String(drRec.late_deliveries));
+
+    const la = new TraderAgent(w.chain, await w.fund("lapser", near(200)), seedOf("shared"), w.timing);
+    accepted("a trader with a 10 NEAR bond", await la.register("lapser", { book_usd: 100_000, floor_bps: 1000, base_price: near(10), slope: 0n, bond: near(10) }));
+    const sock2 = await w.fund("sock2", near(200));
+    const laW0 = await pairWorth(la, sock2);
+    const la1 = await buyAt(sock2, la, await currentEpoch(w), await currentEpoch(w));
+    accepted("he delivers to his own second account", await la.deliver(la1.id));
+    await w.chain.advanceTo(Number((await la1.token()).settle_at_ms));
+    await w.rounds();
+    const ls = await w.chain.call(sock2, "settle", { token_id: la1.id });
+    const laRec = await la.record();
+    check("BOND ESCAPE, a deliberate lapse: the pair gain nothing, and the bond goes to nobody", ls.ok && ls.value === "refunded" && BigInt(laRec.burned) > 0n && (await pairWorth(la, sock2)) <= laW0, `bond ${Number(BigInt(laRec.bond) / 10n ** 21n) / 1000}, burned ${Number(BigInt(laRec.burned) / 10n ** 21n) / 1000}`);
+
+    const selfT = new TraderAgent(w.chain, await w.fund("self-slasher", near(200)), seedOf("shared"), w.timing);
+    accepted("a trader with a 10 NEAR bond", await selfT.register("self", { book_usd: 100_000, floor_bps: 1000, base_price: near(5), slope: 0n, bond: near(10) }));
+    const sybil = await w.fund("his-sybil", near(200));
     const honestBuyer = await w.fund("real-buyer", near(100));
     const ee = (await nextEpoch(w)) + 1;
-    const realTok = await (async () => {
-      const one = buyerKey();
-      const b = await w.chain.call(honestBuyer, "buy_window", { trader: selfT.account, first_epoch: ee, last_epoch: ee, buyer_pub: hex(one.pub) }, near(10));
-      return { id: Number(b.value), one, ok: b.ok, reason: b.reason };
-    })();
-    check("a real buyer's window, sold long before any trouble", realTok.ok, realTok.reason ?? "");
+    const realTok = await buyAt(honestBuyer, selfT, ee, ee);
+    const oldSock = await buyAt(sybil, selfT, ee, ee);
     await w.chain.advanceTo((await w.chain.nowMs()) + (w.config.challenge_secs + 60) * 1000);
-    const syb = await (async () => {
-      const one = buyerKey();
-      const cur = await currentEpoch(w);
-      const b = await w.chain.call(sybil, "buy_window", { trader: selfT.account, first_epoch: cur, last_epoch: cur, buyer_pub: hex(one.pub) }, near(10));
-      return { id: Number(b.value), one, ok: b.ok, reason: b.reason };
-    })();
-    check("his sybil buys a big window", syb.ok, syb.reason ?? "");
-    accepted("he delivers it garbage, on purpose", await selfT.deliver(syb.id, { garbage: 0 }));
-    const sybBefore = BigInt(await w.chain.view("credit_of", { account: sybil }));
-    const before = (await selfT.record()).bond;
+    const cur = await currentEpoch(w);
+    const syb = await buyAt(sybil, selfT, cur, cur);
+    accepted("he delivers his second account garbage, on purpose", await selfT.deliver(syb.id, { garbage: 0 }));
+    const before = BigInt((await selfT.record()).bond);
+    const selfW0 = await pairWorth(selfT, sybil);
     const sd = await w.chain.call(sybil, "dispute_wrap", { token_id: syb.id, one_time_secret: hex(syb.one.secret), node_index: 0 }, near(6));
-    check("the sybil's dispute slashes him", sd.ok && sd.value.trader_at_fault === true, sd.value?.detail ?? sd.reason ?? "");
-    const got = BigInt(await w.chain.view("credit_of", { account: sybil })) - sybBefore;
-    const paidIn = near(6) + BigInt((await w.chain.view<TokenRec>("get_token", { token_id: syb.id })).price);
-    check("SELF-SLASH: he recovers the prover's share of the bond and no more", got - paidIn === (BigInt(before) * 4000n) / 10_000n, `${Number((got - paidIn) / 10n ** 21n) / 1000} NEAR of a ${Number(BigInt(before) / 10n ** 21n) / 1000} NEAR bond`);
-    check("a share of it burned for good", BigInt((await selfT.record()).burned) === (BigInt(before) * 2000n) / 10_000n);
+    check("his second account's dispute slashes him", sd.ok && sd.value.trader_at_fault === true, sd.value?.detail ?? sd.reason ?? "");
+    const selfRec = await selfT.record();
+    const claimedOld = await w.chain.call(sybil, "claim_refund", { token_id: oldSock.id });
+    accepted("the second account's older window takes its escrow back", claimedOld);
+    const gainFromBond = (await pairWorth(selfT, sybil)) - selfW0;
+    check("SELF-SLASH: the most a trader can recover through a second account is the prover's share, old window or not", gainFromBond <= (before * 4000n) / 10_000n + 2n * BigInt((await oldSock.token()).price), `${Number(gainFromBond / 10n ** 21n) / 1000} NEAR of a ${Number(before / 10n ** 21n) / 1000} NEAR bond`);
+    check("the rest burned, and nothing is left to claim", BigInt(selfRec.bond) === 0n && BigInt(selfRec.burned) === before - (before * 4000n) / 10_000n, `burned ${Number(BigInt(selfRec.burned) / 10n ** 21n) / 1000}`);
     const rc = BigInt(await w.chain.view("credit_of", { account: honestBuyer }));
     accepted("the real buyer claims", await w.chain.call(honestBuyer, "claim_refund", { token_id: realTok.id }));
-    const rGot = BigInt(await w.chain.view("credit_of", { account: honestBuyer })) - rc;
-    check("the real buyer gets the escrow back, and a share of the bond, since his window is old", rGot > near(5), `${Number(rGot / 10n ** 21n) / 1000} NEAR on a 5 NEAR window`);
+    check("the real buyer gets the whole price back, however many second accounts bought in", BigInt(await w.chain.view("credit_of", { account: honestBuyer })) - rc === BigInt((await realTok.token()).price));
     await solvent(w, "after the self-slash");
+  }
+
+  console.log("\n-- An entry nobody can open --");
+  {
+    const j = new TraderAgent(w.chain, await w.fund("junker", near(100)), seedOf("shared"), w.timing);
+    accepted("a trader", await j.register("junker", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const holder = await w.fund("holder", near(100));
+    const stranger = await w.fund("stranger", near(100));
+    await w.rounds();
+    const je = await nextEpoch(w);
+    const jr = await j.write(trade(0, 1, "real"));
+    const jj = await j.write(trade(0, 1, "junk"), { leafOverride: new Uint8Array(32).fill(9) });
+    accepted("a real entry and a junk one", jr.ok && jj.ok ? jr : jj);
+    await w.rounds();
+    await closeEpoch(w, je);
+    accepted("a false figure", await j.post(je, 999_000_000n));
+    const k = await buy(w, holder, j, je, je);
+    accepted("delivery", await j.deliver(k.id));
+    const r = new WindowReader(await k.token(), k.one);
+    const rows = await loadEntries(w.chain, j.account, 0, 2);
+    const realKey = hex(r.key(rows[0])!);
+    const realHint = (await (async () => { const { firstRoundAtOrAfter } = await import("../lib/src/client.ts"); await w.prices.load(); return firstRoundAtOrAfter(w.prices.rounds[0], Number(rows[0].at_ms)); })());
+    const open = await w.chain.call(stranger, "audit_open", { trader: j.account, epoch: je }, near(1));
+    accepted("an auditor opens", open);
+    accepted("the first entry opens", await w.chain.call(stranger, "audit_step", { audit: open.value, openings: [{ key: realKey, price_index: realHint }] }));
+    refused("JUNK ENTRY: the second never will", await w.chain.call(stranger, "audit_step", { audit: open.value, openings: [{ key: realKey, price_index: realHint }] }), "doesn't open");
+    const creditJ0 = BigInt(await w.chain.view("credit_of", { account: j.account }));
+    const stranger0 = BigInt(await w.chain.view("credit_of", { account: stranger }));
+    const cancel = await w.chain.call(stranger, "audit_cancel", { audit: open.value });
+    const dep = BigInt(w.config.audit_bond);
+    check("the auditor can give up: half the deposit back while the trader stands, half to him, so leaving keys on the chain isn't free", cancel.ok && BigInt(await w.chain.view("credit_of", { account: stranger })) - stranger0 === dep / 2n && BigInt(await w.chain.view("credit_of", { account: j.account })) - creditJ0 === dep / 2n, String(cancel.value ?? cancel.reason));
+    refused("nobody can cancel someone else's audit", await w.chain.call(holder, "audit_cancel", { audit: open.value }), "no such audit");
+    const open2 = await w.chain.call(stranger, "audit_open", { trader: j.account, epoch: je }, near(1));
+    await w.chain.advanceTo(Number((await k.token()).settle_at_ms));
+    await w.rounds();
+    accepted("the challenge window ends, and the window settles", await w.chain.call(stranger, "settle", { token_id: k.id }));
+    const nodeI = r.nodes.findIndex((n) => { const size = 2 ** (DEPTH - n.id.level); return rows[1].slot >= n.id.index * size && rows[1].slot < (n.id.index + 1) * size; });
+    const held = BigInt(await w.chain.view("credit_of", { account: holder }));
+    const late = await w.chain.call(holder, "dispute_entry", { token_id: k.id, node_index: nodeI, node: hex(r.nodes[nodeI].value), seq: "1" }, near(1));
+    check("JUNK ENTRY: the holder can still prove it after settlement: the false figure can't hide behind it", late.ok && late.value.trader_at_fault === true, late.value?.detail ?? late.reason ?? "");
+    check("a settled window has no escrow left, so the prover's share and the deposit are what come back", BigInt(await w.chain.view("credit_of", { account: holder })) - held === BigInt(late.value?.slashed_to_prover ?? 0) + near(1));
+    const s0 = BigInt(await w.chain.view("credit_of", { account: stranger }));
+    const c2 = await w.chain.call(stranger, "audit_cancel", { audit: open2.value });
+    check("and an audit stuck behind it gets its whole deposit back, the trader being slashed", c2.ok && BigInt(await w.chain.view("credit_of", { account: stranger })) - s0 === dep, String(c2.value ?? c2.reason));
+    await solvent(w, "after the junk entry");
+  }
+
+  console.log("\n-- Posting winners only --");
+  {
+    const wn = new TraderAgent(w.chain, await w.fund("winners-only", near(100)), seedOf("shared"), w.timing);
+    accepted("a trader with a $100,000 book and a 1% floor", await wn.register("winners", { book_usd: 100_000, floor_bps: 100, base_price: PRICE, slope: 0n, bond: BOND }));
+    const we = await nextEpoch(w);
+    await w.chain.advanceTo(w.timing.epochStart(we + 1) + 1000);
+    accepted("he stays silent on a losing day, and posts the next day's win", (await w.chain.advanceTo(w.timing.epochStart(we + 2) + 1000), await wn.post(we + 1, 200_000_000n)));
+    const sc = await w.chain.view("score", { account: wn.account });
+    check("SKIPPED LOSER: the missed epoch counts against him, at the worse of his floor and 2% of the book", sc.missed >= 1 && sc.charge_per_missed_e6 === "2000000000" && BigInt(sc.score_e6) === 200_000_000n - BigInt(sc.missed) * 2_000_000_000n, JSON.stringify(sc));
+    await w.chain.advanceTo((await w.chain.nowMs()) + 5 * 86400_000);
+    const sc2 = await w.chain.view("score", { account: wn.account });
+    check("and silence after his last figure counts too, once the grace is over", sc2.missed > sc.missed, `missed ${sc.missed} then ${sc2.missed}`);
   }
 
   console.log("\n-- The last figure gets its time to be audited --");

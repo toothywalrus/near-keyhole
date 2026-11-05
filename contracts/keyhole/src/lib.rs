@@ -68,12 +68,10 @@ pub struct Config {
     pub min_bond: U128,
     /// A sale must leave the bond at least this share of outstanding sales, in basis points.
     pub min_coverage_bps: u32,
-    /// The prover's share of a slashed bond, in basis points.
+    /// The prover's share of a slashed bond, in basis points. The rest burns: nobody can claim it, so proving yourself a liar through a second account always costs the rest.
     pub prover_bps: u32,
-    /// The share burned: locked for good, claimable by nobody, so that slashing yourself always costs something. What's left backs the buyers' refunds.
-    pub burn_bps: u32,
-    /// What a late delivery costs the trader's bond, in basis points of the price.
-    pub late_penalty_bps: u32,
+    /// What a refused delivery or a breached window burns from the bond, in basis points of the price. It's burned, never paid out, so that no second account can collect it.
+    pub penalty_bps: u32,
     pub max_window_epochs: u32,
     /// The least deposit for a dispute (a dispute also needs at least the window's price).
     pub min_dispute: U128,
@@ -131,7 +129,7 @@ pub struct Trader {
     pub sold: u32,
     pub buyers: u32,
     pub late_deliveries: u32,
-    /// What a slash locked for good.
+    /// What slashes and penalties have burned from the bond.
     pub burned: U128,
     /// The last figure's time: the bond stays at risk for `unbond_secs` after it, so every figure can be audited against something.
     pub last_post_ms: U64,
@@ -143,7 +141,9 @@ pub struct Trader {
 pub enum AttestKind {
     /// A registered runner ran the wasm job locally: no enclave. Every view says so.
     SimulatedLocal,
-    /// The callback from OutLayer's `request_execution`.
+    /// The callback of `request_execution` on a contract other than OutLayer's own: a stand-in, in the sandbox. Not an enclave.
+    OutLayerStandIn,
+    /// The callback from OutLayer's own contract (`outlayer.testnet`, `outlayer.near`). What the enclave ran is pinned by `job_sha256`, which the contract's owner set.
     OutLayerTee,
 }
 
@@ -179,8 +179,10 @@ pub struct EpochRec {
     pub verdict: EpochVerdict,
     /// Audits of this epoch that found the figure right.
     pub audits_passed: u32,
-    /// Windows sold that cover this epoch: how many people could check it.
+    /// Windows whose keys were delivered and not proven garbage: how many people could check this epoch.
     pub covering_sales: u32,
+    /// Windows covering this epoch whose buyer was refused delivery: somebody asked to check it, and was stopped.
+    pub refused_sales: u32,
     pub attested: Option<Attested>,
 }
 
@@ -230,7 +232,7 @@ impl Keyhole {
     #[init]
     pub fn new(owner: AccountId, config: Config, feeds: Vec<oracle::FeedInit>) -> Self {
         require!(config.slot_secs > 0 && config.epoch_slots > 0, "a slot and an epoch can't be empty");
-        require!(config.prover_bps + config.burn_bps <= 10_000, "prover_bps + burn_bps is at most 10000");
+        require!(config.prover_bps <= 10_000, "prover_bps is at most 10000");
         require!(config.max_round_gap_secs > 0, "the round gap can't be zero");
         require!(config.challenge_secs > config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
         require!(!feeds.is_empty() && feeds.len() <= keyhole_core::pnl::MAX_FEEDS, "1 to 4 feeds");
@@ -333,6 +335,7 @@ impl Keyhole {
             verdict: EpochVerdict::Unchallenged,
             audits_passed: 0,
             covering_sales: 0,
+            refused_sales: 0,
             attested: None,
         })
     }
@@ -363,19 +366,24 @@ impl Keyhole {
         }
     }
 
-    /// Slash a trader for good: the prover takes its share at once, a share burns, and the rest stays behind to back refunds for windows sold before the challenge period
-    /// (`bond_share`). What no buyer can claim stays locked too. So slashing yourself through a second account recovers the prover's share at most, unless that account's
-    /// window is an old one (`docs/decisions/0012`).
+    /// Take `amount` from a bond, up to all of it, and burn it: it stops being owed to anyone.
+    pub(crate) fn burn(&mut self, t: &mut Trader, amount: u128) {
+        let burned = amount.min(t.bond.0);
+        t.bond = U128(checked_sub(t.bond.0, burned));
+        t.burned = U128(checked_add(t.burned.0, burned));
+        self.obligations = checked_sub(self.obligations, burned);
+    }
+
+    /// Slash a trader for good: the prover takes its share at once and the rest burns. No part of a bond is ever paid out to a buyer, since a buyer can be the trader's
+    /// second account: the only ways out of a bond are this share, burning, and `withdraw_bond` after the delay (`docs/decisions/0013`).
     pub(crate) fn slash(&mut self, t: &mut Trader, reason: &str, prover: &AccountId) -> u128 {
         if matches!(t.status, TraderStatus::Slashed { .. }) {
             return 0;
         }
-        let share = |bps: u32| keyhole_core::mul_div(t.bond.0, bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"));
-        let cut = share(self.config.prover_bps);
-        let burn = share(self.config.burn_bps);
-        t.bond = U128(checked_sub(checked_sub(t.bond.0, cut), burn));
-        t.burned = U128(burn);
-        self.obligations = checked_sub(self.obligations, burn);
+        let cut = keyhole_core::mul_div(t.bond.0, self.config.prover_bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"));
+        t.bond = U128(checked_sub(t.bond.0, cut));
+        let rest = t.bond.0;
+        self.burn(t, rest);
         t.status = TraderStatus::Slashed { reason: reason.to_string(), by: prover.clone(), at_ms: U64(self.now_ms()) };
         self.move_to_credit(prover, cut);
         cut

@@ -26,18 +26,19 @@ const STORAGE = near("0.01");
 
 export type Config = {
   slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number;
-  challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; burn_bps: number; late_penalty_bps: number;
+  challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; penalty_bps: number;
   max_window_epochs: number; min_dispute: string; audit_bond: string; recorder: string | null;
 };
 export type Clock = { now_ms: string; genesis_ms: string; slot: string; epoch: number };
 export type EntryRec = { seq: string; slot: number; at_ms: string; ct: string; tag: string; head: string };
-export type EpochRec = { epoch: number; first_seq: string; entries: number; posted_e6: string | null; posted_ms: string | null; verdict: any; audits_passed: number; covering_sales: number; attested: any };
+export type EpochRec = { epoch: number; first_seq: string; entries: number; posted_e6: string | null; posted_ms: string | null; verdict: any; audits_passed: number; covering_sales: number; refused_sales: number; attested: any };
 export type Round = { round_id: string; answer_e8: number; t_ms: string; source_updated_at: string };
 export type TraderRec = {
   id: number; account: string; handle: string; root: string; registered_ms: string; first_epoch: number; status: any; bond: string; liability: string;
   book_usd_e6: string; floor_bps: number; base_price: string; slope: string; next_seq: string; head: string; next_epoch: number; posted_epochs: number;
   missed_epochs: number; cum_pnl_e6: string; sold: number; buyers: number; late_deliveries: number; burned: string; last_post_ms: string;
 };
+export type Score = { posted_e6: string; missed: number; charge_per_missed_e6: string; score_e6: string };
 export type TokenRec = {
   id: number; trader: number; first_epoch: number; last_epoch: number; first_slot: number; last_slot: number; owner: string; price: string;
   buyer_pub: string | null; state: string; bought_ms: string; deliver_by_ms: string; settle_at_ms: string; resale_price: string | null;

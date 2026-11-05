@@ -106,6 +106,20 @@ impl Keyhole {
         next
     }
 
+    /// Give up on an audit that can't finish. Once the trader is slashed, for any reason, the deposit comes back whole. Otherwise half of it goes to the trader, so that leaving keys
+    /// on the chain and walking away isn't free. A holder stuck on an entry nobody can open has a proof that pays better: `dispute_entry`.
+    pub fn audit_cancel(&mut self, audit: u64) -> U128 {
+        let who = env::predecessor_account_id();
+        let a = self.audits.get(&audit).cloned().unwrap_or_else(|| env::panic_str("no such audit"));
+        require!(a.auditor == who, "this is someone else's audit");
+        self.audits.remove(&audit);
+        let t = self.trader(a.trader);
+        let back = if matches!(t.status, TraderStatus::Slashed { .. }) { a.deposit.0 } else { a.deposit.0 / 2 };
+        self.move_to_credit(&who, back);
+        self.move_to_credit(&t.account, a.deposit.0 - back);
+        U128(back)
+    }
+
     /// Every entry is open: mark what's left at the first round at or after the epoch's end, and compare. `mark_indices` has one element
     /// per feed: the index of that round, or nothing for a feed with no position.
     pub fn audit_conclude(&mut self, audit: u64, mark_indices: Vec<Option<u32>>) -> Verdict {

@@ -34,6 +34,8 @@ async function runSeed(seed: string): Promise<void> {
   const traders: { a: TraderAgent; lastFigure: Map<number, bigint> }[] = [];
   const tokens: { id: number; one: Map<string, OneTime> }[] = [];
   const audits: number[] = [];
+  const bondsIn = new Map<string, bigint>();
+  const cuts = new Map<string, bigint>();
   const prices = new Prices(w.chain);
   await w.rounds();
   const pick = <T,>(x: T[]) => x[r(x.length)];
@@ -55,7 +57,6 @@ async function runSeed(seed: string): Promise<void> {
         escrow += BigInt(k.price);
         liab.set(k.trader, liab.get(k.trader)! + BigInt(k.price));
       }
-      if (k.state === "Refundable") liab.set(k.trader, liab.get(k.trader)! + BigInt(k.price));
     }
     let credits = 0n;
     for (const a of creditAccounts) credits += BigInt(await w.chain.view("credit_of", { account: a }));
@@ -70,6 +71,10 @@ async function runSeed(seed: string): Promise<void> {
     if (BigInt(s.slack) < 0n) throw new Error(`after ${op}: slack is negative: ${JSON.stringify(s)}`);
     for (const t of list) {
       if (BigInt(t.liability) !== liab.get(t.id)) throw new Error(`after ${op}: ${t.handle}'s liability ${t.liability} != ${liab.get(t.id)} from its tokens`);
+      // A bond leaves only by burning, to a prover, or by the trader's own withdrawal, which ends the record.
+      const paidIn = bondsIn.get(t.account) ?? 0n;
+      const out = BigInt(t.bond) + BigInt(t.burned) + (cuts.get(t.account) ?? 0n);
+      if (t.status !== "Exited" && out !== paidIn) throw new Error(`after ${op}: ${t.handle}: bond ${t.bond} + burned ${t.burned} + prover's cuts ${cuts.get(t.account) ?? 0n} != ${paidIn} paid in`);
     }
   };
 
@@ -98,7 +103,10 @@ async function runSeed(seed: string): Promise<void> {
           vm.fund(account, near(100_000));
           const a = agent(w, account, "shared");
           o = await a.register(`t${traders.length}`, { book_usd: 10_000 + r(100_000), floor_bps: 100 + r(3000), base_price: near("0.05") + BigInt(r(1000)) * 10n ** 21n, slope: BigInt(r(100)) * 10n ** 21n, bond: near(1 + r(20)) + 10n ** 22n });
-          if (o.ok) traders.push({ a, lastFigure: new Map() });
+          if (o.ok) {
+            traders.push({ a, lastFigure: new Map() });
+            bondsIn.set(account, BigInt((await a.record()).bond));
+          }
         }
         break;
       }
@@ -154,7 +162,13 @@ async function runSeed(seed: string): Promise<void> {
         if (k) {
           const tok: TokenRec = await w.chain.view("get_token", { token_id: k.id });
           const one = k.one.get(tok.owner);
-          if (one) o = await w.chain.call(tok.owner, "dispute_wrap", { token_id: k.id, one_time_secret: hex(one.secret), node_index: r(2) }, near(30));
+          if (one) {
+            o = await w.chain.call(tok.owner, "dispute_wrap", { token_id: k.id, one_time_secret: hex(one.secret), node_index: r(2) }, near(30));
+            if (o.ok && o.value?.slashed_to_prover) {
+              const acct = traders[tok.trader].a.account;
+              cuts.set(acct, (cuts.get(acct) ?? 0n) + BigInt(o.value.slashed_to_prover));
+            }
+          }
         }
         break;
       }
@@ -167,7 +181,11 @@ async function runSeed(seed: string): Promise<void> {
         }
         break;
       }
-      case 19: { op = "close"; if (k) o = await w.chain.call(who, "close_unclaimed", { token_id: k.id }); break; }
+      case 19: {
+        op = "audit_cancel";
+        if (audits.length) o = await w.chain.call(who, "audit_cancel", { audit: pick(audits) });
+        break;
+      }
       case 20: {
         op = "transfer";
         if (k) {
@@ -204,7 +222,10 @@ async function runSeed(seed: string): Promise<void> {
       }
       case 24: {
         op = "add_bond";
-        if (t) o = await w.chain.call(t.a.account, "add_bond", {}, near(1));
+        if (t) {
+          o = await w.chain.call(t.a.account, "add_bond", {}, near(1));
+          if (o.ok) bondsIn.set(t.a.account, (bondsIn.get(t.a.account) ?? 0n) + near(1));
+        }
         break;
       }
       case 25: {
@@ -227,6 +248,7 @@ async function runSeed(seed: string): Promise<void> {
                 await ledger("audit_step");
                 o = await w.chain.call(who, "audit_conclude", { audit: open.value, mark_indices: f.mark_indices });
                 if (o.ok) {
+                  cuts.set(t.a.account, (cuts.get(t.a.account) ?? 0n) + BigInt(o.value.slashed_to_prover));
                   const honest = t.lastFigure.get(ep.epoch);
                   const lied = honest !== undefined && honest !== f.pnl_e6;
                   // The verdict must be exactly whether the posted figure differs from the recomputed one.
@@ -254,5 +276,5 @@ console.log("Accepted or attempted, by operation:", Object.fromEntries([...cover
 const top = [...refusals].sort((a, b) => b[1] - a[1]).slice(0, 14);
 console.log("Most common refusals:");
 for (const [why, n] of top) console.log(`  ${String(n).padStart(5)}  ${why}`);
-console.log("\nThe books balanced to the yocto after every operation. Nothing trapped or under/overflowed.");
+console.log("\nThe books balanced to the yocto after every operation. Every yocto of every bond is accounted for: still bonded, burned, or a prover's share. Nothing trapped or under/overflowed.");
 void Timing;

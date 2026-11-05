@@ -1,6 +1,8 @@
 //! Read-only views. Nothing here needs a key, and the web app reads only these.
 use crate::*;
 
+const MIN_MISS_BPS: u32 = 200;
+
 #[near(serializers = [json])]
 pub struct Clock {
     pub now_ms: U64,
@@ -20,8 +22,35 @@ pub struct Solvency {
     pub slack: I128,
 }
 
+/// The public record, with what's missing counted against it.
+#[near(serializers = [json])]
+pub struct Score {
+    /// The posted figures, corrected where proven false.
+    pub posted_e6: I128,
+    /// Epochs with no figure, once their grace is over: the ones passed over and the ones since the last post.
+    pub missed: u32,
+    /// What each one costs: the worse of the trader's own floor and 2% of the book. Otherwise a trader could post his winners and stay silent on his losers.
+    pub charge_per_missed_e6: I128,
+    /// `posted_e6` less the charges. This is the number to show.
+    pub score_e6: I128,
+}
+
 #[near]
 impl Keyhole {
+    pub fn score(&self, account: AccountId) -> Option<Score> {
+        let t = self.get_trader(account)?;
+        let mut missed = t.missed_epochs;
+        if matches!(t.status, TraderStatus::Active | TraderStatus::Unbonding { .. }) {
+            let grace = self.config.post_grace_secs as u64 * 1000;
+            let epoch_ms = self.config.epoch_slots as u64 * self.config.slot_secs as u64 * 1000;
+            let elapsed = self.now_ms().saturating_sub(self.genesis_ms).saturating_sub(grace);
+            let past_grace = (elapsed / epoch_ms) as u32; // epochs before this one have ended, with their grace over
+            missed = missed.saturating_add(past_grace.saturating_sub(t.next_epoch));
+        }
+        let charge = t.book_usd_e6.0 as i128 * t.floor_bps.max(MIN_MISS_BPS) as i128 / 10_000;
+        Some(Score { posted_e6: t.cum_pnl_e6, missed, charge_per_missed_e6: I128(charge), score_e6: I128(t.cum_pnl_e6.0.saturating_sub(charge.saturating_mul(missed as i128))) })
+    }
+
     pub fn get_config(&self) -> Config {
         self.config.clone()
     }

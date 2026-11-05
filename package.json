@@ -27,7 +27,8 @@
     "page-test": "tsx tools/page-test.ts",
     "judge": "tsx tools/judge.ts",
     "record": "tsx tools/record-demo.ts",
-    "kani": "sh tools/kani.sh"
+    "kani": "sh tools/kani.sh",
+    "check-res": "sh tools/check-res.sh"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",

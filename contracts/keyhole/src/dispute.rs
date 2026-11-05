@@ -14,7 +14,7 @@ pub struct Verdict {
     pub detail: String,
     /// The disputer's share of the slashed bond.
     pub slashed_to_prover: U128,
-    /// What came back to the disputer, in escrow and deposit, on top of the share.
+    /// What came back to the disputer, in escrow if the window was still open, and deposit, on top of the share.
     pub refunded: U128,
     /// The deposit lost to the trader, if the dispute was wrong.
     pub deposit_lost: U128,
@@ -44,10 +44,15 @@ impl Keyhole {
 
     /// A delivered node matches its commitment, but the entry `seq` doesn't open under the key it derives: the tree the trader committed to
     /// isn't the tree he encrypted with. Reveal that one node: the contract walks down from it to the entry's leaf and checks the tag.
+    /// This proof has no deadline, and a settled window can bring it: an entry nobody can open would otherwise hide a false figure behind an audit that can't finish.
     #[payable]
     pub fn dispute_entry(&mut self, token_id: u64, node_index: u32, node: H32, seq: U64) -> Verdict {
         let who = env::predecessor_account_id();
-        let k = self.disputable(token_id, &who);
+        let k = self.token(token_id);
+        require!(k.owner == who, "only the holder can dispute");
+        require!(k.eph.is_some(), "only a delivered window can be disputed");
+        require!(env::attached_deposit().as_yoctonear() >= k.price.0.max(self.config.min_dispute.0), "a dispute's deposit is at least the window's price");
+        require!(!matches!(self.trader(k.trader).status, TraderStatus::Slashed { .. }), "this trader was already slashed");
         let i = node_index as usize;
         let commit = k.commits.get(i).unwrap_or_else(|| env::panic_str("no such node in this sale"));
         require!(ggm::commit::<types::NearHash>(&node.0) == commit.0, "that isn't the node delivered: its commitment differs");
@@ -76,19 +81,26 @@ impl Keyhole {
         let mut k = self.token(token_id);
         let mut t = self.trader(k.trader);
         if trader_at_fault {
-            let price = k.price.0;
             let slashed = self.slash(&mut t, detail, &who);
-            // The escrow comes back at once. Its claim on the rest of the bond leaves with it, shrinking what other buyers share.
-            let from_bond = self.bond_share(&t, &k);
-            t.bond = U128(t.bond.0 - from_bond);
-            t.liability = U128(t.liability.0.saturating_sub(price));
-            k.state = TokenState::Refunded;
+            // A window still in escrow comes back. A settled one has no escrow left: the prover's share is what it gets.
+            let price = if k.state == TokenState::Delivered {
+                t.liability = U128(t.liability.0.saturating_sub(k.price.0));
+                for e in k.first_epoch..=k.last_epoch {
+                    let mut rec = self.epoch_rec(k.trader, e);
+                    rec.covering_sales = rec.covering_sales.saturating_sub(1);
+                    self.epochs.insert(Self::key(k.trader, e as u64), rec);
+                }
+                k.state = TokenState::Refunded;
+                k.price.0
+            } else {
+                0
+            };
             self.tokens.insert(token_id, k);
             self.put_trader(t);
-            self.move_to_credit(&who, checked_add(price, from_bond));
+            self.move_to_credit(&who, price);
             self.credit(&who, deposit);
             near_sdk::log!("slashed: {detail}");
-            Verdict { trader_at_fault, detail: detail.to_string(), slashed_to_prover: U128(slashed), refunded: U128(checked_add(checked_add(price, from_bond), deposit)), deposit_lost: U128(0) }
+            Verdict { trader_at_fault, detail: detail.to_string(), slashed_to_prover: U128(slashed), refunded: U128(checked_add(price, deposit)), deposit_lost: U128(0) }
         } else {
             k.disputes_lost += 1;
             let account = t.account.clone();

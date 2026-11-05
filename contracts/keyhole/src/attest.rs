@@ -2,7 +2,9 @@
 //! in, and the code path sets `kind`, so a local run can't pass for an enclave's:
 //!
 //! - `submit_attested`: a registered runner hands in the job's output after running it locally under wasmtime. `SimulatedLocal`. No enclave.
-//! - `request_attested`: OutLayer's `request_execution`, the production shape (mocked in the sandbox). Its callback writes `OutLayerTee`.
+//! - `request_attested`: OutLayer's `request_execution`, the production shape. Its callback writes `OutLayerTee` only if the contract is OutLayer's own account, and
+//!   `OutLayerStandIn` for anything else, such as the sandbox's mock. The owner chooses the job by its hash, so `OutLayerTee` means "this hash ran in OutLayer's enclave", and that
+//!   hash is public to check.
 //!
 //! An attestation doesn't slash. It only adds a labeled figure beside the posted one, since the trader chooses to ask for it.
 use crate::*;
@@ -18,6 +20,8 @@ const ATTESTED_STORAGE_BYTES: u128 = 300;
 #[derive(Clone, Debug)]
 pub struct OutLayerConfig {
     pub contract: AccountId,
+    /// The RPC the job reads the chain from, passed in its input.
+    pub rpc: String,
     pub wasm_url: String,
     pub wasm_hash: String,
     pub max_instructions: U64,
@@ -84,7 +88,7 @@ impl Keyhole {
             .request_execution(
                 json!({ "WasmUrl": { "url": o.wasm_url, "hash": o.wasm_hash, "build_target": "wasm32-wasip2" } }),
                 Some(json!({ "max_instructions": o.max_instructions, "max_memory_mb": 64, "max_execution_seconds": o.max_execution_seconds })),
-                Some(json!({ "contract": env::current_account_id(), "trader": who, "epoch": epoch }).to_string()),
+                Some(json!({ "contract": env::current_account_id(), "trader": who, "epoch": epoch, "rpc": o.rpc }).to_string()),
                 secrets_ref,
                 Some("Json".into()),
                 None,
@@ -118,7 +122,8 @@ impl Keyhole {
         // The hash the worker was pinned to, never the job's own word for it.
         let o = self.outlayer.clone().unwrap_or_else(|| env::panic_str("no OutLayer configured"));
         out.job_sha256 = o.wasm_hash;
-        self.write_attested(out, AttestKind::OutLayerTee, o.contract);
+        let kind = if matches!(o.contract.as_str(), "outlayer.testnet" | "outlayer.near") { AttestKind::OutLayerTee } else { AttestKind::OutLayerStandIn };
+        self.write_attested(out, kind, o.contract);
         true
     }
 }

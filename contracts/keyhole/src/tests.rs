@@ -1,4 +1,4 @@
-//! Property tests of the money arithmetic. The flows are in `tools/attack.ts`, which runs against the real wasm.
+//! Tests of the money arithmetic and the clock. The flows are in `tools/attack.ts`, which runs against the real wasm.
 use crate::*;
 use near_sdk::test_utils::VMContextBuilder;
 use near_sdk::testing_env;
@@ -20,8 +20,7 @@ fn contract() -> Keyhole {
             min_bond: U128(1),
             min_coverage_bps: 0,
             prover_bps: 4000,
-            burn_bps: 2000,
-            late_penalty_bps: 1000,
+            penalty_bps: 5000,
             max_window_epochs: 31,
             min_dispute: U128(1),
             audit_bond: U128(1),
@@ -33,50 +32,13 @@ fn contract() -> Keyhole {
 }
 
 proptest! {
-    /// However the claims are ordered, nobody gets more than their price, the total never exceeds the bond, and when the bond covers
-    /// everything everybody gets their whole price (to the unit).
-    #[test]
-    fn pro_rata_never_overdraws(prices in prop::collection::vec(1u128..10_000_000_000_000_000_000_000_000_000_000u128, 1..12), bond in 0u128..1_000_000_000_000_000_000_000_000_000_000_00u128, rev in any::<bool>()) {
-        let k = contract();
-        let total: u128 = prices.iter().sum();
-        let mut order = prices.clone();
-        if rev { order.reverse(); }
-        let (mut b, mut l, mut paid) = (bond, total, 0u128);
-        for p in &order {
-            let share = k.pro_rata(*p, b, l);
-            prop_assert!(share <= *p);
-            prop_assert!(share <= b);
-            b -= share;
-            l -= *p;
-            paid += share;
-        }
-        prop_assert!(paid <= bond);
-        if bond >= total {
-            prop_assert_eq!(paid, total);
-        }
-    }
-
-    /// The fraction stays the same as claims come in: order doesn't change what anyone gets, by more than the rounding.
-    #[test]
-    fn pro_rata_is_order_independent(a in 1_000_000u128..1_000_000_000_000_000_000_000_000u128, c in 1_000_000u128..1_000_000_000_000_000_000_000_000u128, bond in 1u128..1_000_000_000_000_000_000_000_000u128) {
-        let k = contract();
-        let first_a = k.pro_rata(a, bond, a + c);
-        let then_c = k.pro_rata(c, bond - first_a, c);
-        let first_c = k.pro_rata(c, bond, a + c);
-        let then_a = k.pro_rata(a, bond - first_c, a);
-        // Rounding down loses at most a unit or two.
-        let tolerance = 2;
-        prop_assert!(first_a.abs_diff(then_a) <= tolerance, "{first_a} vs {then_a}");
-        prop_assert!(first_c.abs_diff(then_c) <= tolerance, "{first_c} vs {then_c}");
-    }
-
-    /// The cut taken on a slash is exactly the share, with no overflow on any bond, and leaves the rest.
+    /// The prover's cut is exact and never more than the bond, on any bond.
     #[test]
     fn slash_cut_is_exact(bond in 0u128..u128::MAX / 20_000, bps in 0u32..=10_000) {
-        let cut = bond / 10_000 * bps as u128 + (bond % 10_000) * bps as u128 / 10_000;
+        let cut = keyhole_core::mul_div(bond, bps as u128, 10_000).unwrap();
         prop_assert!(cut <= bond);
-        prop_assert_eq!(Some(cut), keyhole_core::mul_div(bond, bps as u128, 10_000));
         if bps == 10_000 { prop_assert_eq!(cut, bond); }
+        if bps == 0 { prop_assert_eq!(cut, 0); }
     }
 }
 
