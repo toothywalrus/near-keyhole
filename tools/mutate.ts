@@ -48,7 +48,7 @@ const MUTANTS: M[] = [
   { name: "a refused window costs nothing on the record", file: `${K}sale.rs`, from: `t.refused_epochs = t.refused_epochs.saturating_add(1);`, to: "" },
   { name: "a stand-in earns the enclave's label", file: `${K}attest.rs`, from: `let kind = if matches!(o.contract.as_str(), "outlayer.testnet" | "outlayer.near") { AttestKind::OutLayerTee } else { AttestKind::OutLayerStandIn };`, to: `let kind = AttestKind::OutLayerTee;` },
   { name: "the floor never triggers", file: `${K}sale.rs`, from: `total < -floor`, to: `total < -floor && false` },
-  { name: "a missing figure doesn't count as a breach", file: `${K}sale.rs`, from: `None => return true,`, to: `None => {}` },
+  { name: "a missing figure doesn't count as a breach", file: `${K}sale.rs`, from: `None => return Breach::MissingFigure,`, to: `None => {}` },
   { name: "buy_resale keeps the old holder's key", file: `${K}sale.rs`, from: `k.buyer_pub = Some(buyer_pub);\n        k.resale_price = None;`, to: `let _ = buyer_pub;\n        k.resale_price = None;` },
   { name: "a delivered token can be transferred", file: `${K}nft.rs`, from: `require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");\n        require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");\n        let prev`, to: `let prev` },
   { name: "anyone can transfer a token", file: `${K}nft.rs`, from: `require!(&k.owner == sender, "only the holder can transfer it");`, to: "" },
