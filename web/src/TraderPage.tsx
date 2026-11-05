@@ -94,7 +94,7 @@ export function TraderPage({ handle }: { handle: string }) {
       <p className="caption">Cumulative PnL as posted, corrected where proven false. Bars: each epoch's figure. Shaded: epochs a past buyer holds the keys to, so somebody could have checked them.</p>
 
       <div className="facts">
-        <Fact label="Bond at risk" note={`Half goes to whoever proves a false figure.`}>{r.bond.toFixed(2)} Ⓝ</Fact>
+        <Fact label="Bond at risk" note={`${s.config.prover_bps / 100}% goes to whoever proves a false figure, and ${s.config.burn_bps / 100}% burns.`}>{r.bond.toFixed(2)} Ⓝ</Fact>
         <Fact label="Open sales against it" note={`Floor: refunds below −${(t.floor_bps / 100).toFixed(1)}% of book in a window.`}>{lnear(t.liability)} Ⓝ</Fact>
         <Fact label="Age">{Math.floor(r.ageDays)} days</Fact>
         <Fact label="Trades written" note="Numbered, no gaps, each committed when written.">{t.next_seq}</Fact>

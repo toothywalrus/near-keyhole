@@ -30,7 +30,7 @@ export async function dryQuote(opts: { from: string; to: string; amountIn: strin
     deadline: new Date(Date.now() + 10 * 60_000).toISOString(),
     ...(opts.confidentiality ? { confidentiality: opts.confidentiality } : {}),
   };
-  const res = await (opts.fetchFn ?? fetch)(`${ONECLICK}/quote`, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "near-keyhole/0.1" }, body: JSON.stringify(body) });
+  const res = await (opts.fetchFn ?? fetch)(`${ONECLICK}/quote`, { method: "POST", headers: { "Content-Type": "application/json", ...(typeof document === "undefined" ? { "User-Agent": "near-keyhole/0.1" } : {}) }, body: JSON.stringify(body) });
   const raw: any = await res.json().catch(() => ({}));
   const q = raw?.quote ?? {};
   return {

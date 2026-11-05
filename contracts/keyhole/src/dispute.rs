@@ -79,7 +79,7 @@ impl Keyhole {
             let price = k.price.0;
             let slashed = self.slash(&mut t, detail, &who);
             // The escrow comes back at once. Its claim on the rest of the bond leaves with it, shrinking what other buyers share.
-            let from_bond = self.pro_rata(price, t.bond.0, t.liability.0);
+            let from_bond = self.bond_share(&t, &k);
             t.bond = U128(t.bond.0 - from_bond);
             t.liability = U128(t.liability.0.saturating_sub(price));
             k.state = TokenState::Refunded;

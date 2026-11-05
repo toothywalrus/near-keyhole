@@ -217,12 +217,18 @@ for (const x of agents.values()) {
     const buyer = `reader-${(buyerN++).toString(36)}.local`;
     vm.fund(buyer, near(800));
     const rand = x.rand;
-    const a = Math.floor(first + rand() * Math.max(finalEpoch - first - 12, 1));
-    const b = Math.min(a + 6, finalEpoch - 3);
-    if (b < a) continue;
+    const lastPosted = rec.next_epoch - 1;
     const one = buyerKey(sha256(utf8(`seed buyer ${buyer}`)));
-    const buy = vm.call(buyer, "buy_window", { trader: x.a.account, first_epoch: a, last_epoch: b, buyer_pub: hex(one.pub) }, near(300));
-    if (!buy.ok) throw new Error(`${buyer} buys ${x.p.handle}: ${buy.reason}`);
+    let buy: Outcome | null = null;
+    // A window already past its floor, or with a missed figure, isn't for sale. Real buyers would pick another.
+    for (let tries = 0; tries < 8 && !buy?.ok; tries++) {
+      const a = Math.floor(first + rand() * Math.max(lastPosted - first - 6, 1));
+      const b = Math.min(a + 6, lastPosted - 1);
+      if (b < a) break;
+      buy = vm.call(buyer, "buy_window", { trader: x.a.account, first_epoch: a, last_epoch: b, buyer_pub: hex(one.pub) }, near(300)) as Outcome;
+      if (!buy.ok && !/isn't for sale/.test(buy.reason ?? "")) throw new Error(`${buyer} buys ${x.p.handle}: ${buy.reason}`);
+    }
+    if (!buy?.ok) continue;
     const token = vm.view<TokenRec>("get_token", { token_id: buy.value });
     const del = vm.call(x.a.account, "deliver", x.a.delivery(token), near(1));
     if (!del.ok) throw new Error(`${x.p.handle} delivers: ${del.reason}`);

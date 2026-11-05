@@ -85,7 +85,7 @@ await wait(1000);
 await glide(".audit-log");
 await wait(5000);
 await page.screenshot({ path: join(out, "caught.png"), fullPage: false });
-await caption(page, "Half the bond is yours. Your escrow comes back from the rest. And the record stays.");
+await caption(page, "40% of the bond is yours, 20% burns, and your escrow comes back. And the record stays.");
 await page.locator("button:has-text('Claim the refund')").first().click().catch(() => {});
 await wait(2500);
 await page.locator("button:has-text('Withdraw')").first().click().catch(() => {});

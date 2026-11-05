@@ -49,6 +49,8 @@ impl Keyhole {
             sold: 0,
             buyers: 0,
             late_deliveries: 0,
+            burned: U128(0),
+            last_post_ms: U64(now),
         });
         // Whatever isn't needed for storage becomes the bond.
         self.trader_ids.flush();
@@ -94,6 +96,7 @@ impl Keyhole {
             }
             _ => env::panic_str("begin unbonding first"),
         }
+        require!(self.now_ms() >= t.last_post_ms.0 + self.config.unbond_secs as u64 * 1000, "the bond is still at risk: the last figure hasn't had its time to be audited");
         require!(t.liability.0 == 0, "sold windows are still open against this bond");
         let amount = t.bond.0;
         t.bond = U128(0);
@@ -162,6 +165,7 @@ impl Keyhole {
         t.missed_epochs = t.missed_epochs.saturating_add(epoch - t.next_epoch);
         t.next_epoch = epoch + 1;
         t.posted_epochs += 1;
+        t.last_post_ms = U64(now);
         t.cum_pnl_e6 = I128(t.cum_pnl_e6.0.checked_add(pnl_e6.0).unwrap_or_else(|| env::panic_str("PnL overflow")));
         self.put_trader(t);
         self.epochs.flush();

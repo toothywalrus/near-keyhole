@@ -140,8 +140,8 @@ audit.steps.forEach((s) => record(`audit_step: ${myFig.openings.length} entries 
 record("audit_conclude: recomputed, compared, slashed", audit.verdict);
 const v = audit.verdict.value;
 must(v?.trader_at_fault === true, "the verdict", v?.detail);
-must(BigInt(v?.slashed_to_prover ?? 0) === bondBefore / 2n, "half the bond goes to her", nearStr(v?.slashed_to_prover ?? 0));
-const refund = record("claim_refund: the escrow back, and a share of the rest of the bond", await w.chain.call(buyer, "claim_refund", { token_id: Number(b2.value) }));
+must(BigInt(v?.slashed_to_prover ?? 0) === (bondBefore * BigInt(w.config.prover_bps)) / 10_000n, `${w.config.prover_bps / 100}% of the bond goes to her, and ${w.config.burn_bps / 100}% burns`, nearStr(v?.slashed_to_prover ?? 0));
+const refund = record("claim_refund: the escrow back", await w.chain.call(buyer, "claim_refund", { token_id: Number(b2.value) }));
 const credit = BigInt(await w.chain.view("credit_of", { account: buyer }));
 say(`   her credit on the contract: ${nearStr(credit)} (was ${nearStr(creditBefore)})`);
 const bal0 = await (w as any).chain.net.balance(buyer);

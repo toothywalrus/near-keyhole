@@ -5,7 +5,7 @@
 //!   `deliver` (from `delivery_lead_secs` before the window; the contract checks the commitments against the trader's root)
 //!   `dispute_wrap` / `dispute_entry` (until `settle_at`)
 //!   `settle` (the escrow goes to the trader) and, if the window breached the floor or a figure is missing, `claim_refund`.
-//! Before delivery the token can be resold: no keys exist in anyone's hands, so nothing is left behind (`docs/decisions/0006`).
+//! Until delivery can begin the token can be resold: no keys exist in anyone's hands, so nothing is left behind (`docs/decisions/0006`).
 use crate::types::{checked_add, checked_mul, checked_sub};
 use crate::*;
 use keyhole_core::ggm;
@@ -78,6 +78,7 @@ impl Keyhole {
         require!(first_epoch >= t.first_epoch, "that window starts before this trader's journal");
         require!(first_epoch <= self.epoch_of_slot(self.current_slot()).saturating_add(self.config.max_window_epochs), "that window is too far ahead");
         require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");
+        self.refuse_known_bad(&t, first_epoch, last_epoch);
         let (first_slot, last_slot) = self.epoch_slots_range(first_epoch, last_epoch);
         let price = self.price_of(&t, first_epoch, last_epoch);
         let attached = env::attached_deposit().as_yoctonear();
@@ -143,7 +144,8 @@ impl Keyhole {
     /// The trader hands over the window's cover nodes, wrapped to the holder's one-time key. The contract computes the cover itself and
     /// checks each node's commitment against the trader's root.
     #[payable]
-    pub fn deliver(&mut self, token_id: u64, eph: H32, wrapped: Vec<H32>, commits: Vec<H32>, proof: Vec<H32>) {
+    /// `buyer_pub` is the key these nodes were wrapped to: if the holder's key changed on the way, the delivery is refused, rather than becoming the trader's fault.
+    pub fn deliver(&mut self, token_id: u64, buyer_pub: H32, eph: H32, wrapped: Vec<H32>, commits: Vec<H32>, proof: Vec<H32>) {
         let who = env::predecessor_account_id();
         let mut k = self.token(token_id);
         let t = self.trader(k.trader);
@@ -151,6 +153,7 @@ impl Keyhole {
         require!(matches!(t.status, TraderStatus::Active | TraderStatus::Unbonding { .. }), "this trader can't deliver");
         require!(k.state == TokenState::Pending, "this window isn't waiting for delivery");
         require!(k.buyer_pub.is_some(), "the holder hasn't registered a one-time key");
+        require!(k.buyer_pub == Some(buyer_pub), "the holder's one-time key has changed: read it again");
         let now = self.now_ms();
         let start = self.epoch_start_ms(k.first_epoch);
         let earliest = start.saturating_sub(self.config.delivery_lead_secs as u64 * 1000);
@@ -237,7 +240,7 @@ impl Keyhole {
             _ => env::panic_str("this window can't claim a refund"),
         };
         require!(t.liability.0 >= price, "liability underflow");
-        let from_bond = self.pro_rata(price, t.bond.0, t.liability.0);
+        let from_bond = self.bond_share(&t, &k);
         t.bond = U128(checked_sub(t.bond.0, from_bond));
         t.liability = U128(checked_sub(t.liability.0, price));
         self.put_trader(t);
@@ -271,7 +274,7 @@ impl Keyhole {
         let mut k = self.token(token_id);
         require!(k.owner == who, "only the holder can list");
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
-        require!(self.now_ms() < self.epoch_start_ms(k.first_epoch), "this window has started");
+        require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
         k.resale_price = price;
         self.tokens.insert(token_id, k);
     }
@@ -281,7 +284,7 @@ impl Keyhole {
         let who = env::predecessor_account_id();
         let mut k = self.token(token_id);
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
-        require!(self.now_ms() < self.epoch_start_ms(k.first_epoch), "this window has started");
+        require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
         let ask = k.resale_price.unwrap_or_else(|| env::panic_str("this token isn't for sale")).0;
         require!(who != k.owner, "you already hold it");
         require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");
@@ -305,6 +308,41 @@ impl Keyhole {
 }
 
 impl Keyhole {
+    /// A token moves only before delivery can begin. A trader who has read the holder's key must be able to rely on it, or a resale could turn his honest wrap into a slash.
+    pub(crate) fn resale_open(&self, k: &WindowToken) -> bool {
+        self.now_ms() < self.epoch_start_ms(k.first_epoch).saturating_sub(self.config.delivery_lead_secs as u64 * 1000)
+    }
+
+    /// A refund insures a window against what's still unknown. A window already known to be bad would be free reading: buy it, read it, claim back the price.
+    fn refuse_known_bad(&self, t: &Trader, first_epoch: u32, last_epoch: u32) {
+        let now = self.now_ms();
+        let mut total: i128 = 0;
+        let mut complete = true;
+        for e in first_epoch..=last_epoch {
+            let rec = self.epoch_rec(t.id, e);
+            match rec.posted_e6 {
+                Some(p) => total = total.saturating_add(p.0),
+                None => {
+                    require!(now <= self.epoch_start_ms(e + 1) + self.config.post_grace_secs as u64 * 1000, "that window has an epoch with no figure, so its refund is already owed: it isn't for sale");
+                    complete = false;
+                }
+            }
+        }
+        let floor = (t.book_usd_e6.0 as i128).saturating_mul(t.floor_bps as i128) / 10_000;
+        require!(!complete || total >= -floor, "that window is already past its floor, so its refund is already owed: it isn't for sale");
+    }
+
+    /// What a window can claim from a bond. After a slash, a window sold within the challenge period before it gets nothing from the bond, only its escrow back: buying in
+    /// while watching an audit, or selling yourself a window to slash through, can't dilute the buyers who were really there.
+    pub(crate) fn bond_share(&self, t: &Trader, k: &WindowToken) -> u128 {
+        if let TraderStatus::Slashed { at_ms, .. } = &t.status {
+            if k.bought_ms.0 + self.config.challenge_secs as u64 * 1000 > at_ms.0 {
+                return 0;
+            }
+        }
+        self.pro_rata(k.price.0, t.bond.0, t.liability.0)
+    }
+
     fn refund_undelivered(&mut self, mut k: WindowToken) -> u128 {
         let mut t = self.trader(k.trader);
         let price = k.price.0;

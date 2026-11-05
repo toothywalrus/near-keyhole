@@ -36,13 +36,13 @@ export type World = {
 
 export const VM_CONFIG = (recorder: string): Config => ({
   slot_secs: 3600, epoch_slots: 24, post_grace_secs: 6 * 3600, delivery_lead_secs: 6 * 3600, delivery_grace_secs: 6 * 3600,
-  challenge_secs: 86400, unbond_secs: 30 * 86400, max_round_gap_secs: 2 * 86400, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 5000,
+  challenge_secs: 86400, unbond_secs: 30 * 86400, max_round_gap_secs: 2 * 86400, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 4000, burn_bps: 2000,
   late_penalty_bps: 1000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder,
 });
 
 export const FAST_CONFIG = (recorder: string): Config => ({
   slot_secs: 4, epoch_slots: 4, post_grace_secs: 12, delivery_lead_secs: 8, delivery_grace_secs: 15,
-  challenge_secs: 14, unbond_secs: 4, max_round_gap_secs: 180, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 5000,
+  challenge_secs: 14, unbond_secs: 4, max_round_gap_secs: 180, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 4000, burn_bps: 2000,
   late_penalty_bps: 1000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder,
 });
 

@@ -106,7 +106,7 @@ impl Keyhole {
         require!(&k.owner == sender, "only the holder can transfer it");
         require!(&k.owner != receiver, "the receiver already holds it");
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
-        require!(self.now_ms() < self.epoch_start_ms(k.first_epoch), "this window has started");
+        require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
         let prev = k.owner.clone();
         k.owner = receiver.clone();
         // The old holder's one-time key dies with the transfer.
@@ -166,6 +166,7 @@ impl Keyhole {
         }
         k.owner = previous_owner_id.clone();
         k.buyer_pub = None;
+        k.resale_price = None;
         self.tokens.insert(id, k);
         self.disown(&receiver_id, id);
         self.own(&previous_owner_id, id);

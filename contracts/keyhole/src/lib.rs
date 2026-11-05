@@ -68,8 +68,10 @@ pub struct Config {
     pub min_bond: U128,
     /// A sale must leave the bond at least this share of outstanding sales, in basis points.
     pub min_coverage_bps: u32,
-    /// The prover's share of a slashed bond, in basis points. The rest backs the buyers' refunds.
+    /// The prover's share of a slashed bond, in basis points.
     pub prover_bps: u32,
+    /// The share burned: locked for good, claimable by nobody, so that slashing yourself always costs something. What's left backs the buyers' refunds.
+    pub burn_bps: u32,
     /// What a late delivery costs the trader's bond, in basis points of the price.
     pub late_penalty_bps: u32,
     pub max_window_epochs: u32,
@@ -129,6 +131,10 @@ pub struct Trader {
     pub sold: u32,
     pub buyers: u32,
     pub late_deliveries: u32,
+    /// What a slash locked for good.
+    pub burned: U128,
+    /// The last figure's time: the bond stays at risk for `unbond_secs` after it, so every figure can be audited against something.
+    pub last_post_ms: U64,
 }
 
 /// Which attestation path produced a figure. A simulated one can never read as a real one: `kind` is set by the code path.
@@ -224,9 +230,9 @@ impl Keyhole {
     #[init]
     pub fn new(owner: AccountId, config: Config, feeds: Vec<oracle::FeedInit>) -> Self {
         require!(config.slot_secs > 0 && config.epoch_slots > 0, "a slot and an epoch can't be empty");
-        require!(config.prover_bps <= 10_000, "prover_bps is at most 10000");
+        require!(config.prover_bps + config.burn_bps <= 10_000, "prover_bps + burn_bps is at most 10000");
         require!(config.max_round_gap_secs > 0, "the round gap can't be zero");
-        require!(config.challenge_secs >= config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
+        require!(config.challenge_secs > config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
         require!(!feeds.is_empty() && feeds.len() <= keyhole_core::pnl::MAX_FEEDS, "1 to 4 feeds");
         let feeds = feeds.into_iter().map(oracle::Feed::from_init).collect();
         Self {
@@ -311,8 +317,10 @@ impl Keyhole {
         self.traders.replace(t.id, t);
     }
 
+    /// A storage key. A number that doesn't fit is refused, never truncated: a caller could otherwise name one entry by two numbers, and its tag would "fail".
     pub(crate) fn key(id: u32, n: u64) -> u64 {
-        ((id as u64) << 32) | (n & 0xffff_ffff)
+        require!(n <= u32::MAX as u64, "that number is out of range");
+        ((id as u64) << 32) | n
     }
 
     pub(crate) fn epoch_rec(&self, id: u32, epoch: u32) -> EpochRec {
@@ -355,14 +363,19 @@ impl Keyhole {
         }
     }
 
-    /// Slash a trader for good: the prover takes its share at once, the rest of the bond stays behind to back buyers' refunds
-    /// (`claim_refund`), and anything no buyer can claim stays locked for good, so that slashing yourself recovers at most the prover's share.
+    /// Slash a trader for good: the prover takes its share at once, a share burns, and the rest stays behind to back refunds for windows sold before the challenge period
+    /// (`bond_share`). What no buyer can claim stays locked too. So slashing yourself through a second account recovers the prover's share at most, unless that account's
+    /// window is an old one (`docs/decisions/0012`).
     pub(crate) fn slash(&mut self, t: &mut Trader, reason: &str, prover: &AccountId) -> u128 {
         if matches!(t.status, TraderStatus::Slashed { .. }) {
             return 0;
         }
-        let cut = t.bond.0 / 10_000 * self.config.prover_bps as u128 + (t.bond.0 % 10_000) * self.config.prover_bps as u128 / 10_000;
-        t.bond = U128(checked_sub(t.bond.0, cut));
+        let share = |bps: u32| keyhole_core::mul_div(t.bond.0, bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"));
+        let cut = share(self.config.prover_bps);
+        let burn = share(self.config.burn_bps);
+        t.bond = U128(checked_sub(checked_sub(t.bond.0, cut), burn));
+        t.burned = U128(burn);
+        self.obligations = checked_sub(self.obligations, burn);
         t.status = TraderStatus::Slashed { reason: reason.to_string(), by: prover.clone(), at_ms: U64(self.now_ms()) };
         self.move_to_credit(prover, cut);
         cut

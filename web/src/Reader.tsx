@@ -298,7 +298,7 @@ export function Reader({ id }: { id: number }) {
                 ) : audit.verdict ? <p className="verdict alarm">The figure was right: the deposit went to the trader.</p> : null}
               </div>
             ) : null}
-            {refundable && token.state !== "Refunded" ? <button className="primary" onClick={claim}>Claim the refund: escrow, plus a share of the bond</button> : null}
+            {refundable && token.state !== "Refunded" ? <button className="primary" onClick={claim}>Claim the refund: your escrow back</button> : null}
             {s.credit() > 0n ? <button className="primary" onClick={withdraw}>Withdraw {lnear(s.credit())} Ⓝ</button> : null}
             {msg ? <p className="note">{msg}</p> : null}
           </section>
