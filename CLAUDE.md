@@ -4,7 +4,7 @@
 
 ## What this repo is
 
-**Keyhole:** sell a provable window into a private trade journal on NEAR. A trader commits to a GGM key tree and a bond, writes numbered encrypted entries as they happen, and posts each epoch's PnL. A buyer pays into escrow for a window of epochs and receives the tree nodes covering exactly that window, wrapped to a one-time key. The contract rules on the sale itself (x25519 + ChaCha20 in wasm) and recomputes PnL from opened entries against oracle prices, slashing the bond on a false figure. It's a candidate entry for NEAR HACKATHON (tracks privacy, defi, agents), from Illia Polosukhin's Nov 4 idea.
+**Keyhole:** sell a provable window into a private trade journal on NEAR. A trader commits to a GGM key tree and a bond, writes numbered encrypted entries as they happen, and posts each epoch's PnL. A buyer pays into escrow for a window of epochs and receives the tree nodes covering exactly that window, wrapped to a one-time key. The contract rules on the sale itself (x25519 + ChaCha20 in wasm) and recomputes PnL from opened entries against oracle prices, slashing the bond on a false figure: 40% to the prover, the rest burned, and never a yocto to a buyer. It's a candidate entry for NEAR HACKATHON (tracks privacy, defi, agents), from Illia Polosukhin's Nov 4 idea.
 
 It came out of `toothywalrus/near-lab` (round six, that repo's `0010` and `docs/ideas/keyhole.md`).
 

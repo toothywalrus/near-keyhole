@@ -1,10 +1,12 @@
-# Keyhole: sell a window into your private trades, and prove the PnL first
+# Keyhole: sell a window into your private trade journal, with the PnL bonded first
 
 > **Status (2026-11-05)**
 >
 > **Real, on NEAR testnet:** the contract [`app.keyhole-g1zo8i.testnet`](https://testnet.nearblocks.io/address/app.keyhole-g1zo8i.testnet), and one complete run with explorer links: sale, delivery, a false figure proven and slashed by the contract's own recomputation, garbage keys proven and slashed, a false dispute dismissed. A real cross-contract read of a round from near-borrowed-oracle. `npm run verify` re-reads all of it from the chain.
 >
-> **Real, in a local sandbox:** a NEP-413 `token_diff` copy trade settling on the **mainnet `intents.near` wasm**, with limits and slippage. Live keyless 1Click dry quotes. The attack suite on a real node.
+> **Real, in a local sandbox and in the browser tab:** a NEP-413 `token_diff` copy trade settling on the **mainnet `intents.near` wasm**, with limits and slippage. Live keyless 1Click dry quotes. The attack suite on a real node.
+>
+> **What it isn't:** a journal is what the trader wrote, not proof of a trade. No public viewing key exists for a real confidential trade, so the key covers this journal. No human has audited the contract.
 >
 > **SIMULATED, and labeled so:**
 > - Every journal on the web app's board is **SEEDED**: rule-based strategies run over real recorded Chainlink rounds. The trades never happened, and the page runs on a local chain in your browser.
