@@ -51,6 +51,7 @@ impl Keyhole {
             late_deliveries: 0,
         });
         // Whatever isn't needed for storage becomes the bond.
+        self.trader_ids.flush();
         self.traders.flush();
         let cost = (env::storage_usage().saturating_sub(before) as u128) * env::storage_byte_cost().as_yoctonear();
         require!(attached >= cost, "attach more for storage");

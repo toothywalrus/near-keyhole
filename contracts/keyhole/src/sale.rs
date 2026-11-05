@@ -133,8 +133,7 @@ impl Keyhole {
         self.put_trader(t);
         self.obligations = checked_add(self.obligations, price);
         self.flush_all();
-        // Every token carries a small allowance, so a plain NEP-171 transfer (one yocto) can pay for the receiver's entry in `owned`.
-        let allowance = nft::TRANSFER_ALLOWANCE_BYTES as u128 * env::storage_byte_cost().as_yoctonear();
+        let allowance = nft::TOKEN_ALLOWANCE_BYTES as u128 * env::storage_byte_cost().as_yoctonear();
         require!(attached >= checked_add(price, allowance), "attach a little more, for storage");
         self.charge_storage(before, attached - price - allowance, &who);
         nft::emit_mint(&who, token_id);

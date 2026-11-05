@@ -29,7 +29,7 @@ export function Proof() {
       <h2>The hard question</h2>
       <div className="facts">
         <div className="fact"><div className="label">Whole dispute, testnet</div><div className="value">9.8 Tgas</div><div className="note">x25519 twice, ChaCha20, a commitment. 3% of a transaction.</div></div>
-        <div className="fact"><div className="label">Reading an entry in the contract</div><div className="value" id="per-entry">about 1 Tgas</div><div className="note">An audit takes as many transactions as it needs. <code>npm run gas</code></div></div>
+        <div className="fact"><div className="label">Reading an entry in the contract</div><div className="value">0.15 Tgas</div><div className="note">About 1,900 entries fit in one transaction, and an audit takes as many as it needs. <code>npm run gas</code></div></div>
         <div className="fact"><div className="label">Attack checks</div><div className="value">all pass</div><div className="note"><code>npm run attack</code>, also on a real node with <code>--sandbox</code></div></div>
       </div>
 

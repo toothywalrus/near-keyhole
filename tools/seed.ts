@@ -147,7 +147,7 @@ async function pumpRounds(until: number) {
   while (evAt < events.length && events[evAt].t <= until) {
     const e = events[evAt++];
     await chain.advanceTo(e.t);
-    const r = vm.call(RECORDER, "record_round", { feed: e.f, round_id: String(BigInt(e.id) & 0xffffffffffffn), answer_e8: e.p, source_updated_at: String(e.updated) });
+    const r = vm.call(RECORDER, "record_round", { feed: e.f, round_id: String(BigInt(e.id) & 0xffffffffffffn), answer_e8: e.p, source_updated_at: String(e.updated) }, near("0.002"));
     if (!r.ok && !(r.reason ?? "").includes("forward")) throw new Error(`round: ${r.reason}`);
     seen[e.f].push({ t: e.t, p: e.p });
   }

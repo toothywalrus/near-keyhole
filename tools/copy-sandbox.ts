@@ -113,7 +113,7 @@ try {
   const prices = new Prices(chain);
   const agent = new TraderAgent(chain, tr.id, seedOf("copy demo"), timing);
   await agent.register("copied", { book_usd: 100_000, floor_bps: 1000, base_price: near("0.1"), slope: near("0.01"), bond: near(3) });
-  const round = (f: number, i: number) => chain.call(rec.id, "record_round", { feed: f, round_id: String(BigInt(rows[rows.length - 1 - i][0]) & 0xffffffffn), answer_e8: Number(rows[rows.length - 1 - i][1]), source_updated_at: String(rows[rows.length - 1 - i][2]) });
+  const round = (f: number, i: number) => chain.call(rec.id, "record_round", { feed: f, round_id: String(BigInt(rows[rows.length - 1 - i][0]) & 0xffffffffn), answer_e8: Number(rows[rows.length - 1 - i][1]), source_updated_at: String(rows[rows.length - 1 - i][2]) }, near("0.002"));
   await round(0, 3);
   const e = timing.epochOf(await chain.nowMs()) + 1;
   await chain.advanceTo(timing.epochStart(e));

@@ -1,0 +1,41 @@
+{
+ "measured": "2026-11-05T12:19:31.920Z",
+ "chain": "near-sandbox 2.14.0",
+ "entries": 260,
+ "rows": [
+  {
+   "batch": 1,
+   "entries_opened": 1,
+   "burnt_tgas": 2.481029188648,
+   "ok": true
+  },
+  {
+   "batch": 10,
+   "entries_opened": 10,
+   "burnt_tgas": 4.095751565413,
+   "ok": true
+  },
+  {
+   "batch": 40,
+   "entries_opened": 40,
+   "burnt_tgas": 8.72584476628,
+   "ok": true
+  },
+  {
+   "batch": 80,
+   "entries_opened": 80,
+   "burnt_tgas": 14.83917592944,
+   "ok": true
+  },
+  {
+   "batch": 120,
+   "entries_opened": 120,
+   "burnt_tgas": 20.954478728423,
+   "ok": true
+  }
+ ],
+ "conclude_tgas": 2.835814529057,
+ "per_entry_tgas": 0.15326115602736362,
+ "fixed_tgas": 2.563140005139364,
+ "fits_in_300_tgas": 1940
+}

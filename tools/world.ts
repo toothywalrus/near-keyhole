@@ -53,7 +53,7 @@ function mkRounds(w: Pick<World, "chain" | "recorder">) {
     for (let f = 0; f < symbols.length; f++) {
       const rows = seriesOf(symbols[f]);
       const [id, answer, updated] = rows[at[f]++ % rows.length];
-      const r = await w.chain.call(w.recorder, "record_round", { feed: f, round_id: String(BigInt(id) & 0xffffffffffffn), answer_e8: Number(answer), source_updated_at: String(updated) });
+      const r = await w.chain.call(w.recorder, "record_round", { feed: f, round_id: String(BigInt(id) & 0xffffffffffffn), answer_e8: Number(answer), source_updated_at: String(updated) }, near("0.002"));
       if (!r.ok) throw new Error(`record_round: ${r.reason}`);
     }
   };
@@ -83,7 +83,7 @@ export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?
     },
     roundAt: async (feed: number, answer: bigint) => {
       chain.vm.advance(1000);
-      return chain.call(recorder, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" });
+      return chain.call(recorder, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" }, near("0.002"));
     },
     stop: () => {},
   };
@@ -120,7 +120,7 @@ export async function sandboxWorld(config: (r: string) => Config = FAST_CONFIG, 
       return a.id;
     },
     rounds,
-    roundAt: (feed: number, answer: bigint) => chain.call(recorderA.id, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" }),
+    roundAt: (feed: number, answer: bigint) => chain.call(recorderA.id, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" }, near("0.002")),
     stop: () => sb.stop(),
   };
 }

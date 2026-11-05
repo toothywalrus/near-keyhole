@@ -12,6 +12,8 @@
     "killtest": "tsx tools/killtest.ts",
     "build": "sh tools/build.sh",
     "attack": "tsx tools/attack.ts",
+    "mutate": "tsx tools/mutate.ts",
+    "fuzz": "tsx tools/fuzz.ts",
     "seed": "tsx tools/seed.ts",
     "job": "tsx tools/job.ts",
     "gas": "tsx tools/gas.ts",

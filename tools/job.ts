@@ -63,7 +63,7 @@ try {
   const runner = await w.fund("runner", near(2));
   const set = await w.chain.call(w.owner, "set_runner", { runner, enabled: true });
   check("the owner registers a local runner", set.ok, set.reason ?? "");
-  const sub = await w.chain.call(runner, "submit_attested", { output: { trader: account, epoch: e, pnl_e6: out.out.pnl_e6, head: out.out.head, job_sha256: jobHash } });
+  const sub = await w.chain.call(runner, "submit_attested", { output: { trader: account, epoch: e, pnl_e6: out.out.pnl_e6, head: out.out.head, job_sha256: jobHash } }, near("0.01"));
   check("the runner submits the job's output", sub.ok, sub.reason ?? "");
   let ep = (await w.chain.view<EpochRec[]>("get_epochs", { account, from: e, limit: 1 }))[0];
   check("SIMULATED: it is labeled a local run, with no enclave", ep.attested?.kind === "SimulatedLocal", JSON.stringify(ep.attested?.kind));
@@ -77,7 +77,7 @@ try {
   check("the stand-in deploys", initM.ok, initM.reason ?? "");
   const cfg = await w.chain.call(w.owner, "set_outlayer", { outlayer: { contract: mock.id, wasm_url: "https://example.invalid/keyhole_pnl_job.wasm", wasm_hash: jobHash, max_instructions: "10000000000", max_execution_seconds: "60" } });
   check("the owner points the contract at it, pinned to the job's sha256", cfg.ok, jobHash.slice(0, 16) + "…");
-  const pending = t.chain.call(account, "request_attested", { epoch: e, secrets_ref: null }, near("0.02"));
+  const pending = t.chain.call(account, "request_attested", { epoch: e, secrets_ref: null }, near("0.03"));
   await new Promise((ok) => setTimeout(ok, 2000));
   const open = await (w.chain as any).net.view(mock.id, "pending", {});
   check("request_attested is waiting on the yield", open.length === 1, `input: ${open[0]?.input_data}`);

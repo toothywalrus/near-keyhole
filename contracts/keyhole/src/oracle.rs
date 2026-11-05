@@ -10,6 +10,7 @@ use near_sdk::{ext_contract, Gas, PromiseError};
 
 const GAS_READ: Gas = Gas::from_tgas(10);
 const GAS_ON_READ: Gas = Gas::from_tgas(8);
+const ROUND_STORAGE_BYTES: u128 = 200;
 
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug, PartialEq)]
@@ -68,7 +69,8 @@ trait Borrowed {
 
 #[near]
 impl Keyhole {
-    /// The recorder appends one real round to a `Recorded` feed. It takes effect now.
+    /// The recorder appends one real round to a `Recorded` feed, paying for its storage. It takes effect now.
+    #[payable]
     pub fn record_round(&mut self, feed: u8, round_id: U64, answer_e8: i64, source_updated_at: U64) {
         let who = env::predecessor_account_id();
         require!(self.config.recorder.as_ref() == Some(&who), "only the recorder may record rounds");
@@ -76,11 +78,16 @@ impl Keyhole {
         require!(f.source == FeedSource::Recorded, "this feed isn't a recorded one");
         require!(answer_e8 > 0, "a price is positive");
         let t = self.now_ms();
+        let before = env::storage_usage();
         self.push_round(feed, Round { round_id, answer_e8, t_ms: U64(t), source_updated_at });
+        self.rounds.flush();
+        self.charge_storage(before, env::attached_deposit().as_yoctonear(), &who);
     }
 
-    /// Anyone: import the latest round of a `BorrowedOracle` feed. Nothing here is on any slashing path.
+    /// Anyone: import the latest round of a `BorrowedOracle` feed. Nothing here is on any slashing path. The deposit pays for the round's storage.
+    #[payable]
     pub fn import_round(&mut self, feed: u8) -> Promise {
+        require!(env::attached_deposit().as_yoctonear() >= ROUND_STORAGE_BYTES * env::storage_byte_cost().as_yoctonear(), "attach enough for a round's storage");
         let f = self.feeds.get(feed as usize).unwrap_or_else(|| env::panic_str("no such feed"));
         match &f.source {
             FeedSource::BorrowedOracle { oracle, pair } => ext_borrowed::ext(oracle.clone())

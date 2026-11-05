@@ -21,9 +21,12 @@ const accepted = (name: string, r: Outcome) => check(name, r.ok, r.ok ? "" : r.r
 
 const trade = (feed: number, qty: number, note = "x"): Entry => ({ feed, flags: 0, qty_e8: BigInt(Math.round(qty * 1e8)), fill_e8: 100n, settlement: NO_SETTLEMENT, note });
 
+// The contract's slack can't fall below where it started: nobody's storage is paid for out of the contract's own balance.
+let slack0: bigint | null = null;
 const solvent = async (w: World, label: string) => {
   const s = await w.chain.view("solvency");
-  check(`solvency holds: ${label}`, BigInt(s.slack) >= 0n, `slack ${(Number(BigInt(s.slack) / 10n ** 21n) / 1000).toFixed(3)} NEAR`);
+  slack0 ??= BigInt(s.slack);
+  check(`solvency holds: ${label}`, BigInt(s.slack) >= 0n && BigInt(s.slack) >= slack0, `slack ${(Number(BigInt(s.slack) / 10n ** 21n) / 1000).toFixed(3)} NEAR, started at ${(Number(slack0 / 10n ** 21n) / 1000).toFixed(3)}`);
 };
 
 const BOND = near(5);
@@ -76,6 +79,7 @@ async function buy(w: World, buyer: string, t: TraderAgent, first: number, last:
 }
 
 async function run(w: World): Promise<void> {
+  await solvent(w, "at the start");
   const bob = await w.fund("bob", near(40));
   const carol = await w.fund("carol", near(40));
   const dave = await w.fund("dave", near(40));
@@ -84,8 +88,14 @@ async function run(w: World): Promise<void> {
   await w.rounds();
   const liar = await newTrader(w, "lucky");
   let e = await nextEpoch(w);
+  await w.prices.load();
   const clock = await w.chain.view("clock");
   const slot = Number(clock.slot);
+  if (slot % w.config.epoch_slots !== 0) await w.chain.advanceTo(w.timing.epochStart(e + 1));
+  // The one-slot tolerance does not cross an epoch's end: a trade written after the close could see the mark first.
+  const crossing = agent(w, await w.fund("crossing", near(40)), "shared");
+  accepted("a trader to test the epoch boundary", await crossing.register("crossing", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+  refused("an entry for the last slot of the epoch that just ended is refused", await crossing.write(trade(0, 1), { slot: slot - 1 }), "epoch is over");
   await w.chain.advanceTo(w.timing.genesisMs + (slot + 2) * w.timing.slotMs);
   const nowSlot = Number((await w.chain.view("clock")).slot);
   refused("backdated entry: a slot two back is refused", await liar.write(trade(0, 1), { slot: nowSlot - 2 }), "no backdating");
@@ -448,7 +458,7 @@ async function run(w: World): Promise<void> {
   accepted("ABSENT HOLDER: after the delay, anyone can close the unclaimed refund", await w.chain.call(dave, "close_unclaimed", { token_id: z1.id }));
   check("and the bond is free of it", BigInt((await zoe.record()).liability) === 0n);
   refused("a closed window can't claim", await w.chain.call(bob, "claim_refund", { token_id: z1.id }), "can't claim");
-  refused("a window too far ahead is refused", await w.chain.call(bob, "buy_window", { trader: zoe.account, first_epoch: e + 40, last_epoch: e + 40, buyer_pub: hex(buyerKey().pub) }, near(3)), "too far ahead");
+  refused("a window too far ahead is refused", await w.chain.call(bob, "buy_window", { trader: zoe.account, first_epoch: (await currentEpoch(w)) + 40, last_epoch: (await currentEpoch(w)) + 40, buyer_pub: hex(buyerKey().pub) }, near(3)), "too far ahead");
 
   // Pro rata: the bond can't cover everyone, and the order of claims doesn't matter.
   await w.rounds();
@@ -548,11 +558,12 @@ async function run(w: World): Promise<void> {
   refused("only the recorder may record rounds", await w.chain.call(bob, "record_round", { feed: 0, round_id: "9", answer_e8: 1, source_updated_at: "1" }), "only the recorder");
   refused("a price must be positive", await w.chain.call(w.recorder, "record_round", { feed: 0, round_id: "9", answer_e8: -1, source_updated_at: "1" }), "positive");
   refused("a feed that doesn't exist is refused", await w.chain.call(w.recorder, "record_round", { feed: 3, round_id: "9", answer_e8: 1, source_updated_at: "1" }), "no such feed");
-  refused("a recorded feed can't be imported from a borrowed oracle", await w.chain.call(bob, "import_round", { feed: 0 }), "isn't a borrowed one");
+  refused("a recorded feed can't be imported from a borrowed oracle", await w.chain.call(bob, "import_round", { feed: 0 }, near("0.01")), "isn't a borrowed one");
   refused("nobody calls a private callback: withdraw's", await w.chain.call(bob, "on_withdraw", { who: bob, amount: near(1000).toString() }), "private");
   refused("nobody calls a private callback: the oracle's", await w.chain.call(bob, "on_imported", { feed: 0 }), "private");
   refused("nobody calls a private callback: OutLayer's", await w.chain.call(bob, "on_attested", { trader: bob, epoch: 0 }), "private");
   refused("only the owner can register a runner", await w.chain.call(bob, "set_runner", { runner: bob, enabled: true }), "owner only");
+  refused("an import that can't pay for its storage is refused", await w.chain.call(bob, "import_round", { feed: 0 }), "storage");
   refused("a non-runner can't report an attested figure", await w.chain.call(bob, "submit_attested", { output: { trader: bob, epoch: 0, pnl_e6: "0", head: "00".repeat(32), job_sha256: "x" } }), "not a registered runner");
   await solvent(w, "at the end");
 
@@ -566,11 +577,11 @@ async function run(w: World): Promise<void> {
   const runner = await w.fund("runner", near(2));
   accepted("the owner registers a local runner", await w.chain.call(w.owner, "set_runner", { runner, enabled: true }));
   const okOut = { trader: ana.account, epoch: e, pnl_e6: af.pnl_e6.toString(), head: ar.head, job_sha256: "aa".repeat(32) };
-  refused("the runner's job must have read the epoch's last entry", await w.chain.call(runner, "submit_attested", { output: { ...okOut, head: "00".repeat(32) } }), "didn't read");
-  accepted("the runner reports the job's figure", await w.chain.call(runner, "submit_attested", { output: okOut }));
+  refused("the runner's job must have read the epoch's last entry", await w.chain.call(runner, "submit_attested", { output: { ...okOut, head: "00".repeat(32) } }, near("0.01")), "didn't read");
+  accepted("the runner reports the job's figure", await w.chain.call(runner, "submit_attested", { output: okOut }, near("0.01")));
   const ae = await w.chain.view("get_epochs", { account: ana.account, from: e, limit: 1 });
   check("SIMULATED: a local run is labeled as one, by the code path, with no way to say otherwise", ae[0].attested?.kind === "SimulatedLocal", JSON.stringify(ae[0].attested?.kind));
-  await w.chain.call(runner, "submit_attested", { output: { ...okOut, kind: "OutLayerTee" } });
+  await w.chain.call(runner, "submit_attested", { output: { ...okOut, kind: "OutLayerTee" } }, near("0.01"));
   const ae2 = await w.chain.view("get_epochs", { account: ana.account, from: e, limit: 1 });
   check("a runner can't claim the enclave's label: an extra field changes nothing", ae2[0].attested?.kind === "SimulatedLocal", JSON.stringify(ae2[0].attested?.kind));
 }
@@ -579,6 +590,9 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   console.log("\n-- Failed promises roll back (local host, which can make a transfer fail) --");
   const vm = w.chain.vm;
   await w.rounds();
+  const sameMs = await w.chain.call(w.recorder, "record_round", { feed: 0, round_id: "1", answer_e8: 1, source_updated_at: "1" }, near("0.002"));
+  const sameMs2 = await w.chain.call(w.recorder, "record_round", { feed: 0, round_id: "2", answer_e8: 1, source_updated_at: "1" }, near("0.002"));
+  check("ORACLE: a round at the same moment as the last is refused: rounds only go forward, so no price can be rewritten", sameMs.ok && !sameMs2.ok && (sameMs2.reason ?? "").includes("forward"), sameMs2.reason ?? "ACCEPTED");
   const brokenId = "broken.seller.test";
   vm.fund(brokenId, near(40));
   const t = new TraderAgent(w.chain, brokenId, seedOf("shared"), w.timing);
@@ -630,14 +644,14 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     if (m !== "latest") throw new Error("unexpected");
     return { pair: "ETH/USD", age_secs: 10, answer: "225000000000", decimals: 8, round_id: "289448", updated_at: String(updated), proven_at_ms: "1", chain: "base-sepolia" };
   });
-  const imp = c2.vm.call("o.test", "import_round", { feed: 0 });
+  const imp = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("anyone can import the oracle's round", imp.ok && imp.value === true, JSON.stringify(imp.value ?? imp.reason));
   const rr = c2.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 });
   check("the round is stored with the time it was proven for", rr.length === 1 && rr[0].answer_e8 === 225000000000 && Number(rr[0].t_ms) === updated * 1000, JSON.stringify(rr[0]));
-  const again = c2.vm.call("o.test", "import_round", { feed: 0 });
+  const again = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("importing the same round again changes nothing", again.ok && again.value === false && c2.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 }).length === 1, JSON.stringify(again.value ?? again.reason));
   c2.vm.mock("oracle.test", () => { throw new Error("oracle down"); });
-  const down = c2.vm.call("o.test", "import_round", { feed: 0 });
+  const down = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));
 }
 

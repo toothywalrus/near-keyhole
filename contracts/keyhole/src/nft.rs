@@ -11,8 +11,9 @@ use std::collections::HashMap;
 
 const GAS_ON_TRANSFER: Gas = Gas::from_tgas(25);
 const GAS_RESOLVE: Gas = Gas::from_tgas(10);
-/// What each token prepaid at mint for its next holder's entry in `owned`.
-pub const TRANSFER_ALLOWANCE_BYTES: u64 = 200;
+/// What each token prepays at mint, for the storage its later life may need and no later caller pays for: the next holder's entry in `owned`, the credit entries
+/// its settlement or dispute creates, a resale listing. So the contract's own balance never pays for anyone's storage.
+pub const TOKEN_ALLOWANCE_BYTES: u64 = 500;
 
 #[near(serializers = [json])]
 pub struct NftContractMetadata {
@@ -132,7 +133,7 @@ impl Keyhole {
         let before = env::storage_usage();
         self.transfer(&sender, &receiver_id, &token_id, approval_id, memo);
         self.flush_all();
-        require!(env::storage_usage() <= before + TRANSFER_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
+        require!(env::storage_usage() <= before + TOKEN_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
     }
 
     #[payable]
@@ -143,7 +144,7 @@ impl Keyhole {
         let before = env::storage_usage();
         let prev = self.transfer(&sender, &receiver_id, &token_id, approval_id, memo);
         self.flush_all();
-        require!(env::storage_usage() <= before + TRANSFER_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
+        require!(env::storage_usage() <= before + TOKEN_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
         ext_nft_receiver::ext(receiver_id.clone())
             .with_static_gas(GAS_ON_TRANSFER)
             .nft_on_transfer(sender, prev.clone(), token_id.clone(), msg)

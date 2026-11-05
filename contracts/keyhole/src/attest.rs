@@ -11,6 +11,7 @@ use near_sdk::{ext_contract, Gas, PromiseError};
 
 const GAS_REQUEST: Gas = Gas::from_tgas(80);
 const GAS_ON_RESULT: Gas = Gas::from_tgas(20);
+const ATTESTED_STORAGE_BYTES: u128 = 300;
 
 /// Where OutLayer finds the job, and its limits.
 #[near(serializers = [borsh, json])]
@@ -55,10 +56,14 @@ impl Keyhole {
         self.outlayer = Some(outlayer);
     }
 
-    /// A registered runner reports what the job printed. It is always labeled `SimulatedLocal`: this method has no other way to write it.
+    /// A registered runner reports what the job printed, paying for the storage. It is always labeled `SimulatedLocal`: this method has no other way to write it.
+    #[payable]
     pub fn submit_attested(&mut self, output: JobOutput) {
         require!(self.runners.contains_key(&env::predecessor_account_id()), "not a registered runner");
+        let before = env::storage_usage();
         self.write_attested(output, AttestKind::SimulatedLocal, env::predecessor_account_id());
+        self.epochs.flush();
+        self.charge_storage(before, env::attached_deposit().as_yoctonear(), &env::predecessor_account_id());
     }
 
     /// The trader asks OutLayer to run the job over one epoch. The key material reaches the job as an OutLayer secret, inside the enclave.
@@ -68,8 +73,12 @@ impl Keyhole {
         let id = self.tid(&who);
         let o = self.outlayer.clone().unwrap_or_else(|| env::panic_str("no OutLayer configured"));
         require!(self.epoch_rec(id, epoch).posted_e6.is_some(), "that epoch has no figure yet");
+        // The callback's storage stays here, and the rest goes to OutLayer.
+        let keep = ATTESTED_STORAGE_BYTES * env::storage_byte_cost().as_yoctonear();
+        let attached = env::attached_deposit().as_yoctonear();
+        require!(attached > keep, "attach OutLayer's fee, and a little for storage");
         ext_outlayer::ext(o.contract.clone())
-            .with_attached_deposit(env::attached_deposit())
+            .with_attached_deposit(near_sdk::NearToken::from_yoctonear(attached - keep))
             .with_static_gas(GAS_REQUEST)
             .with_unused_gas_weight(1)
             .request_execution(

@@ -65,11 +65,11 @@ export async function testnetWorld(opts: { fresh?: boolean } = {}): Promise<Worl
     rounds: async () => {
       for (let f = 0; f < 3; f++) {
         const [id, answer, updated] = series[f][at[f]++ % series[f].length];
-        const r = await chain.call(recorderA.id, "record_round", { feed: f, round_id: String(BigInt(id) & 0xffffffffffffn), answer_e8: Number(answer), source_updated_at: String(updated) });
+        const r = await chain.call(recorderA.id, "record_round", { feed: f, round_id: String(BigInt(id) & 0xffffffffffffn), answer_e8: Number(answer), source_updated_at: String(updated) }, near("0.002"));
         if (!r.ok) throw new Error(`record_round: ${r.reason}`);
       }
     },
-    roundAt: (feed: number, answer: bigint) => chain.call(recorderA.id, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" }),
+    roundAt: (feed: number, answer: bigint) => chain.call(recorderA.id, "record_round", { feed, round_id: "1", answer_e8: Number(answer), source_updated_at: "1" }, near("0.002")),
     stop: () => {},
   };
 }
