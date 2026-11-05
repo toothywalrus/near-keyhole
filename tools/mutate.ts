@@ -36,7 +36,7 @@ const MUTANTS: M[] = [
   { name: "a missing figure burns nothing", file: `${K}sale.rs`, from: `if breach == Breach::MissingFigure {`, to: `if breach == Breach::MissingFigure && false {` },
   { name: "an honest loss past the floor burns the bond", file: `${K}sale.rs`, from: `if breach == Breach::MissingFigure {`, to: `if breach != Breach::None {` },
   { name: "a refused epoch's figure still counts", file: `${K}views.rs`, from: `I128(t.cum_pnl_e6.0.saturating_sub(t.voided_e6.0).saturating_sub(`, to: `I128(t.cum_pnl_e6.0.saturating_sub(` },
-  { name: "a figure posted after a refusal still counts", file: `${K}journal.rs`, from: `t.voided_e6 = I128(t.voided_e6.0.saturating_add(pnl_e6.0));`, to: "" },
+  { name: "a figure posted after a refusal still counts", file: `${K}journal.rs`, from: `t.voided_e6 = I128(t.voided_e6.0.saturating_add(pnl_e6.0.max(0)));`, to: "" },
   { name: "a trader below the minimum bond keeps selling", file: `${K}sale.rs`, from: `require!(t.bond.0 >= self.config.min_bond.0, "this trader's bond is below the minimum, so he isn't selling");`, to: "" },
   { name: "a paid window counts as checkable before any keys exist", file: `${K}sale.rs`, from: `self.own(&who, token_id);\n        let seen_key`, to: `self.own(&who, token_id);\n        for e in first_epoch..=last_epoch { let mut rec = self.epoch_rec(id, e); rec.covering_sales += 1; self.epochs.insert(Self::key(id, e as u64), rec); }\n        let seen_key` },
   { name: "a refusal leaves no mark on its epochs", file: `${K}sale.rs`, from: `rec.refused_sales = rec.refused_sales.saturating_add(1);`, to: "" },
