@@ -12,21 +12,26 @@
     "killtest": "tsx tools/killtest.ts",
     "build": "sh tools/build.sh",
     "attack": "tsx tools/attack.ts",
+    "seed": "tsx tools/seed.ts",
     "job": "tsx tools/job.ts",
     "gas": "tsx tools/gas.ts",
     "demo": "tsx tools/demo.ts",
     "copy": "tsx tools/copy-sandbox.ts",
-    "test": "tsx --test lib/test/*.test.ts"
+    "test": "tsx --test lib/test/*.test.ts",
+    "web": "npm run --silent web:assets && npm run dev -w web",
+    "web:assets": "cp res/keyhole.wasm web/public/keyhole.wasm && (cp docs/demo/testnet-run.json web/public/testnet-run.json 2>/dev/null || true)",
+    "web:build": "npm run --silent web:assets && npm run build -w web"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
-    "@scure/base": "^2.0.0",
+    "@scure/base": "2.0.0",
     "near-api-js": "7.4.0",
     "tsx": "4.23.15"
   },
   "devDependencies": {
+    "playwright": "^1.64.1",
     "typescript": "5.9.3"
   }
 }

@@ -140,7 +140,10 @@ impl Keyhole {
         near_sdk::assert_one_yocto();
         require!(env::prepaid_gas().as_tgas() >= 50, "attach at least 50 Tgas");
         let sender = env::predecessor_account_id();
+        let before = env::storage_usage();
         let prev = self.transfer(&sender, &receiver_id, &token_id, approval_id, memo);
+        self.flush_all();
+        require!(env::storage_usage() <= before + TRANSFER_ALLOWANCE_BYTES, "more storage than a transfer prepaid");
         ext_nft_receiver::ext(receiver_id.clone())
             .with_static_gas(GAS_ON_TRANSFER)
             .nft_on_transfer(sender, prev.clone(), token_id.clone(), msg)

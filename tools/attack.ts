@@ -362,6 +362,11 @@ async function run(w: World): Promise<void> {
   check("the refund is the whole price plus the penalty from the bond", BigInt(await w.chain.view("credit_of", { account: bob })) - cu0 === PRICE + penalty);
   check("the late delivery is on the trader's public record", (await una.record()).late_deliveries === 1);
   refused("it can't be claimed twice", await w.chain.call(bob, "claim_undelivered", { token_id: u1.id }), "delivered or closed");
+  const u2 = await buy(w, carol, una, e, e);
+  await w.chain.advanceTo(Number((await u2.token()).settle_at_ms));
+  const u2c = BigInt(await w.chain.view("credit_of", { account: carol }));
+  const u2s = await w.chain.call(dave, "settle", { token_id: u2.id });
+  check("ABSENT HOLDER: anyone settling an undelivered window refunds its holder, not the trader", u2s.ok && u2s.value === "refunded" && BigInt(await w.chain.view("credit_of", { account: carol })) - u2c >= PRICE, String(u2s.value ?? u2s.reason));
   await solvent(w, "after the deadlines");
 
   // A healthy window settles to the trader.
@@ -429,6 +434,21 @@ async function run(w: World): Promise<void> {
   check("LAPSE: a window with a missing figure settles as refundable", ys.ok && ys.value === "refundable", String(ys.value ?? ys.reason));
   accepted("the holder claims from the bond", await w.chain.call(bob, "claim_refund", { token_id: y1.id }));
   await solvent(w, "after the lapse");
+
+  // A holder who never claims can't lock the trader's bond for ever.
+  await w.rounds();
+  const zoe = await newTrader(w, "zoe");
+  e = await nextEpoch(w);
+  const z1 = await buy(w, bob, zoe, e, e);
+  accepted("delivery", await zoe.deliver(z1.id));
+  await w.chain.advanceTo(Number((await z1.token()).settle_at_ms));
+  accepted("no figure, so the window settles as refundable", await w.chain.call(dave, "settle", { token_id: z1.id }));
+  refused("closing it before the holder's time is up is refused", await w.chain.call(dave, "close_unclaimed", { token_id: z1.id }), "still has time");
+  await w.chain.advanceTo(Number((await z1.token()).settle_at_ms) + w.config.unbond_secs * 1000);
+  accepted("ABSENT HOLDER: after the delay, anyone can close the unclaimed refund", await w.chain.call(dave, "close_unclaimed", { token_id: z1.id }));
+  check("and the bond is free of it", BigInt((await zoe.record()).liability) === 0n);
+  refused("a closed window can't claim", await w.chain.call(bob, "claim_refund", { token_id: z1.id }), "can't claim");
+  refused("a window too far ahead is refused", await w.chain.call(bob, "buy_window", { trader: zoe.account, first_epoch: e + 40, last_epoch: e + 40, buyer_pub: hex(buyerKey().pub) }, near(3)), "too far ahead");
 
   // Pro rata: the bond can't cover everyone, and the order of claims doesn't matter.
   await w.rounds();
