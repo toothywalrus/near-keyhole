@@ -29,14 +29,15 @@ export class VmChain implements Chain {
 
 export class RpcChain implements Chain {
   accounts = new Map<string, Named>();
+  defaultTgas = 300n;
   constructor(readonly net: Net, readonly contractId: string, readonly nudge?: (ms: number) => Promise<void>) {}
   add(a: Named): void {
     this.accounts.set(a.id, a);
   }
-  async call(who: string, method: string, args: Record<string, unknown>, deposit: bigint = 0n, tgas: bigint = 300n): Promise<Outcome> {
+  async call(who: string, method: string, args: Record<string, unknown>, deposit: bigint = 0n, tgas?: bigint): Promise<Outcome> {
     const a = this.accounts.get(who);
     if (!a) throw new Error(`no key for ${who}`);
-    return this.net.call(a, this.contractId, method, args, deposit, tgas);
+    return this.net.call(a, this.contractId, method, args, deposit, tgas ?? this.defaultTgas);
   }
   view<T = any>(method: string, args: Record<string, unknown> = {}): Promise<T> {
     return this.net.view<T>(this.contractId, method, args);

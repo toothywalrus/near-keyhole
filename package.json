@@ -12,6 +12,9 @@
     "killtest": "tsx tools/killtest.ts",
     "build": "sh tools/build.sh",
     "attack": "tsx tools/attack.ts",
+    "job": "tsx tools/job.ts",
+    "gas": "tsx tools/gas.ts",
+    "demo": "tsx tools/demo.ts",
     "copy": "tsx tools/copy-sandbox.ts",
     "test": "tsx --test lib/test/*.test.ts"
   },
