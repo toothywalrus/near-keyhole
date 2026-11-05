@@ -36,9 +36,9 @@ export type Round = { round_id: string; answer_e8: number; t_ms: string; source_
 export type TraderRec = {
   id: number; account: string; handle: string; root: string; registered_ms: string; first_epoch: number; status: any; bond: string; liability: string;
   book_usd_e6: string; floor_bps: number; base_price: string; slope: string; next_seq: string; head: string; next_epoch: number; posted_epochs: number;
-  missed_epochs: number; cum_pnl_e6: string; sold: number; buyers: number; late_deliveries: number; refused_epochs: number; burned: string; last_post_ms: string;
+  missed_epochs: number; cum_pnl_e6: string; sold: number; buyers: number; late_deliveries: number; refused_epochs: number; voided_e6: string; burned: string; last_post_ms: string;
 };
-export type Score = { posted_e6: string; missed: number; refused: number; charge_per_missed_e6: string; score_e6: string };
+export type Score = { posted_e6: string; missed: number; refused: number; voided_e6: string; charge_per_missed_e6: string; score_e6: string };
 export type TokenRec = {
   id: number; trader: number; first_epoch: number; last_epoch: number; first_slot: number; last_slot: number; owner: string; price: string;
   buyer_pub: string | null; state: string; bought_ms: string; deliver_by_ms: string; settle_at_ms: string; resale_price: string | null;

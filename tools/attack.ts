@@ -441,7 +441,7 @@ async function run(w: World): Promise<void> {
   const xprice = BigInt((await x1.token()).price);
   check("the holder gets the whole price, whatever the size of the bond", BigInt(await w.chain.view("credit_of", { account: bob })) - xb0 === xprice);
   check("the trader doesn't get the escrow", BigInt(await w.chain.view("credit_of", { account: xan.account })) === xt0);
-  check("and a penalty burns from the bond: nobody collects it", BigInt((await xan.record()).burned) === xprice / 2n && BigInt((await xan.record()).bond) === BigInt(xr.bond) - xprice / 2n);
+  check("and his bond is untouched: a true loss costs him the sale, never the bond", BigInt((await xan.record()).burned) === 0n && BigInt((await xan.record()).bond) === BigInt(xr.bond));
   accepted("the other window too", await w.chain.call(dave, "settle", { token_id: x2.id }));
   refused("it can't be settled twice", await w.chain.call(dave, "settle", { token_id: x2.id }), "can't be settled");
   check("no liability is left", BigInt((await xan.record()).liability) === 0n);
@@ -458,6 +458,7 @@ async function run(w: World): Promise<void> {
   await w.chain.advanceTo(Number((await y1.token()).settle_at_ms));
   const ys = await w.chain.call(dave, "settle", { token_id: y1.id });
   check("LAPSE: a window with a missing figure goes back to its holder", ys.ok && ys.value === "refunded", String(ys.value ?? ys.reason));
+  check("and a missing figure burns half the price from the bond: that one is his doing", BigInt((await yan.record()).burned) === BigInt((await y1.token()).price) / 2n, (await yan.record()).burned);
   refused("KNOWN BAD: a window with a missed figure isn't for sale, or it would be free reading", await w.chain.call(dave, "buy_window", { trader: yan.account, first_epoch: e, last_epoch: e, buyer_pub: hex(buyerKey().pub) }, near(3)), "no figure");
   await solvent(w, "after the lapse");
 
@@ -682,6 +683,44 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await solvent(w, "after the self-slash");
   }
 
+  console.log("\n-- An honest loss is never slashable --");
+  {
+    // Issue #15: a trader loses past his floor, honestly, and strangers buy his windows to burn his bond. No bond may move for a true figure.
+    const hl = new TraderAgent(w.chain, await w.fund("honest-loser", near(200)), seedOf("shared"), w.timing);
+    accepted("a trader with a 10 NEAR bond and a 1% floor", await hl.register("loser", { book_usd: 10_000, floor_bps: 100, base_price: near(5), slope: 0n, bond: near(10) }));
+    const strangers = [await w.fund("stranger-a", near(100)), await w.fund("stranger-b", near(100))];
+    await w.rounds();
+    const he = await nextEpoch(w);
+    accepted("he goes long", await hl.write(trade(0, 3, "a real loss coming")));
+    const windows = [];
+    for (const st of strangers) {
+      const one = buyerKey();
+      const bb = await w.chain.call(st, "buy_window", { trader: hl.account, first_epoch: he, last_epoch: he, buyer_pub: hex(one.pub) }, near(6));
+      if (!bb.ok) throw new Error(bb.reason);
+      const k = { id: Number(bb.value), one, token: () => w.chain.view<TokenRec>("get_token", { token_id: Number(bb.value) }) };
+      accepted("a stranger buys the losing day", await hl.deliver(k.id));
+      windows.push({ st, k });
+    }
+    await w.roundAt(0, 300_000_000_000n);
+    await w.chain.advanceTo(w.timing.epochStart(he + 1));
+    await w.chain.advanceTo((await w.chain.nowMs()) + 1);
+    await w.roundAt(0, 240_000_000_000n);
+    await w.prices.load();
+    const hf = await hl.figure(he, w.prices);
+    accepted("he posts his true loss, far past his floor", await hl.post(he, hf.pnl_e6));
+    const bond0 = BigInt((await hl.record()).bond);
+    await w.chain.advanceTo(Number((await windows[1].k.token()).settle_at_ms));
+    await w.rounds();
+    for (const { st, k } of windows) {
+      const c0 = BigInt(await w.chain.view("credit_of", { account: st }));
+      const sres = await w.chain.call(st, "settle", { token_id: k.id });
+      check("a window past the floor still gives its buyer the escrow back", sres.ok && sres.value === "refunded" && BigInt(await w.chain.view("credit_of", { account: st })) - c0 === BigInt((await k.token()).price), String(sres.value ?? sres.reason));
+    }
+    const hr = await hl.record();
+    check("DRAWDOWN: an honest loss burns nothing: strangers can't spend his bond", BigInt(hr.bond) === bond0 && BigInt(hr.burned) === 0n, `bond ${Number(bond0 / 10n ** 21n) / 1000} -> ${Number(BigInt(hr.bond) / 10n ** 21n) / 1000}, burned ${Number(BigInt(hr.burned) / 10n ** 21n) / 1000}`);
+    await solvent(w, "after the drawdown");
+  }
+
   console.log("\n-- An entry nobody can open --");
   {
     const j = new TraderAgent(w.chain, await w.fund("junker", near(100)), seedOf("shared"), w.timing);
@@ -777,6 +816,18 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     accepted("he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: rb.id }));
     const rs = await w.chain.view("score", { account: rf.account });
     await solvent(w, "after a refusal, whose rows the token prepaid");
+    // A refusal shields an old figure from proof (#13): it stops counting instead.
+    const rv = new TraderAgent(w.chain, await w.fund("shielder", near(100)), seedOf("shared"), w.timing);
+    accepted("a trader", await rv.register("shielder", { book_usd: 100_000, floor_bps: 100, base_price: PRICE, slope: 0n, bond: BOND }));
+    const ve = await nextEpoch(w);
+    await w.chain.advanceTo(w.timing.epochStart(ve + 1) + 1000);
+    accepted("he posts a big figure for an empty day", await rv.post(ve, 9_000_000_000n));
+    const before13 = await w.chain.view("score", { account: rv.account });
+    const vb = await buy(w, rfBuyer, rv, ve, ve);
+    await w.chain.advanceTo(Number((await vb.token()).deliver_by_ms) + 1);
+    accepted("a buyer asks to check it, and he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: vb.id }));
+    const after13 = await w.chain.view("score", { account: rv.account });
+    check("SHIELDED FIGURE: a figure he refuses to let anyone check stops counting, and costs a charge on top", BigInt(after13.voided_e6) === 9_000_000_000n && BigInt(after13.score_e6) === BigInt(before13.score_e6) - 9_000_000_000n - BigInt(after13.charge_per_missed_e6), `${before13.score_e6} -> ${after13.score_e6}`);
     check("REFUSED: two refused epochs cost him two charges on his public record", rs.refused === 2 && BigInt(rs.score_e6) === -BigInt(rs.missed + 2) * BigInt(rs.charge_per_missed_e6), JSON.stringify(rs));
   }
 

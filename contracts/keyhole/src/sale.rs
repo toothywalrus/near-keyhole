@@ -202,15 +202,16 @@ impl Keyhole {
         let holder_absent = k.state == TokenState::Pending;
         require!(k.state == TokenState::Delivered || holder_absent, "this window can't be settled");
         let price = k.price.0;
-        let breached = self.window_breached(&t, &k);
+        let breach = self.window_breach(&t, &k);
+        let breached = breach != Breach::None;
         t.liability = U128(checked_sub(t.liability.0, price));
-        let payee = if breached {
+        // A missing figure is the trader's doing: it burns. A loss past the floor, truly posted, is just a loss: the buyer gets the escrow back and the bond is
+        // untouched, or strangers could buy into a drawdown to burn it (#15). Only a figure that differs from the journal can cost a bond, through an audit.
+        if breach == Breach::MissingFigure {
             let penalty = self.penalty_of(price);
             self.burn(&mut t, penalty);
-            k.owner.clone()
-        } else {
-            t.account.clone()
-        };
+        }
+        let payee = if breached { k.owner.clone() } else { t.account.clone() };
         k.state = if breached { TokenState::Refunded } else { TokenState::Closed };
         self.put_trader(t);
         self.tokens.insert(token_id, k);
@@ -331,6 +332,14 @@ impl Keyhole {
             let mut rec = self.epoch_rec(k.trader, e);
             if rec.refused_sales == 0 {
                 t.refused_epochs = t.refused_epochs.saturating_add(1);
+                // A figure nobody may check stops counting: refusing to deliver can keep a lie from being proven, but not from being believed.
+                if let Some(p) = rec.posted_e6 {
+                    let figure = match rec.verdict {
+                        EpochVerdict::False { recomputed_e6 } => recomputed_e6.0,
+                        EpochVerdict::Unchallenged => p.0,
+                    };
+                    t.voided_e6 = I128(t.voided_e6.0.saturating_add(figure));
+                }
             }
             rec.refused_sales = rec.refused_sales.saturating_add(1);
             self.epochs.insert(Self::key(k.trader, e as u64), rec);
@@ -381,13 +390,13 @@ impl Keyhole {
         checked_mul(per_epoch, (last_epoch - first_epoch + 1) as u128)
     }
 
-    /// Did this window lose past the floor, or lack a figure?
-    pub(crate) fn window_breached(&self, t: &Trader, k: &WindowToken) -> bool {
+    /// Did this window lack a figure, or lose past the floor?
+    pub(crate) fn window_breach(&self, t: &Trader, k: &WindowToken) -> Breach {
         let mut total: i128 = 0;
         for e in k.first_epoch..=k.last_epoch {
             let rec = self.epoch_rec(k.trader, e);
             match rec.posted_e6 {
-                None => return true,
+                None => return Breach::MissingFigure,
                 Some(p) => {
                     let figure = match rec.verdict {
                         EpochVerdict::False { recomputed_e6 } => recomputed_e6.0,
@@ -398,6 +407,17 @@ impl Keyhole {
             }
         }
         let floor = (t.book_usd_e6.0 as i128).saturating_mul(t.floor_bps as i128) / 10_000;
-        total < -floor
+        if total < -floor {
+            Breach::PastFloor
+        } else {
+            Breach::None
+        }
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub(crate) enum Breach {
+    None,
+    PastFloor,
+    MissingFigure,
 }

@@ -147,6 +147,9 @@ impl Keyhole {
             // Two audits can be open at once: only the first to finish corrects the running total.
             if rec.verdict == EpochVerdict::Unchallenged {
                 t.cum_pnl_e6 = I128(t.cum_pnl_e6.0.saturating_sub(posted).saturating_add(recomputed));
+                if rec.refused_sales > 0 {
+                    t.voided_e6 = I128(t.voided_e6.0.saturating_sub(posted).saturating_add(recomputed));
+                }
             }
             rec.verdict = EpochVerdict::False { recomputed_e6: I128(recomputed) };
             self.epochs.insert(Self::key(a.trader, a.epoch as u64), rec);

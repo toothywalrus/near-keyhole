@@ -50,6 +50,7 @@ impl Keyhole {
             buyers: 0,
             late_deliveries: 0,
             refused_epochs: 0,
+            voided_e6: I128(0),
             burned: U128(0),
             last_post_ms: U64(now),
         });
@@ -160,6 +161,10 @@ impl Keyhole {
         require!(now <= ended + self.config.post_grace_secs as u64 * 1000, "too late: that epoch's posting grace is over");
         let before = env::storage_usage();
         let mut rec = self.epoch_rec(id, epoch);
+        if rec.refused_sales > 0 {
+            // A figure for an epoch already refused to a buyer is voided as it's posted.
+            t.voided_e6 = I128(t.voided_e6.0.saturating_add(pnl_e6.0));
+        }
         rec.posted_e6 = Some(pnl_e6);
         rec.posted_ms = Some(U64(now));
         self.epochs.insert(Self::key(id, epoch as u64), rec);
