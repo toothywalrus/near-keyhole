@@ -15,7 +15,8 @@ flags="--remap-path-prefix=$repo=/keyhole --remap-path-prefix=$CARGO_TARGET_DIR=
 touch core/src/*.rs */src/lib.rs
 for c in "$@"; do
   if [ "$c" = job ]; then
-    # The job is its own workspace, so cargo hashes its path dependency on the core by absolute path, and that hash shapes the binary. Build it from one fixed place.
+    # Built from one fixed place. Built from a copy elsewhere, the job's bytes varied run to run; from a fixed place they don't. The cause wasn't pinned down: the job is its
+    # own workspace with a path dependency outside it, which is the likely suspect.
     fixed=/tmp/keyhole-reproducible-job
     mkdir -p "$fixed/contracts"
     rsync -a --delete "$repo/job/" "$fixed/job/" --exclude target
