@@ -734,6 +734,16 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await w.chain.advanceTo((await w.chain.nowMs()) + 5 * 86400_000);
     const sc2 = await w.chain.view("score", { account: wn.account });
     check("and silence after his last figure counts too, once the grace is over", sc2.missed > sc.missed, `missed ${sc.missed} then ${sc2.missed}`);
+    // A refusal can keep an old false figure from ever being checked: it counts like a missed day, on every epoch it covers.
+    const rf = new TraderAgent(w.chain, await w.fund("refuser", near(100)), seedOf("shared"), w.timing);
+    accepted("a trader", await rf.register("refuser", { book_usd: 100_000, floor_bps: 100, base_price: PRICE, slope: 0n, bond: BOND }));
+    const rfBuyer = await w.fund("rf-buyer", near(100));
+    const re = await nextEpoch(w);
+    const rb = await buy(w, rfBuyer, rf, re, re + 1);
+    await w.chain.advanceTo(Number((await rb.token()).deliver_by_ms) + 1);
+    accepted("he won't deliver", await w.chain.call(rfBuyer, "claim_undelivered", { token_id: rb.id }));
+    const rs = await w.chain.view("score", { account: rf.account });
+    check("REFUSED: two refused epochs cost him two charges on his public record", rs.refused === 2 && BigInt(rs.score_e6) === -BigInt(rs.missed + 2) * BigInt(rs.charge_per_missed_e6), JSON.stringify(rs));
   }
 
   console.log("\n-- The last figure gets its time to be audited --");

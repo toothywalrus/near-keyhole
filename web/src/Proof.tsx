@@ -59,7 +59,7 @@ export function Proof() {
           <tr><td>Access ends by</td><td>The seller revoking, and NOVA's TEE rotating the group key.</td><td>Mathematics: no node past the window was ever delivered. Nobody needs to be online.</td></tr>
           <tr><td>Paying and getting access</td><td>The buyer pays, then the seller checks and admits. No escrow yet.</td><td>One sale in the contract: escrow, delivery, dispute, refund.</td></tr>
           <tr><td>Where it runs</td><td><b>Mainnet, real USDC, real Agent API.</b></td><td>Testnet and a sandbox. The mainnet adapter is written against the docs and unexercised.</td></tr>
-          <tr><td>Trading</td><td>Scripted decisions; copies are dry quotes.</td><td>Seeded journals; a real NEP-413 copy against the intents.near wasm in a sandbox; live dry quotes.</td></tr>
+          <tr><td>Trading</td><td>Scripted decisions; copies are dry quotes.</td><td>Seeded journals; a real NEP-413 copy against the intents.near wasm, in a sandbox and in this tab, with a local solver; live dry quotes.</td></tr>
           <tr><td>What the journal is</td><td>Agent's own, in NOVA's encrypted store.</td><td>Agent's own, ciphertext on chain. Neither sees a real confidential fill: no public viewing key exists.</td></tr>
         </tbody>
       </table>

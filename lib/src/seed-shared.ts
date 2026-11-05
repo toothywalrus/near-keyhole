@@ -7,6 +7,8 @@ export const CONTRACT = "keyhole.local";
 export const RECORDER = "recorder.local";
 export const OWNER = "owner.local";
 export const YOU = "you.local";
+/** wNEAR's price in a live 1Click dry quote on 2026-11-05: 2000 USDC for 498.17 wNEAR. Only for showing a bond next to a dollar figure. */
+export const NEAR_USD = 4.01;
 
 export const demoSeed = (handle: string): Uint8Array => sha256(utf8(`keyhole demo journal (public fixture, no value): ${handle}`));
 

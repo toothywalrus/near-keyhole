@@ -49,6 +49,7 @@ impl Keyhole {
             sold: 0,
             buyers: 0,
             late_deliveries: 0,
+            refused_epochs: 0,
             burned: U128(0),
             last_post_ms: U64(now),
         });

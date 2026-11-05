@@ -2,11 +2,11 @@
 // everything it does is a call into that wasm. A subscriber re-renders on each change.
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2.js";
 import { useEffect, useSyncExternalStore } from "react";
-import type { Chain, Config, Clock, EntryRec, EpochRec, Outcome, Round, TokenRec, TraderRec } from "@lib/client.ts";
+import type { Chain, Config, Clock, EntryRec, EpochRec, Outcome, Round, Score, TokenRec, TraderRec } from "@lib/client.ts";
 import { near, Prices, Timing, TraderAgent } from "@lib/client.ts";
 import { deflatedSharpe } from "@lib/dsr.ts";
 import type { OneTime } from "@lib/entry.ts";
-import { demoSeed, PERSONAS, YOU, CONTRACT, type Persona } from "@lib/seed-shared.ts";
+import { demoSeed, NEAR_USD, PERSONAS, YOU, CONTRACT, type Persona } from "@lib/seed-shared.ts";
 import { MiniNear } from "@lib/vm.ts";
 
 export type Meta = { generated: string; rounds_recorded: string; wasm_sha256: string; clock_ms: number; personas: { handle: string; display: string; blurb: string }[] };
@@ -99,34 +99,52 @@ export function useBoot(): void {
 
 export type Row = {
   t: TraderRec; epochs: EpochRec[]; series: number[]; cum: number[]; handle: string; blurb: string; pnl: number; pct: number; ageDays: number;
-  posted: number; covered: number; bond: number; slashed: boolean; lapsed: boolean; missed: number; returns: number[];
+  posted: number; covered: number; bond: number; slashed: boolean; lapsed: boolean; missed: number; refused: number; returns: number[]; score: Score; bondUsd: number; bondPctOfPnl: number | null; charged: number;
 };
 
 export function rowOf(t: TraderRec): Row {
   const eps = store.epochs(t);
+  const score = store.v<Score>("score", { account: t.account });
+  const charge = Number(score.charge_per_missed_e6) / 1e6;
   const book = Number(t.book_usd_e6) / 1e6;
   const series: number[] = [];
   const cum: number[] = [];
   let c = 0;
   let covered = 0;
-  for (const e of eps) {
-    if (e.posted_e6 !== null) {
-      const figure = e.verdict?.False ? Number(e.verdict.False.recomputed_e6) : Number(e.posted_e6);
-      series.push(figure / 1e6);
-      c += figure / 1e6;
-      cum.push(c);
+  // The public series has a value for every epoch whose grace is over: a figure, or the charge for not having one. Otherwise a trader could post only his winners.
+  const byEpoch = new Map(eps.map((e) => [e.epoch, e]));
+  const graceOver = Math.floor((store.vm.clockMs - store.timing.genesisMs - store.config.post_grace_secs * 1000) / store.timing.epochMs);
+  const lastCounted = t.status?.Slashed || t.status === "Exited" ? t.next_epoch - 1 : Math.max(graceOver - 1, t.next_epoch - 1);
+  let postedSeen = 0;
+  for (let n = t.first_epoch; n <= lastCounted; n++) {
+    const e = byEpoch.get(n);
+    let v: number;
+    if (e && e.posted_e6 !== null) {
+      v = (e.verdict?.False ? Number(e.verdict.False.recomputed_e6) : Number(e.posted_e6)) / 1e6;
+      postedSeen++;
       if (e.covering_sales > 0) covered++;
+    } else {
+      v = -charge;
     }
+    if (e && e.refused_sales > 0) v -= charge;
+    series.push(v);
+    c += v;
+    cum.push(c);
   }
+  void postedSeen;
   const handleBare = t.account.replace(/\.local$/, "");
   const p = store.persona(handleBare);
   const now = store.vm.clockMs;
   const lastPosted = eps.filter((e) => e.posted_e6 !== null).at(-1);
   const lapsed = !!lastPosted && store.timing.epochOf(now) - lastPosted.epoch > 3;
+  const pnl = Number(score.score_e6) / 1e6;
+  const bondN = Number(BigInt(t.bond) / 10n ** 20n) / 1e4;
+  const bondUsd = bondN * NEAR_USD;
   return {
-    t, epochs: eps, series, cum, handle: handleBare, blurb: p?.blurb ?? "", pnl: Number(t.cum_pnl_e6) / 1e6, pct: (Number(t.cum_pnl_e6) / Number(t.book_usd_e6)) * 100,
+    t, epochs: eps, series, cum, handle: handleBare, blurb: p?.blurb ?? "", pnl, pct: (pnl * 1e6 / Number(t.book_usd_e6)) * 100, score, bondUsd,
+    bondPctOfPnl: pnl > 0 ? (bondUsd / pnl) * 100 : null, charged: (score.missed + score.refused) * charge, refused: score.refused,
     ageDays: (now - Number(t.registered_ms)) / 86400_000, posted: t.posted_epochs, covered, bond: Number(BigInt(t.bond) / 10n ** 20n) / 1e4, slashed: !!t.status?.Slashed, lapsed,
-    missed: t.missed_epochs, returns: series.map((x) => x / book),
+    missed: score.missed, returns: series.map((x) => x / book),
   };
 }
 

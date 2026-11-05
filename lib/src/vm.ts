@@ -41,6 +41,8 @@ export class MiniNear {
   private mocks = new Map<string, Mock>();
   private codeBytes: bigint;
   private txCounter = 0;
+  /** NEAR's ed25519_verify host function, when a contract needs it. */
+  ed25519Verify: ((sig: Uint8Array, msg: Uint8Array, pub: Uint8Array) => boolean) | null = null;
 
   constructor(wasm: BufferSource, readonly contractId: string, startMs: number, readonly sha256: (d: Uint8Array) => Uint8Array) {
     this.module = new WebAssembly.Module(wasm);
@@ -240,6 +242,10 @@ export class MiniNear {
       used_gas: () => 0n,
       random_seed: (r: bigint) => setReg(r, new Uint8Array(32)),
       sha256: (len: bigint, ptr: bigint, r: bigint) => setReg(r, this.sha256(read(len, ptr))),
+      ed25519_verify: (sl: bigint, sp: bigint, ml: bigint, mp: bigint, pl: bigint, pp: bigint) => {
+        if (!this.ed25519Verify) throw new Panic("host function ed25519_verify isn't in this local host");
+        return this.ed25519Verify(read(sl, sp), read(ml, mp), read(pl, pp)) ? 1n : 0n;
+      },
       value_return: (len: bigint, ptr: bigint) => { ret = read(len, ptr); },
       panic: () => { throw new Panic("explicit guest panic"); },
       panic_utf8: (len: bigint, ptr: bigint) => { throw new Panic(dec.decode(read(len, ptr))); },

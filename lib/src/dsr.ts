@@ -44,18 +44,22 @@ export function stats(returns: number[]): Stats {
   return { n, mean, sd, sharpe: mean / sd, skew: m3 / sd ** 3, kurt: m4 / sd ** 4 };
 }
 
+export const MIN_DAYS = 20;
+export const MIN_ACTIVE_DAYS = 12;
 const EULER = 0.5772156649015329;
 
 /**
  * P(true Sharpe > 0) for a return series assumed to be the best of `trials` independent tries.
- * With `trials = 1` this is the plain probabilistic Sharpe ratio. Null when there's too little data to say anything (fewer than 5 points).
+ * With `trials = 1` this is the plain probabilistic Sharpe ratio. Null when there's too little data to say anything.
  */
 export function deflatedSharpe(returns: number[], trials: number): number | null {
   const s = stats(returns);
-  if (s.n < 5 || s.sd < 1e-12) return null;
+  // A handful of active days can't support this number: tomo's 9 trades once read as 86%.
+  if (s.n < MIN_DAYS || returns.filter((r) => r !== 0).length < MIN_ACTIVE_DAYS || s.sd < 1e-12) return null;
   // The Sharpe a best-of-N would show by luck alone, with the estimator's own variance.
   const varSr = (1 - s.skew * s.sharpe + ((s.kurt - 1) / 4) * s.sharpe ** 2) / (s.n - 1);
   const benchmark = trials <= 1 ? 0 : Math.sqrt(Math.max(varSr, 0)) * ((1 - EULER) * phiInv(1 - 1 / trials) + EULER * phiInv(1 - 1 / (trials * Math.E)));
-  const denom = Math.sqrt(Math.max(1 - s.skew * s.sharpe + ((s.kurt - 1) / 4) * s.sharpe ** 2, 1e-12));
+  // The formula's denominator falls toward zero for a lumpy, right-skewed series, and would flatter exactly the records it should doubt. Floor it.
+  const denom = Math.sqrt(Math.max(1 - s.skew * s.sharpe + ((s.kurt - 1) / 4) * s.sharpe ** 2, 0.5));
   return phi(((s.sharpe - benchmark) * Math.sqrt(s.n - 1)) / denom);
 }

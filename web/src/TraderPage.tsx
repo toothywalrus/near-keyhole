@@ -6,22 +6,26 @@ import { dateOf, dsrOf, lnear, money, pctStr, rowOf, timeOf, useStore, type Row 
 import { YOU } from "@lib/seed-shared.ts";
 
 function Chart({ r }: { r: Row }) {
-  const posted = r.epochs.filter((e) => e.posted_e6 !== null);
-  if (posted.length < 2) return <p className="note">Too little history to draw.</p>;
+  const n = r.cum.length;
+  if (n < 2) return <p className="note">Too little history to draw.</p>;
   const W = 900, H = 240, B = 40;
   const lo = Math.min(0, ...r.cum), hi = Math.max(0, ...r.cum);
   const y = (v: number) => H - B - ((v - lo) / (hi - lo || 1)) * (H - B - 10);
-  const x = (i: number) => (i / (posted.length - 1)) * (W - 12) + 6;
+  const x = (i: number) => (i / (n - 1)) * (W - 12) + 6;
   const line = r.cum.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join("");
   const maxBar = Math.max(...r.series.map(Math.abs), 1);
+  const byEpoch = new Map(r.epochs.map((e) => [e.epoch, e]));
+  const at = (i: number) => byEpoch.get(r.t.first_epoch + i);
   return (
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Cumulative PnL of ${r.t.handle}, per epoch`}>
-      {posted.map((e, i) => e.covering_sales > 0 ? <rect key={`c${i}`} x={x(i) - (W / posted.length) / 2} y="0" width={W / posted.length} height={H - B} className="covered" /> : null)}
+      {r.cum.map((_, i) => ((at(i)?.covering_sales ?? 0) > 0 ? <rect key={`c${i}`} x={x(i) - W / n / 2} y="0" width={W / n} height={H - B} className="covered" /> : null))}
       <line x1="0" x2={W} y1={y(0)} y2={y(0)} className="zero" />
       <path d={line} className="curve" />
-      {posted.map((e, i) => {
+      {r.cum.map((_, i) => {
         const h = (Math.abs(r.series[i]) / maxBar) * (B - 8);
-        return <rect key={i} x={x(i) - 3} y={H - h - 2} width="6" height={h} className={e.verdict?.False ? "bar-false" : r.series[i] >= 0 ? "bar-up" : "bar-down"} />;
+        const e = at(i);
+        const gap = !e || e.posted_e6 === null || e.refused_sales > 0;
+        return <rect key={i} x={x(i) - 3} y={H - h - 2} width="6" height={h} className={e?.verdict?.False || gap ? "bar-false" : r.series[i] >= 0 ? "bar-up" : "bar-down"} />;
       })}
     </svg>
   );
@@ -61,7 +65,7 @@ export function TraderPage({ handle }: { handle: string }) {
     const say = async (line: string) => { log.push(line); setBusy([...log]); await new Promise((ok) => setTimeout(ok, 350)); };
     await say("You made a one-time key, in this tab. It goes nowhere.");
     const one = buyerKey();
-    const b = await s.chain.call(YOU, "buy_window", { trader: account, first_epoch: first, last_epoch: last, buyer_pub: hex(one.pub) }, BigInt(quote) + 10n ** 22n);
+    const b = await s.chain.call(YOU, "buy_window", { trader: account, first_epoch: first, last_epoch: last, buyer_pub: hex(one.pub) }, BigInt(quote) + 5n * 10n ** 22n);
     if (!b.ok) { setErr(b.reason ?? "refused"); setBusy(null); return; }
     const id = Number(b.value);
     s.oneTime.set(id, one);
@@ -85,21 +89,22 @@ export function TraderPage({ handle }: { handle: string }) {
         </div>
         <div className={`headline-pnl ${r.pnl < 0 ? "loss" : ""}`}>
           <div>{money(r.pnl)}</div>
-          <small>{pctStr(r.pct)} of a {money(Number(t.book_usd_e6) / 1e6).replace("+", "")} declared book, {r.posted} epochs</small>
+          <small>{pctStr(r.pct)} of a {money(Number(t.book_usd_e6) / 1e6).replace("+", "")} declared book, {r.posted} figures{r.charged > 0 ? `, after ${money(-r.charged)} for gaps` : ""}</small>
         </div>
       </section>
       {r.slashed ? <div className="verdict alarm"><b>Proven false.</b> {t.status.Slashed.reason}. Slashed by {t.status.Slashed.by}, {timeOf(Number(t.status.Slashed.at_ms))}. The record stays.</div> : null}
 
       <Chart r={r} />
-      <p className="caption">Cumulative PnL as posted, corrected where proven false. Bars: each epoch's figure. Shaded: epochs a past buyer holds the keys to, so somebody could have checked them.</p>
+      <p className="caption">Cumulative PnL as posted, corrected where proven false, with every gap charged. Bars: each epoch. Shaded: epochs a past buyer holds the keys to, so somebody could have checked them.</p>
 
       <div className="facts">
-        <Fact label="Bond at risk" note={`${s.config.prover_bps / 100}% goes to whoever proves a false figure, and ${s.config.burn_bps / 100}% burns.`}>{r.bond.toFixed(2)} Ⓝ</Fact>
-        <Fact label="Open sales against it" note={`Floor: refunds below −${(t.floor_bps / 100).toFixed(1)}% of book in a window.`}>{lnear(t.liability)} Ⓝ</Fact>
+        <Fact label="Bond at risk" note={`${s.config.prover_bps / 100}% goes to whoever proves a false figure; the rest burns.`}>{r.bond.toFixed(2)} Ⓝ</Fact>
+        <Fact label="Bond against the claim" note={r.bondPctOfPnl !== null && r.bondPctOfPnl < 60 ? "A lie worth more than what it risks can still pay." : "At $4.01 a NEAR, a recorded 1Click quote."}>{`≈$${Math.round(r.bondUsd).toLocaleString("en-US")}`}{r.bondPctOfPnl !== null ? ` / ${r.bondPctOfPnl.toFixed(1)}%` : ""}</Fact>
+        <Fact label="In escrow now" note={`A window losing over ${(t.floor_bps / 100).toFixed(1)}% of the book goes back to its buyer, and a penalty burns.`}>{lnear(t.liability)} Ⓝ</Fact>
         <Fact label="Age">{Math.floor(r.ageDays)} days</Fact>
         <Fact label="Trades written" note="Numbered, no gaps, each committed when written.">{t.next_seq}</Fact>
         <Fact label="Past buyers" note={`${r.covered} of ${r.posted} epochs checkable.`}>{t.buyers}</Fact>
-        <Fact label="Missed epochs">{t.missed_epochs}</Fact>
+        <Fact label="Gaps" note={`Each costs ${money(Number(r.score.charge_per_missed_e6) / 1e6).replace("+", "")} on the record. ${t.late_deliveries} deliveries refused in all.`}>{r.missed} missed, {r.refused} refused</Fact>
         <Fact label="P(real), best of 1 / 10 / 100" note="Deflated Sharpe over the public series.">{[d1, d10, d100].map((d) => (d === null ? "—" : `${Math.round(d * 100)}%`)).join(" / ")}</Fact>
       </div>
 

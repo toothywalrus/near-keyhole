@@ -8,6 +8,7 @@ const TRIALS = [1, 10, 100];
 function statusOf(r: Row) {
   if (r.slashed) return <Pill tone="alarm">Caught lying</Pill>;
   if (r.lapsed) return <Pill tone="warn">Stopped posting</Pill>;
+  if (r.refused > 0) return <Pill tone="warn">Refused a buyer</Pill>;
   return null;
 }
 
@@ -43,22 +44,23 @@ export function Board() {
 
       <div className="board" role="table">
         <div className="brow head" role="row">
-          <div>Book</div><div className="num">PnL</div><div className="spark-col">Curve</div><div className="num" title="Probability the true Sharpe is above zero, if this book is the best of N">P(real)</div>
-          <div className="num">Bond</div><div className="num">Age</div><div className="num">Trades</div><div className="num">Buyers</div><div className="num" title="Epochs a past buyer holds the keys to">Checkable</div><div className="num">7 days</div>
+          <div>Book</div><div className="num" title="Posted figures, less a charge for every epoch with no figure or a refused delivery">PnL</div><div className="spark-col">Curve</div>
+          <div className="num" title="The bond, in NEAR and in dollars at $4.01, and how much of the PnL it stands behind">Bond</div><div className="num">Age</div><div className="num">Trades</div><div className="num">Buyers</div><div className="num" title="Epochs with a delivered window, so a past buyer can check them. Buyers can be a trader's own accounts">Checkable</div><div className="num" title="Epochs with no figure, and epochs a buyer was refused">Gaps</div><div className="num dim" title="Deflated Sharpe: the probability the true Sharpe is above zero, if this book is the best of N. Blank with under 20 days or 12 active days">P(real)</div><div className="num">7 days</div>
         </div>
         {sorted.map((r) => {
           const d = dsrOf(r, trials);
           return (
             <a className={`brow ${r.slashed ? "caught" : ""}`} role="row" href={`#/t/${r.handle}`} key={r.t.id}>
               <div className="who"><b>{r.t.handle}</b>{statusOf(r)}<small>{r.blurb}</small></div>
-              <div className={`num big ${r.pnl < 0 ? "loss" : ""}`} data-label="PnL"><span className="figure">{money(r.pnl)}</span><small>{r.slashed ? "unreliable" : `${pctStr(r.pct)} of book`}</small></div>
-              <div className="spark-col"><Spark data={r.cum} /></div>
-              <div className="num" data-label="P(real)">{d === null ? "—" : `${Math.round(d * 100)}%`}</div>
-              <div className="num" data-label="Bond">{r.bond.toFixed(0)} Ⓝ</div>
+              <div className={`num big ${r.pnl < 0 ? "loss" : ""}`} data-label="PnL"><span className="figure">{money(r.pnl)}</span><small>{r.slashed ? "unreliable" : r.charged > 0 ? `after ${money(-r.charged).replace("−", "−")} for gaps` : `${pctStr(r.pct)} of book`}</small></div>
+              <div className="spark-col"><Spark data={r.cum} width={104} /></div>
+              <div className="num bond" data-label="Bond">{r.bond.toFixed(0)} Ⓝ<small>{r.bondPctOfPnl !== null ? `≈$${Math.round(r.bondUsd).toLocaleString("en-US")} · ${r.bondPctOfPnl.toFixed(r.bondPctOfPnl < 10 ? 1 : 0)}% of PnL` : `≈$${Math.round(r.bondUsd).toLocaleString("en-US")}`}</small></div>
               <div className="num" data-label="Age">{Math.floor(r.ageDays)}d</div>
               <div className="num" data-label="Trades">{r.t.next_seq}</div>
               <div className="num" data-label="Buyers">{r.t.buyers}</div>
               <div className="num" data-label="Checkable">{r.covered}/{r.posted}</div>
+              <div className={`num ${r.missed + r.refused > 0 ? "loss" : ""}`} data-label="Gaps">{r.missed + r.refused === 0 ? "0" : [r.missed ? `${r.missed} missed` : "", r.refused ? `${r.refused} refused` : ""].filter(Boolean).join(", ")}</div>
+              <div className="num dim" data-label="P(real)" title={d === null ? "Too few active days to say anything" : ""}>{d === null ? "—" : `${Math.round(d * 100)}%`}</div>
               <div className="num" data-label="7 days">{r.slashed ? "—" : `${lnear(week(r))} Ⓝ`}</div>
             </a>
           );
@@ -66,8 +68,8 @@ export function Board() {
       </div>
 
       <section className="fineprint">
-        <p><b>What this table can't tell you.</b> One account can't prove it isn't the luckiest of ten journals its owner runs. Age, trades, bond and the deflated Sharpe are there to price that doubt, not to remove it. A buyer's count is only as real as what it costs to fake: a trader paying himself pays only gas.</p>
-        <p><b>Reading it.</b> PnL is priced at the first oracle round after each entry was written, never at the trader's own fill. Checkable counts the epochs at least one past buyer can audit. P(real) is the deflated Sharpe ratio over the public daily series, nothing more.</p>
+        <p><b>What this table can't tell you.</b> A journal is what its trader wrote: nothing here shows a trade really happened. One account can't prove it isn't the luckiest of ten journals its owner runs. Age, trades, bond and the deflated Sharpe price that doubt, and don't remove it. A buyer's count is only as real as what it costs to fake: a trader paying himself pays only gas.</p>
+        <p><b>Reading it.</b> PnL is priced at the first oracle round after each entry was written, never at the trader's own fill. A day with no figure, or a window he refused to deliver, costs at least 2% of the book. Checkable counts the epochs at least one past buyer holds keys to. Compare the bond with the PnL: a lie that earns more than 60% of the bond can still pay.</p>
       </section>
     </>
   );

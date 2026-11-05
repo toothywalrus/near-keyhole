@@ -236,6 +236,23 @@ for (const x of agents.values()) {
   }
 }
 
+// ---- one refused delivery: marrow stopped answering. It costs him, and it's on his record ----
+{
+  const m = agents.get("marrow");
+  if (m) {
+    const rec = await m.a.record();
+    const buyer = "reader-late.local";
+    vm.fund(buyer, near(100));
+    const last = rec.next_epoch - 2;
+    const b = vm.call(buyer, "buy_window", { trader: m.a.account, first_epoch: last - 2, last_epoch: last, buyer_pub: hex(buyerKey(sha256(utf8("seed late buyer"))).pub) }, near(30));
+    if (!b.ok) throw new Error(`late buyer: ${b.reason}`);
+    const t = vm.view<TokenRec>("get_token", { token_id: b.value });
+    await chain.advanceTo(Number(t.deliver_by_ms) + 1000);
+    const c = vm.call(buyer, "claim_undelivered", { token_id: b.value });
+    if (!c.ok) throw new Error(`claim: ${c.reason}`);
+  }
+}
+
 // ---- one past scandal: a trader caught months of contract-time ago, and shown forever ----
 const caught = agents.get("halcyon");
 if (caught) {

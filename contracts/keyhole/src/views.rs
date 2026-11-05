@@ -29,7 +29,9 @@ pub struct Score {
     pub posted_e6: I128,
     /// Epochs with no figure, once their grace is over: the ones passed over and the ones since the last post.
     pub missed: u32,
-    /// What each one costs: the worse of the trader's own floor and 2% of the book. Otherwise a trader could post his winners and stay silent on his losers.
+    /// Epochs on which a buyer was refused delivery.
+    pub refused: u32,
+    /// What each missed or refused epoch costs: the worse of the trader's own floor and 2% of the book. Otherwise a trader could post his winners and stay silent on his losers.
     pub charge_per_missed_e6: I128,
     /// `posted_e6` less the charges. This is the number to show.
     pub score_e6: I128,
@@ -48,7 +50,7 @@ impl Keyhole {
             missed = missed.saturating_add(past_grace.saturating_sub(t.next_epoch));
         }
         let charge = t.book_usd_e6.0 as i128 * t.floor_bps.max(MIN_MISS_BPS) as i128 / 10_000;
-        Some(Score { posted_e6: t.cum_pnl_e6, missed, charge_per_missed_e6: I128(charge), score_e6: I128(t.cum_pnl_e6.0.saturating_sub(charge.saturating_mul(missed as i128))) })
+        Some(Score { posted_e6: t.cum_pnl_e6, missed, refused: t.refused_epochs, charge_per_missed_e6: I128(charge), score_e6: I128(t.cum_pnl_e6.0.saturating_sub(charge.saturating_mul(missed as i128 + t.refused_epochs as i128))) })
     }
 
     pub fn get_config(&self) -> Config {

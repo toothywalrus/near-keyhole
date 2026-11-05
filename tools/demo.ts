@@ -95,7 +95,7 @@ for (const name of [vega.account, lucky.account, mallory.account]) {
 say("\n== She buys the window, and pays into escrow. ==");
 const q = await w.chain.view<string>("quote", { trader: vega.account, first_epoch: e0, last_epoch: e0 });
 const one = buyerKey();
-const bought = record(`buy epoch ${e0} of vega's journal, a NEP-171 token`, await w.chain.call(buyer, "buy_window", { trader: vega.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one.pub) }, BigInt(q) + near("0.02")), `price ${nearStr(q)}`);
+const bought = record(`buy epoch ${e0} of vega's journal, a NEP-171 token`, await w.chain.call(buyer, "buy_window", { trader: vega.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one.pub) }, BigInt(q) + near("0.03")), `price ${nearStr(q)}`);
 const tokenId = Number(bought.value);
 record("vega delivers: nodes wrapped to her one-time key", await vega.deliver(tokenId));
 const token = await w.chain.view<TokenRec>("get_token", { token_id: tokenId });
@@ -120,7 +120,7 @@ must(local.pnl_e6.toString() === eps[0].posted_e6, "she recomputes vega's figure
 say("\n== She buys lucky's window, and does the same sum. ==");
 const q2 = await w.chain.view<string>("quote", { trader: lucky.account, first_epoch: e0, last_epoch: e0 });
 const one2 = buyerKey();
-const b2 = record(`buy epoch ${e0} of lucky's journal`, await w.chain.call(buyer, "buy_window", { trader: lucky.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one2.pub) }, BigInt(q2) + near("0.02")));
+const b2 = record(`buy epoch ${e0} of lucky's journal`, await w.chain.call(buyer, "buy_window", { trader: lucky.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one2.pub) }, BigInt(q2) + near("0.03")));
 record("lucky delivers honestly: the journal itself isn't the lie", await lucky.deliver(Number(b2.value)));
 const t2 = await w.chain.view<TokenRec>("get_token", { token_id: Number(b2.value) });
 const r2 = new WindowReader(t2, one2);
@@ -152,7 +152,7 @@ void refund;
 say("\n== Garbage for sale: the dispute the kill test was about, on the real contract. ==");
 const one3 = buyerKey();
 const q3 = await w.chain.view<string>("quote", { trader: mallory.account, first_epoch: e0, last_epoch: e0 });
-const b3 = record("she buys a window of mallory's journal", await w.chain.call(buyer, "buy_window", { trader: mallory.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one3.pub) }, BigInt(q3) + near("0.02")));
+const b3 = record("she buys a window of mallory's journal", await w.chain.call(buyer, "buy_window", { trader: mallory.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one3.pub) }, BigInt(q3) + near("0.03")));
 record("mallory delivers garbage for one node", await mallory.deliver(Number(b3.value), { garbage: 0 }));
 const t3 = await w.chain.view<TokenRec>("get_token", { token_id: Number(b3.value) });
 must(new WindowReader(t3, one3).verifyNodes()[0] === false, "she sees it at once: that node doesn't match its commitment");
@@ -163,7 +163,7 @@ say("\n== And a false dispute costs the griefer: an honest delivery stands. ==")
 const one4 = buyerKey();
 const q4 = await w.chain.view<string>("quote", { trader: vega.account, first_epoch: e0, last_epoch: e0 });
 const griefer = await w.fund(`grif${STAMP}`, near(TESTNET ? "0.35" : "5"));
-const b4 = record("someone else buys vega's window", await w.chain.call(griefer, "buy_window", { trader: vega.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one4.pub) }, BigInt(q4) + near("0.02")));
+const b4 = record("someone else buys vega's window", await w.chain.call(griefer, "buy_window", { trader: vega.account, first_epoch: e0, last_epoch: e0, buyer_pub: hex(one4.pub) }, BigInt(q4) + near("0.03")));
 record("vega delivers honestly", await vega.deliver(Number(b4.value)));
 const fd = record("dispute_wrap with nothing wrong", await w.chain.call(griefer, "dispute_wrap", { token_id: Number(b4.value), one_time_secret: hex(one4.secret), node_index: 0 }, BigInt(q4) + near("0.002")));
 must(fd.value?.trader_at_fault === false, "dismissed, and the deposit goes to vega", fd.value?.detail);

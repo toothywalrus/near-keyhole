@@ -47,6 +47,18 @@ await page.waitForSelector(".past .failmsg");
 const fail = await page.locator(".past .failmsg").first().innerText();
 check("trying the next entry really fails, offline", /None opened/.test(fail), fail.slice(0, 80));
 check("the page shows some figures as false", (await page.locator(".check tr.bad").count()) > 0);
+// Copy a trade, in this tab, on the real intents.near wasm. The default limits must let an ordinary trade through.
+await page.locator(".journal .open .copy-row button:has-text('Copy it here')").first().click();
+await page.waitForFunction(() => document.querySelector(".copy-fill")?.textContent?.length, null, { timeout: 15000 });
+const fillText = await page.locator(".copy-fill").first().innerText();
+check("COPY: the page signs and settles a copy on the real intents.near wasm, in this tab", /Signed here and settled/.test(fillText), fillText.slice(0, 90));
+const copyDecisions: string[] = [];
+const copyButtons = page.locator(".journal .open .copy-row button:has-text('Copy it here')");
+for (let i = 1; i < Math.min(await copyButtons.count(), 6); i++) await copyButtons.nth(i).click();
+await page.waitForTimeout(800);
+copyDecisions.push(...(await page.locator(".copy-fill").allInnerTexts()));
+check("the default limits copy most trades, and any refusal says why", copyDecisions.filter((t) => t.startsWith("Signed")).length >= 3 && copyDecisions.every((t) => /Signed|Refused before signing: /.test(t)), `${copyDecisions.filter((t) => t.startsWith("Signed")).length} of ${copyDecisions.length} copied`);
+check("a claim of a fill isn't called proof", !(await page.locator(".journal").first().innerText()).includes("settled\n"));
 await page.locator(".check .link.danger").first().click();
 await page.waitForSelector(".audit-log .verdict", { timeout: 30000 });
 check("the audit slashes the liar", (await page.locator(".audit-log .verdict").innerText()).includes("Slashed"));
@@ -58,6 +70,9 @@ check("and arrives in the balance", /You hold \d+/.test(await page.locator(".dat
 await page.goto(`${url}#/`);
 await page.waitForSelector(".brow:not(.head)");
 await page.waitForTimeout(100);
+check("the board shows every book's gaps", (await page.locator(".brow:not(.head)").filter({ hasText: "marrow" }).innerText()).includes("missed"));
+check("the board shows a bond against the PnL", /of PnL/.test(await page.locator(".brow:not(.head)").filter({ hasText: "ox&ember" }).innerText()));
+check("too few active days means no P(real), not a flattering one", (await page.locator(".brow:not(.head)").filter({ hasText: "tomo" }).innerText()).includes("—"));
 check("the board now marks the trader caught", (await page.locator(".brow.caught").count()) === 2);
 check("and the headline knows", (await page.locator(".lede h1").innerText()).includes("You caught"));
 

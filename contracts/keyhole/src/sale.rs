@@ -329,6 +329,9 @@ impl Keyhole {
         // A refusal can hide a false figure, since only a holder of the keys can prove one: it goes on the record of every epoch it covers.
         for e in k.first_epoch..=k.last_epoch {
             let mut rec = self.epoch_rec(k.trader, e);
+            if rec.refused_sales == 0 {
+                t.refused_epochs = t.refused_epochs.saturating_add(1);
+            }
             rec.refused_sales = rec.refused_sales.saturating_add(1);
             self.epochs.insert(Self::key(k.trader, e as u64), rec);
         }

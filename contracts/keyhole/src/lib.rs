@@ -129,6 +129,8 @@ pub struct Trader {
     pub sold: u32,
     pub buyers: u32,
     pub late_deliveries: u32,
+    /// Epochs on which a buyer has been refused delivery. A refusal can hide a false figure, so each counts against the record like a missed epoch.
+    pub refused_epochs: u32,
     /// What slashes and penalties have burned from the bond.
     pub burned: U128,
     /// The last figure's time: the bond stays at risk for `unbond_secs` after it, so every figure can be audited against something.

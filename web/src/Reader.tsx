@@ -4,7 +4,9 @@ import { DEPTH, firstRoundAtOrAfter, replayEpoch, WindowReader, type EntryRec, t
 import { entryKey, openEntry, type Entry } from "@lib/entry.ts";
 import { descend, slotsOf, type NodeId } from "@lib/ggm.ts";
 import { unhex } from "@lib/bytes.ts";
-import { decideCopy } from "@lib/intents.ts";
+import { decideCopy, slippageBps } from "@lib/intents.ts";
+import { LocalIntents } from "@lib/copy-local.ts";
+import { sha256 as nobleSha256 } from "@noble/hashes/sha2.js";
 import { dryQuote, USDC_NEAR } from "@lib/oneclick.ts";
 import { YOU } from "@lib/seed-shared.ts";
 import { Bar, Glyph, Pill } from "./bits.tsx";
@@ -75,8 +77,10 @@ export function Reader({ id }: { id: number }) {
   const [dispute, setDispute] = useState<any>(null);
   const [tried, setTried] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
-  const [scale, setScale] = useState(0.05);
-  const [cap, setCap] = useState(3000);
+  const [myBook, setMyBook] = useState(10_000);
+  const [cap, setCap] = useState(15_000);
+  const [copied, setCopied] = useState<Record<string, string>>({});
+  const copyChain = useRef<LocalIntents | null>(null);
   const [quote, setQuote] = useState<Record<string, string>>({});
   const [showAll, setShowAll] = useState(false);
 
@@ -170,8 +174,33 @@ export function Reader({ id }: { id: number }) {
     setMsg(w.ok ? "Paid out to your account." : w.reason ?? "refused");
   }
 
+  const scale = Math.min(myBook / (Number(t.book_usd_e6) / 1e6), 1);
+  const limits = { maxNotionalUsd: cap, feeds: [0, 1, 2], scale, maxSlippageBps: 50 };
+
+  /** Sign and settle in this tab: a real NEP-413 token_diff on the real intents.near wasm, against a local solver. */
+  async function copyHere(e: EntryRec, entry: Entry) {
+    const d = decideCopy(entry.qty_e8, entry.feed, entry.fill_e8, limits);
+    if (!d.copy) { setCopied((c) => ({ ...c, [e.seq]: `Refused before signing: ${d.reason}.` })); return; }
+    try {
+      if (!copyChain.current) {
+        const wasm = await fetch("./intents.near.wasm").then((r) => r.arrayBuffer());
+        copyChain.current = new LocalIntents(wasm, (x) => nobleSha256(x), s.vm.clockMs);
+      }
+      const rounds = s.rounds(entry.feed);
+      const oracle = rounds[rounds.length - 1].answer_e8 / 1e8;
+      const side: 1 | -1 = entry.qty_e8 > 0n ? 1 : -1;
+      const price = oracle * (1 + side * 0.0003); // the local solver's spread on today's last round
+      const f = copyChain.current.fill(entry.feed, d.qty_e8, price);
+      const fill = Number(entry.fill_e8) / 1e8;
+      const age = Math.round((s.vm.clockMs - Number(e.at_ms)) / 86400_000);
+      setCopied((c) => ({ ...c, [e.seq]: `Signed here and settled on the real intents.near wasm, in this tab, with a local solver and test tokens: ${side > 0 ? "paid" : "sold"} ${side > 0 ? `${(Number(f.usdcUnits) / 1e6).toFixed(2)} USDC` : `${(Number(f.assetUnits) / 1e6).toFixed(4)} ${FEEDS[entry.feed]}`} at ${price.toFixed(2)}. Against his ${fill.toFixed(2)}, ${age} days ago: ${slippageBps(side, fill, price).toFixed(0)} bps. You hold ${f.balances.usdc.toFixed(2)} USDC, ${f.balances.asset.toFixed(4)} ${FEEDS[entry.feed]} on it. Nothing left this tab.` }));
+    } catch (err) {
+      setCopied((c) => ({ ...c, [e.seq]: `Refused: ${String((err as Error).message).slice(0, 100)}` }));
+    }
+  }
+
   async function getQuote(e: EntryRec, entry: Entry) {
-    const d = decideCopy(entry.qty_e8, entry.feed, entry.fill_e8, { maxNotionalUsd: cap, feeds: [0, 1, 2], scale, maxSlippageBps: 50 });
+    const d = decideCopy(entry.qty_e8, entry.feed, entry.fill_e8, limits);
     if (!d.copy) { setQuote((q) => ({ ...q, [e.seq]: d.reason })); return; }
     setQuote((q) => ({ ...q, [e.seq]: "asking 1Click…" }));
     try {
@@ -185,7 +214,7 @@ export function Reader({ id }: { id: number }) {
     }
   }
 
-  const refundable = (t.status?.Slashed && (token.state === "Delivered" || token.state === "Pending")) || token.state === "Refundable";
+  const refundable = t.status?.Slashed && (token.state === "Delivered" || token.state === "Pending");
 
   return (
     <>
@@ -205,7 +234,7 @@ export function Reader({ id }: { id: number }) {
       ) : null}
       {dispute ? (
         <div className={`verdict ${dispute.trader_at_fault ? "ok" : "alarm"}`}>
-          <b>{dispute.trader_at_fault ? "The trader is slashed." : "Dismissed."}</b> {dispute.detail}. {dispute.trader_at_fault ? <>Your escrow and deposit are back, with {lnear(dispute.slashed_to_prover)} Ⓝ of the bond.</> : null}
+          <b>{dispute.trader_at_fault ? "The trader is slashed." : "Dismissed."}</b> {dispute.detail}. {dispute.trader_at_fault ? <>Your escrow and deposit are back, with {lnear(dispute.slashed_to_prover)} Ⓝ of the bond. The rest burned.</> : null}
           {s.credit() > 0n ? <div><button className="primary" onClick={withdraw}>Withdraw {lnear(s.credit())} Ⓝ</button></div> : null}
         </div>
       ) : null}
@@ -242,10 +271,12 @@ export function Reader({ id }: { id: number }) {
                   <span className="when">{timeOf(Number(e.at_ms))}</span>
                   <span className="body">
                     <span className="trade"><Decrypted text={entry ? line(entry) : "malformed: void by the PnL rule"} ct={e.ct} /></span>
-                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="An entry carrying a settlement reference shows a real fill. Every seeded journal is a signal record."> {entry.flags & 1 ? "settled" : "signal record"}</em></span> : null}
+                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="What a trader wrote, not proof of a trade. A settlement reference is his own claim: the contract never reads it."> {entry.flags & 1 ? "claims a fill (unverified)" : "signal record"}</em></span> : null}
                     {entry ? (
                       <span className="copy-row">
-                        <button className="link" onClick={() => getQuote(e, entry)}>Quote a copy</button>
+                        <button className="link" onClick={() => copyHere(e, entry)}>Copy it here</button>
+                        <button className="link" onClick={() => getQuote(e, entry)}>Live 1Click quote</button>
+                        {copied[e.seq] ? <span className="copy-fill">{copied[e.seq]}</span> : null}
                         {quote[e.seq] ? <span className="note">{quote[e.seq]}</span> : null}
                       </span>
                     ) : null}
@@ -294,20 +325,22 @@ export function Reader({ id }: { id: number }) {
               <div className="audit-log">
                 <ol className="steps">{audit.lines.map((l, i) => <li key={i}>{l}</li>)}</ol>
                 {audit.verdict?.trader_at_fault ? (
-                  <p className="verdict ok"><b>Slashed.</b> {lnear(audit.verdict.slashed_to_prover)} Ⓝ of the bond is yours, and your {lnear(s.config.audit_bond)} Ⓝ came back. The board now shows the corrected figure, for good.</p>
+                  <p className="verdict ok"><b>Slashed.</b> {lnear(audit.verdict.slashed_to_prover)} Ⓝ of the bond is yours, the rest burned, and your {lnear(s.config.audit_bond)} Ⓝ came back. The board now shows the corrected figure, for good.</p>
                 ) : audit.verdict ? <p className="verdict alarm">The figure was right: the deposit went to the trader.</p> : null}
               </div>
             ) : null}
-            {refundable && token.state !== "Refunded" ? <button className="primary" onClick={claim}>Claim the refund: your escrow back</button> : null}
+            {refundable ? <button className="primary" onClick={claim}>Claim your escrow back</button> : null}
             {s.credit() > 0n ? <button className="primary" onClick={withdraw}>Withdraw {lnear(s.credit())} Ⓝ</button> : null}
             {msg ? <p className="note">{msg}</p> : null}
           </section>
 
           <section className="panel copy">
             <h2>Your copy limits</h2>
-            <p className="note">Applied here, before anything is signed. “Quote a copy” asks 1Click live for a dry quote, keyless. A signed intent runs only in the sandbox (<code>npm run copy</code>) against the real intents.near wasm. Nothing on this page signs anything.</p>
-            <label>Scale to your book <input type="range" min="0.01" max="0.5" step="0.01" value={scale} onChange={(e) => setScale(Number(e.target.value))} /> <b>{Math.round(scale * 100)}%</b></label>
-            <label>Cap per trade <input type="range" min="100" max="20000" step="100" value={cap} onChange={(e) => setCap(Number(e.target.value))} /> <b>${cap.toLocaleString("en-US")}</b></label>
+            <p className="note">A trade is scaled from his book to yours, and refused before anything is signed if it's over your cap. “Copy it here” signs a real NEP-413 intent in this tab and settles it on the real intents.near wasm running here: a local solver, test tokens, no mainnet. “Live 1Click quote” asks the real API for a dry quote, signing nothing.</p>
+            <label>Your book <input type="range" min="1000" max="100000" step="1000" value={myBook} onChange={(e) => setMyBook(Number(e.target.value))} /> <b>${myBook.toLocaleString("en-US")}</b></label>
+            <label>Cap per trade <input type="range" min="100" max="30000" step="100" value={cap} onChange={(e) => setCap(Number(e.target.value))} /> <b>${cap.toLocaleString("en-US")}</b></label>
+            <p className="copy-limits-note">He trades a {money(Number(t.book_usd_e6) / 1e6).replace("+", "")} book, so you copy at {(scale * 100).toFixed(1)}%. His size can reach 3× his book in one feed: at this scale that's {money(3 * myBook).replace("+", "")}, so your cap refuses his biggest trades. That's the cap working.</p>
+            <p className="copy-limits-note">An entry is what he wrote, when he wrote it. Nothing forces him to fill before publishing: a trader could publish first and trade against his followers.</p>
           </section>
         </div>
       </section>
