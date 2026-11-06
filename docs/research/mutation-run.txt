@@ -1,4 +1,4 @@
-Mutating 78 security-critical lines. The attack suite must notice each.
+Mutating 85 security-critical lines. The attack suite must notice each.
 
 ✓ caught: dispute_wrap accepts a secret that isn't the buyer's key       by "dispute: a wrong secret proves nothing and is refused" and 5 more
 ✓ caught: dispute_wrap slashes when the node matches, not when it doesn't by "GARBAGE KEY: the contract unwraps, compares and slashes" and 7 more
@@ -28,13 +28,20 @@ Mutating 78 security-critical lines. The attack suite must notice each.
 ✓ caught: a figure posted after a refusal still counts                   by "a figure posted after a refusal doesn't count either: {"posted_e6""
 ✓ caught: a trader below the minimum bond keeps selling                  by "BOND ESCAPE: below the minimum, the trader isn't selling"
 ✓ caught: a paid window counts as checkable before any keys exist        by "CHECKABLE: a refused window counts as refused on its epoch, not as som"
-✓ caught: a refusal leaves no mark on its epochs                         by "CHECKABLE: a refused window counts as refused on its epoch, not as som" and 1 more
+✓ caught: a refusal leaves no mark on its epochs                         by "CHECKABLE: a refused window counts as refused on its epoch, not as som" and 2 more
 ✓ caught: dispute_entry ends at settlement                               by "JUNK ENTRY: the holder can still prove it after settlement" and 2 more
 ✓ caught: cancelling an audit returns the whole deposit                  by "the auditor can give up: half the deposit back while the trader stands"
 ✓ caught: anyone can cancel someone's audit                              by "nobody can cancel someone else's audit: ACCEPTED" and 1 more
 ✓ caught: a missed epoch costs nothing on the record                     by "SKIPPED LOSER: the missed epoch counts against him, at the worse of hi" and 3 more
 ✓ caught: silence after the last figure isn't counted                    by "and silence after his last figure counts too, once the grace is over: "
 ✓ caught: a refused window costs nothing on the record                   by "SHIELDED FIGURE: a figure he refuses to let anyone check stops countin" and 1 more
+✓ caught: every refused window burns again, however often its epochs were refused by "OFFLINE: the same epochs refused three times burn once, in proportion "
+✓ caught: a past window gets the short grace                             by "a window already past gets a longer grace to deliver, for a trader's a"
+✓ caught: a paused trader keeps selling                                  by "a paused trader isn't selling: ACCEPTED"
+✓ caught: a refused loss is voided, laundering it                        by "LAUNDERED LOSS: refusing his own buyer can't raise his record"
+✓ caught: a near-free price is allowed                                   by "a price below the minimum is refused at registration: ACCEPTED" and 1 more
+✓ caught: a loss known at purchase makes the window refundable           by "FREE READ: a loss already posted when the window was bought can't make"
+✓ caught: a grace shorter than an oracle outage is allowed               by "ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice "
 ✓ caught: a stand-in earns the enclave's label                           by "STAND-IN: a callback from any other contract can't earn the enclave's "
 ✓ caught: the floor never triggers                                       by "FLOOR: a window past the floor goes back to its holder" and 4 more
 ✓ caught: a missing figure doesn't count as a breach                     by "LAPSE: a window with a missing figure goes back to its holder" and 2 more
@@ -58,8 +65,8 @@ Mutating 78 security-critical lines. The attack suite must notice each.
 ✓ caught: anyone can record a round                                      by "only the recorder may record rounds: attach 810000000000000000000 yoct" and 1 more
 ✓ caught: rounds can be rewritten in time                                by "ORACLE: a round at the same moment as the last is refused"
 ✓ caught: a failed withdrawal loses the money                            by "FAILED TRANSFER: the credit is restored in full"
-✓ caught: the prover takes the whole bond                                by "the prover takes its share of the bond, and the rest burns: 4996160000" and 3 more
-✓ caught: nothing burns on a slash                                       by "the prover takes its share of the bond, and the rest burns: 1998464000" and 1 more
+✓ caught: the prover takes the whole bond                                by "the prover takes its share of the bond, and the rest burns: 4996150000" and 3 more
+✓ caught: nothing burns on a slash                                       by "the prover takes its share of the bond, and the rest burns: 1998460000" and 1 more
 ✓ caught: a number out of range is truncated into another entry's        by "a number that doesn't fit is refused, not truncated into another entry" and 4 more
 ✓ caught: deliver doesn't check which key it wrapped to                  by "RESALE RACE: a delivery for a key that's no longer the holder's is ref" and 2 more
 ✓ caught: a token can move while delivery is open                        by "once delivery can begin the token can't move: a trader must be able to" and 2 more
@@ -79,4 +86,4 @@ Mutating 78 security-critical lines. The attack suite must notice each.
 ✓ caught: the exposure limit is gone                                     by "EXPOSURE: the contract agrees to the unit, voids included"
 ✓ caught: an entry's tag isn't checked when opening                      by "audit: a bad key is refused and records nothing" and 13 more
 
-78/78 mutants caught, in 1829 s
+85/85 mutants caught, in 1710 s
