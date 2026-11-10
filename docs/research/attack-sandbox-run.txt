@@ -1,25 +1,237 @@
 Attack suite on a local NEAR sandbox node.
+✓ solvency holds: at the start                                               slack 7.647 NEAR, started at 7.647
 
 -- Journal: backdating, deleting losers, posting --
+✓ a trader to test the epoch boundary                                        
+✓ an entry for the last slot of the epoch that just ended is refused         that slot's epoch is over
+✓ backdated entry: a slot two back is refused                                no backdating: this entry claims slot 4, and the clock says slot 6
+✓ entry from the future is refused                                           no backdating: this entry claims slot 8, and the clock says slot 6
+✓ deleted loser: skipping a number is refused                                entries are numbered with no gaps: the next is 0
+✓ the next entry, with the right number, is accepted                         
+✓ overwriting an entry by reusing its number is refused                      entries are numbered with no gaps: the next is 1
+✓ an entry that doesn't pay for its storage is refused                       attach 2650000000000000000000 yoctoNEAR more for 265 bytes of storage
+✓ a round that doesn't pay for its storage is refused                        attach 810000000000000000000 yoctoNEAR more for 81 bytes of storage
+✓ an entry of the wrong size is refused                                      an entry is exactly 128 bytes
+✓ only a registered trader can write                                         not a registered trader
+✓ a figure before the epoch has ended is refused                             that epoch hasn't ended
+✓ registering twice is refused                                               already registered
+✓ a bond below the minimum is refused                                        attach at least the minimum bond
+✓ solvency holds: after the journal attacks                                  slack 7.647 NEAR, started at 7.647
 
 -- A false figure: every buyer is an auditor --
+✓ the loser is written like any other entry                                  
+✓ the lie is accepted when posted: figures are optimistic                    
+✓ posting the same epoch again is refused                                    that epoch is already posted, or passed over
+✓ delivery of the honest nodes                                               
+✓ the buyer's nodes match the commitments                                    
+✓ the buyer recomputes the figure locally and sees the lie, for free         posted 122105036, computed -894964
+✓ the buyer opens an audit                                                   
+✓ audit: a bad key is refused and records nothing                            entry 0: that key doesn't open it
+✓ audit: entries out of order are refused (the keys don't match)             entry 0: that key doesn't open it
+✓ audit: a price hint before the trade is refused                            wrong price hint: that round is before the trade
+✓ audit: a price hint past the first round after the trade is refused        wrong price hint: an earlier round also follows the trade
+✓ audit: someone else can't step this audit                                  this is someone else's audit
+✓ audit: concluding before opening every entry is refused                    open every entry first
+✓ audit: the first entry opens                                               
+✓ audit: the second entry opens                                              
+✓ audit: one entry too many is refused                                       every entry of this epoch is already open
+✓ audit: a wrong mark hint is refused                                        wrong price hint: an earlier round also follows the trade
+✓ FALSE PNL: the contract recomputes the figure and slashes                  epoch 1: posted 122105036, recomputed -894964
+✓ the prover takes its share of the bond, and the rest burns                 1998420000000000000000000
+✓ the audit deposit comes back to the prover                                 
+✓ the trader is marked slashed, for good                                     {"Slashed":{"reason":"epoch 1: posted 122105036, recomputed -894964","by":"bob.t
+✓ the epoch shows the recomputed figure next to the lie                      {"False":{"recomputed_e6":"-894964"}}
+✓ a slashed trader can't sell                                                this trader isn't selling
+✓ a slashed trader can't be slashed twice                                    this trader was already slashed
+✓ a slashed trader can't write                                               this journal is closed
+✓ the buyer claims: escrow back plus a share of the rest of the bond         
+✓ the claim paid the whole price back from escrow                            0.1 NEAR
+✓ a second claim is refused                                                  this window can't claim a refund
+✓ the prover withdraws                                                       
+✓ a second withdrawal finds nothing                                          nothing to withdraw
+✓ solvency holds: after the slash                                            slack 10.653 NEAR, started at 7.647
 
 -- The key sale: garbage, forgery, griefing --
+✓ a sale is pending, with its price in escrow                                Pending
+✓ delivery by anyone but the trader is refused                               only this window's trader can deliver
+✓ forged commitments don't match the root posted before the sale             these commitments don't match the root posted before the sale
+✓ a delivery that isn't the cover's size is refused                          this window's cover is 1 nodes
+✓ a delivery with a truncated proof is refused                               these commitments don't match the root posted before the sale
+✓ a low-order ephemeral key is refused                                       that ephemeral key is a low-order point
+✓ a low-order one-time key is refused at purchase                            that one-time key is a low-order point
+✓ a trader can't buy his own window                                          a trader can't buy his own window
+✓ too little attached is refused                                             this window costs 110000000000000000000000
+✓ a window before this journal began is refused                              that window starts before this trader's journal
+✓ GARBAGE KEY: a garbage wrap is accepted at delivery (the contract can't read it) 
+✓ the buyer sees it at once: the node doesn't match its commitment           
+✓ dispute: a wrong secret proves nothing and is refused                      that secret isn't this token's one-time key
+✓ dispute: only the holder can dispute                                       only the holder can dispute
+✓ dispute: a deposit below the price is refused                              a dispute's deposit is at least the window's price
+✓ dispute: a node that isn't in the sale is refused                          no such node in this sale
+✓ GARBAGE KEY: the contract unwraps, compares and slashes                    the wrapped node doesn't match its commitment
+✓ the buyer takes the prover's share of the bond                             
+✓ the settled dispute can't be repeated                                      only a delivered window can be disputed
+✓ solvency holds: after the garbage key                                      slack 13.657 NEAR, started at 7.647
+✓ honest delivery                                                            
+✓ FALSE DISPUTE: it ends in a dismissal, not a panic                         the wrapped node matches its commitment
+✓ the griefer's deposit goes to the trader                                   
+✓ the honest trader isn't slashed                                            
+✓ the window stays open for the holder                                       
+✓ solvency holds: after the false dispute                                    slack 13.664 NEAR, started at 7.647
+✓ TRUE FIGURE: the audit concludes against the auditor                       epoch 5: the posted figure 13007700 is right
+✓ the audit deposit goes to the trader                                       
+✓ the epoch records that an audit passed                                     
 
 -- A tree that isn't one --
+✓ she writes an entry under a key her committed tree doesn't derive          
+✓ and one under the committed tree                                           
+✓ she posts a figure                                                         
+✓ delivery passes: the nodes do match the root                               
+✓ every node verifies, so the wrap dispute can't catch this                  
+✓ yet the entry doesn't open                                                 the tag doesn't match the key this window derives
+✓ a number that doesn't fit is refused, not truncated into another entry's   that number is out of range
+✓ dispute_entry: a deposit below the price is refused                        a dispute's deposit is at least the window's price
+✓ dispute_entry: only the holder can bring it                                only the holder can dispute
+✓ dispute_entry: a node that isn't the delivered one is refused              that isn't the node delivered: its commitment differs
+✓ dispute_entry on the entry that does open is dismissed                     the entry opens under the key this node derives
+✓ NOT A TREE: the contract walks the node down to the entry and slashes      the entry doesn't open under the key this node derives
+✓ solvency holds: after the fake tree                                        slack 16.669 NEAR, started at 7.647
 
 -- The window: exactly its slots, nothing past them --
+✓ an entry inside the window                                                 
+✓ figure                                                                     
+✓ an entry the next epoch, past the window                                   
+✓ delivery                                                                   
+✓ WINDOW: the entry inside reads, offline, with what was delivered           inside the window
+✓ WINDOW OVERREACH: the entry past it fails, offline, with nobody revoking anything slot 40 is outside this window: no node here can compute its key
+✓ hashing down from every node delivered never reaches that key              
+✓ the contract computes the cover, so a longer window can't be delivered for this price 
+✓ solvency holds: after the window                                           slack 16.677 NEAR, started at 7.647
 
 -- Resale before the start: replay and overreach --
+✓ a transfer by someone else is refused                                      only the holder can transfer it
+✓ buy_resale of an unlisted token is refused                                 this token isn't for sale
+✓ delivering too early is refused: until then the token can be resold        too early: until the window is near, the token can still be resold
+✓ the holder lists it                                                        
+✓ a low bid is refused                                                       the ask is 300000000000000000000000
+✓ the resale goes through, and the seller is paid                            
+✓ the seller gets the asking price, less the protocol's fee                  
+✓ FEE: a resale pays the fee at once, so selling cheap to your own account and reselling dodges nothing 
+✓ NEP-171 shows the new holder                                               carol.test.near
+✓ RESALE REPLAY: the seller can't dispute any more                           only the holder can dispute
+✓ once delivery can begin the token can't move: a trader must be able to rely on the key he read delivery can begin now: this window can't be resold
+✓ nor can it be listed then                                                  delivery can begin now: this window can't be resold
+✓ RESALE RACE: a delivery for a key that's no longer the holder's is refused, not slashed the holder's one-time key has changed: read it again
+✓ the trader delivers, wrapped to the OLD holder's key                       
+✓ RESALE REPLAY: the old secret is refused for the new holder as well        that secret isn't this token's one-time key
+✓ RESALE REPLAY: a wrap to the old key slashes when the new holder disputes  the wrapped node doesn't match its commitment
+✓ solvency holds: after the resale                                           slack 19.680 NEAR, started at 7.647
+✓ a plain NEP-171 transfer before delivery                                   
+✓ the transfer clears the old one-time key                                   
+✓ the trader can't deliver to nobody                                         the holder hasn't registered a one-time key
+✓ the old holder can't set the key                                           only the holder can set the key
+✓ the new holder registers a one-time key                                    
+✓ one purchase, one key: it can't be replaced                                a key is already registered: one purchase, one key
+✓ the trader delivers to it                                                  
+✓ the new holder reads the delivery                                          
+✓ RESALE: a delivered token can't move: the old holder would keep what he read keys were already delivered: this window can't be resold
+✓ nor can a delivered token be listed                                        keys were already delivered: this window can't be resold
+✓ solvency holds: after the transfer                                         slack 19.687 NEAR, started at 7.647
 
 -- Deadlines and settlement --
+✓ claiming non-delivery before the deadline is refused                       the trader still has time to deliver
+✓ delivering after the deadline is refused                                   too late: the delivery deadline has passed
+✓ settling before the challenge window ends is refused                       the challenge window is still open
+✓ the holder of an undelivered window claims                                 
+✓ the refund is the whole price and not a yocto more: the penalty burns, so no second account can farm it burned 50000000000000000000000
+✓ CHECKABLE: a refused window counts as refused on its epoch, not as somebody holding the keys {"refused":1,"covering":0}
+✓ the late delivery is on the trader's public record                         
+✓ it can't be claimed twice                                                  this window was delivered or closed
+✓ ABSENT HOLDER: anyone settling an undelivered window refunds its holder, not the trader refunded
+✓ solvency holds: after the deadlines                                        slack 19.751 NEAR, started at 7.647
+✓ delivery                                                                   
+✓ a healthy window can't claim a refund                                      this window can't claim a refund
+✓ a dispute after the challenge window is refused                            the challenge window is over
+✓ anyone can settle: the escrow goes to the trader, less the protocol's fee  closed
+✓ settling twice is refused                                                  this window can't be settled
+✓ a closed window no longer counts against the bond                          
+✓ solvency holds: after settling                                             slack 19.758 NEAR, started at 7.647
+
+-- The protocol fee: from a sale the trader earned, never from a refund or a bond --
+✓ this deployment takes a protocol fee, credited to its treasury             500 bps to treasury.test.near
+✓ she delivers the first window, and never the second                        
+✓ FEE: a closed sale pays the trader its price less the fee                  95000000000000000000007 of 100000000000000000000007
+✓ FEE: the fee is credited to the treasury, to the yocto                     5000000000000000000000
+✓ FEE: no part of it comes from the bond                                     
+✓ FEE: a window that goes back to its holder goes back whole, and the treasury takes nothing refunded
+✓ the treasury withdraws its fees like anyone else                           
+✓ solvency holds: after the fee                                              slack 19.823 NEAR, started at 7.647
 
 -- The floor and the lapse: refunds from the bond --
+✓ delivery one                                                               
+✓ delivery two                                                               
+✓ the market falls 10% on him                                                
+✓ he posts his real loss                                                     
+✓ KNOWN BAD: a window already past its floor isn't for sale, or it would be free reading that window is already past its floor, so its refund is already owed: it isn't for sale
+✓ FLOOR: a window past the floor goes back to its holder                     figure -1836484829, floor -100000000: refunded
+✓ the holder gets the whole price, whatever the size of the bond             
+✓ the trader doesn't get the escrow                                          
+✓ and the treasury takes no fee from a refund                                
+✓ and his bond is untouched: a true loss costs him the sale, never the bond  
+✓ the other window too                                                       
+✓ it can't be settled twice                                                  this window can't be settled
+✓ no liability is left                                                       
+✓ solvency holds: after the floor                                            slack 19.838 NEAR, started at 7.647
+✓ delivery                                                                   
+✓ LAPSE: a figure after the grace is refused                                 too late: that epoch's posting grace is over
+✓ LAPSE: a window with a missing figure goes back to its holder              refunded
+✓ and the treasury takes no fee from it                                      
+✓ and a missing figure burns half the price from the bond: that one is his doing 50000000000000000000000
+✓ KNOWN BAD: a window with a missed figure isn't for sale, or it would be free reading that window has an epoch with no figure, so its refund is already owed: it isn't for sale
+✓ solvency holds: after the lapse                                            slack 19.896 NEAR, started at 7.647
+✓ a window too far ahead is refused                                          that window is too far ahead
+✓ a transfer to someone who never registers a key                            
+✓ he can't claim non-delivery without a key                                  register a one-time key first: the trader can't deliver to nobody
+✓ after the challenge window it settles to the trader                        
+✓ solvency holds: after the absent holder                                    slack 19.953 NEAR, started at 7.647
 
 -- Exposure, malformed entries and exact figures --
+✓ a malformed entry under the right key is accepted: the contract can't read it 
+✓ the replay counts one trade and voids three                                applied 1, void 3
+✓ he posts the honest figure, which ignored them                             
+✓ EXPOSURE: the contract agrees to the unit, voids included                  epoch 42: the posted figure 1298735 is right
+✓ the figure is a fraction of a unit below zero, so it rounds to -1          -1
+✓ she posts it                                                               
+✓ ROUNDING: the contract rounds down too, so the honest figure stands        epoch 44: the posted figure -1 is right
+✓ she posts a figure one unit away from the truth                            
+✓ OFF BY ONE: a difference of one unit slashes                               epoch 46: posted 158318, recomputed 158317
+✓ solvency holds: after the exact figures                                    slack 22.954 NEAR, started at 7.647
 
 -- The bond, the oracle, the attested path, private methods --
+✓ unbonding is a two-step exit                                               begin unbonding first
+✓ she asks to leave                                                          
+✓ an unbonding trader can't sell                                             this trader isn't selling
+✓ the bond stays at risk through the delay                                   the bond is still at risk: the unbonding delay hasn't passed
+✓ after the delay, with nothing open, the bond is hers                       
+✓ nobody else can withdraw it                                                not a registered trader
+✓ COVERAGE: a sale the bond can't cover is refused                           this trader's bond doesn't cover another sale
+✓ only the recorder may record rounds                                        only the recorder may record rounds
+✓ a price must be positive                                                   a price is positive
+✓ a feed that doesn't exist is refused                                       no such feed
+✓ a recorded feed can't be imported from a borrowed oracle                   this feed isn't a borrowed one
+✓ nobody calls a private callback: withdraw's                                Method on_withdraw is private
+✓ nobody calls a private callback: the oracle's                              Method on_imported is private
+✓ nobody calls a private callback: OutLayer's                                Method on_attested is private
+✓ only the owner can register a runner                                       owner only
+✓ an import that can't pay for its storage is refused                        attach enough for a round's storage
+✓ a non-runner can't report an attested figure                               not a registered runner
+✓ solvency holds: at the end                                                 slack 22.953 NEAR, started at 7.647
 
 -- The attested path --
+✓ the owner registers a local runner                                         
+✓ the runner's job must have read the epoch's last entry                     the job didn't read this epoch's last entry
+✓ the runner reports the job's figure                                        
+✓ SIMULATED: a local run is labeled as one, by the code path, with no way to say otherwise "SimulatedLocal"
+✓ a runner can't claim the enclave's label: an extra field changes nothing   "SimulatedLocal"
 
-199/199 attack checks passed in 759.2 s
+210/210 attack checks passed in 823.5 s
