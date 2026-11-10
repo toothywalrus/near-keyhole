@@ -1,9 +1,10 @@
 // The judge's command. Free, no keys, nothing to install beyond `npm ci`.
-//   npm run judge               the fast path: about a minute on a 2-CPU Linux box. No local node, no Rust, no browser.
+//   npm run judge               the fast path: about 75 s on a 2-CPU Linux box. No local node, no Rust, no browser.
 //                               The TypeScript twin, the attack suite and the ledger fuzz on the real contract wasm, then the deployed contract re-read from testnet.
 //   npm run judge -- --offline  the same without the testnet reads (they show as SKIP)
-//   npm run judge:full          also the Rust tests, the suites on a local NEAR node, the web app in a headless browser, and every mutant (about 45 minutes)
-//   npm run judge:full -- --no-mutate   all of that but the mutants (30 minutes or more on their own: npm run mutate; the last log is docs/research/mutation-run.txt)
+//   npm run judge:full          also the Rust tests, the suites on a local NEAR node, the web app in a headless browser, and every mutant
+//                               (about 17 minutes on an Apple Silicon Mac, plus about 11 for the mutants)
+//   npm run judge:full -- --no-mutate   all of that but the mutants (npm run mutate runs them alone; the last log is docs/research/mutation-run.txt)
 // Every step prints its own row the moment it ends, so a run that is cut off still shows what it got. A step whose tool is missing says SKIP and why, never FAIL.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";

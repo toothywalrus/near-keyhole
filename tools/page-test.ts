@@ -32,6 +32,7 @@ check("every page says what is seeded", (await page.locator(".provenance").inner
 check("the board's first row is the top PnL: lucky-seven", (await page.locator(".brow:not(.head) .who b").first().innerText()) === "lucky-seven");
 const start = page.locator(".tryit a.brass");
 check("the first screen says what to do, and one button starts it", (await start.getAttribute("href")) === "#/t/lucky-seven" && /Buy a week of lucky-seven/.test(await start.innerText()));
+check("the first screen says how small the bond is beside the claim, before anyone pays", /His bond is [\d.]+% of what he claims/.test(await page.locator(".tryit").innerText()));
 await page.locator(".brow:not(.head)").filter({ hasText: "lucky-seven" }).click();
 await page.waitForSelector(".cal");
 check("the trader page shows a window picker", (await page.locator(".day").count()) > 5);

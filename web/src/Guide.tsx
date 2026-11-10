@@ -59,10 +59,12 @@ export function TryIt({ target, price }: { target: Row | undefined; price: strin
   const m = s.moment();
   if (!target) return null;
   const caughtTarget = target.t.status?.Slashed?.by === "you.local";
+  // The bond beside the claim, said before the visitor pays: a small bond is the reason to check, not a detail to find later.
+  const bondPct = target.slashed ? null : target.bondPctOfPnl;
   const items = [
     <>Buy a week of <b>{target.handle}</b>'s journal. {price ? <>{lnear(price)} Ⓝ of play money goes into escrow.</> : null}</>,
     <>Read it through the keyhole, then try the next day's entry. It stays sealed: nobody revokes anything.</>,
-    <>Check his figures against the entries. Prove the false one, and the contract slashes his bond.</>,
+    <>Check his figures against the entries.{bondPct !== null ? <> His bond is <b className="bondpct">{bondPct.toFixed(bondPct < 10 ? 1 : 0)}%</b> of what he claims: that's why you check.</> : null} Prove a false one, and the contract slashes it.</>,
   ];
   const done = [m.bought, m.tried, !!m.caught];
   return (
