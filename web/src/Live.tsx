@@ -103,8 +103,8 @@ export function Live({ run }: { run: Run }) {
               return (
                 <tr key={t.id} className={sl ? "caught" : ""}>
                   <td><b>{t.handle}</b><small>{role}</small></td>
-                  <td className="num">{usd(t.cum_pnl_e6)}</td>
-                  <td className="num">{nearOf(t.bond)} Ⓝ{BigInt(t.burned ?? "0") > 0n ? <small>{nearOf(t.burned!)} burned</small> : null}</td>
+                  <td className="num" data-label="Posted PnL">{usd(t.cum_pnl_e6)}</td>
+                  <td className="num" data-label="Bond now">{nearOf(t.bond)} Ⓝ{BigInt(t.burned ?? "0") > 0n ? <small>{nearOf(t.burned!)} burned</small> : null}</td>
                   <td>
                     {sl ? <><Pill tone="alarm">Slashed</Pill> <span className="reason">{sl.reason}</span><small>proven by {short(sl.by)}, {when(sl.at_ms)}</small></> : <>Active{t.paused ? <small>sales paused: the run is over and its agent is offline</small> : null}</>}
                     {falseFig && ep?.posted_e6 != null ? <small>epoch {ep.epoch}: posted {usd(ep.posted_e6)}, the contract recomputed {usd(falseFig.recomputed_e6)}</small> : null}
@@ -127,9 +127,9 @@ export function Live({ run }: { run: Run }) {
               <tr key={k.id}>
                 <td>#{k.id}</td>
                 <td>{tokenLine(k)}, epoch{k.first_epoch === k.last_epoch ? ` ${k.first_epoch}` : `s ${k.first_epoch} to ${k.last_epoch}`}</td>
-                <td className="num">{nearOf(k.price)} Ⓝ</td>
+                <td className="num" data-label="Price">{nearOf(k.price)} Ⓝ</td>
                 <td>{k.state === "Refunded" ? "Refunded to its holder" : k.state === "Closed" ? "Closed: paid to the trader" : k.state === "Delivered" ? "Delivered, in escrow" : "Paid, awaiting delivery"}</td>
-                <td>{short(k.owner)}</td>
+                <td data-label="Holder">{short(k.owner)}</td>
               </tr>
             ))}
           </tbody>
