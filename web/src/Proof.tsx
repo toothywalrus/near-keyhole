@@ -1,26 +1,29 @@
 import { useEffect, useState } from "react";
-import { Pill } from "./bits.tsx";
+import { Pill, Tx } from "./bits.tsx";
+import { useRun } from "./testnet.ts";
 
-type Run = { contract: string; at: string; steps: { what: string; tx?: string; tgas?: number; note?: string }[]; traders: Record<string, string> };
 const RPC = "https://test.rpc.fastnear.com";
 
 async function view<T>(contract: string, method: string, args: object): Promise<T> {
   const r = await fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "call_function", finality: "final", account_id: contract, method_name: method, args_base64: btoa(JSON.stringify(args)) } }) });
+  if (!r.ok) throw new Error(`the RPC answered ${r.status}`);
   const j = await r.json();
   if (j.error || j.result?.error) throw new Error(JSON.stringify(j.error ?? j.result.error).slice(0, 120));
   return JSON.parse(new TextDecoder().decode(new Uint8Array(j.result.result)));
 }
 
 export function Proof() {
-  const [run, setRun] = useState<Run | null>(null);
+  const run = useRun();
   const [live, setLive] = useState<any[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    fetch("./testnet-run.json").then((r) => (r.ok ? r.json() : null)).then((j) => {
-      setRun(j);
-      if (j?.contract) view<any[]>(j.contract, "list_traders", { from: 0, limit: 100 }).then(setLive, (e) => setErr(String(e)));
-    }).catch(() => setRun(null));
-  }, []);
+    if (!run?.contract) return;
+    let on = true;
+    setErr(null);
+    view<any[]>(run.contract, "list_traders", { from: 0, limit: 100 }).then((x) => { if (on) setLive(x); }, (e) => { if (on) setErr(e instanceof Error ? e.message : String(e)); });
+    return () => { on = false; };
+  }, [run, attempt]);
   return (
     <article className="proof">
       <h1>Proof</h1>
@@ -34,25 +37,27 @@ export function Proof() {
       </div>
 
       <h2>The same flow on NEAR testnet</h2>
-      {run ? (
+      {run === undefined ? <p className="note">Loading the run's record…</p> : run ? (
         <>
-          <p>Contract <a href={`https://testnet.nearblocks.io/address/${run.contract}`}><code>{run.contract}</code></a>, run {new Date(run.at).toUTCString()}. Prices are real Chainlink rounds, replayed by a recorder and labeled that way in the contract's own <code>get_feeds</code> view.</p>
+          <p>Contract <a href={`https://testnet.nearblocks.io/address/${run.contract}`} target="_blank" rel="noreferrer"><code>{run.contract}</code> ↗</a>, locked: deployed, initialised and its only key deleted in one transaction. Run {new Date(run.at).toUTCString()}. Prices are real Chainlink rounds, replayed by a recorder and labeled that way in the contract's own <code>get_feeds</code> view.</p>
           {live ? (
             <table className="live">
-              <thead><tr><th>Trader, read live</th><th className="num">PnL</th><th className="num">Bond</th><th>Status</th></tr></thead>
+              <thead><tr><th>Trader, read live from testnet</th><th className="num">PnL</th><th className="num">Bond</th><th>Status</th></tr></thead>
               <tbody>{live.map((t) => <tr key={t.id}><td>{t.handle}</td><td className="num">${(Number(t.cum_pnl_e6) / 1e6).toFixed(2)}</td><td className="num">{(Number(BigInt(t.bond) / 10n ** 21n) / 1000).toFixed(3)} Ⓝ</td><td>{t.status?.Slashed ? <Pill tone="alarm">Slashed</Pill> : "Active"}</td></tr>)}</tbody>
             </table>
-          ) : err ? <p className="note">Couldn't read testnet just now: {err}</p> : <p className="note">Reading testnet…</p>}
-          <table className="txs">
-            <thead><tr><th>Step</th><th className="num">Tgas</th><th>Transaction</th></tr></thead>
-            <tbody>{run.steps.filter((x) => x.tx).map((x, i) => <tr key={i}><td>{x.what}</td><td className="num">{x.tgas?.toFixed(2)}</td><td><a href={`https://testnet.nearblocks.io/txns/${x.tx}`}><code>{x.tx?.slice(0, 10)}…</code></a></td></tr>)}</tbody>
-          </table>
+          ) : err ? <p className="verdict alarm" role="alert"><b>Couldn't read testnet just now.</b> {err}. <span className="what-now">The public RPC may be busy. Every transaction below is on the explorer either way. <button className="link retry" onClick={() => setAttempt((n) => n + 1)}>Try again</button></span></p> : <p className="note" role="status">Reading the contract's traders from testnet, live…</p>}
+          <div className="table-scroll">
+            <table className="txs">
+              <thead><tr><th>Step</th><th className="num">Tgas</th><th>Transaction</th></tr></thead>
+              <tbody>{run.steps.filter((x) => x.tx).map((x, i) => <tr key={i}><td>{x.what}</td><td className="num">{x.tgas?.toFixed(2)}</td><td><Tx tx={x.tx!} /></td></tr>)}</tbody>
+            </table>
+          </div>
         </>
       ) : <p className="note">The testnet run's record isn't in this build.</p>}
 
       <h2>Against NOVA Copy-Trading</h2>
       <p>NOVA shipped this idea on mainnet on Nov 4, and it's good work: mutation tests, a claims table, a real recorded run. Where the two designs differ:</p>
-      <table className="vs">
+      <div className="table-scroll"><table className="vs">
         <thead><tr><th /><th>NOVA Copy-Trading</th><th>Keyhole</th></tr></thead>
         <tbody>
           <tr><td>The PnL before you pay</td><td>Claimed, with entry hashes on chain. Checked by the follower after buying.</td><td>Bonded before you pay. Any past buyer can prove it false on-chain, and the contract recomputes it.</td></tr>
@@ -62,11 +67,11 @@ export function Proof() {
           <tr><td>Trading</td><td>Scripted decisions; copies are dry quotes.</td><td>Seeded journals; a real NEP-413 copy against the intents.near wasm, in a sandbox and in this tab, with a local solver; live dry quotes.</td></tr>
           <tr><td>What the journal is</td><td>Agent's own, in NOVA's encrypted store.</td><td>Agent's own, ciphertext on chain. Neither sees a real confidential fill: no public viewing key exists.</td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <h2>Run it</h2>
       <pre>{`git clone … && cd near-keyhole && npm ci
-npm run judge      # everything free, about 3 minutes, ends in a pass/fail table
+npm run judge      # free, no keys: about a minute on 2 CPUs, ends in a pass/fail table
 npm run attack     # every attack, against the real wasm
 npm run demo       # the complete moment on a local NEAR node, with gas
 npm run copy       # the copy trade, against the mainnet intents.near wasm

@@ -27,6 +27,7 @@ export function How() {
         <li><b>Nobody has audited this.</b> Two separate AI reviews found real bugs after every test passed: one let any buyer slash an honest trader, another let a trader's second account pull the bond out. They're fixed and listed in the repo. No human has reviewed the contract.</li>
         <li><b>It's a technical demo.</b> Selling trading signals is regulated in many places.</li>
       </ul>
+      <p><a className="primary" href="#/t/lucky-seven">See it hold: buy a week of lucky-seven →</a></p>
     </article>
   );
 }
