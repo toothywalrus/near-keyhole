@@ -32,18 +32,24 @@ export type World = {
   contract: string;
   recorder: string;
   owner: string;
+  /** Where the protocol's fee is credited. */
+  treasury: string;
 };
 
-export const VM_CONFIG = (recorder: string): Config => ({
+/** The protocol's fee in these deployments: 5% of a window sale that closes in the trader's favour (`docs/decisions/0016`). */
+export const FEE_BPS = 500;
+
+export const VM_CONFIG = (recorder: string, treasury: string = "treasury.test"): Config => ({
   slot_secs: 3600, epoch_slots: 24, post_grace_secs: 6 * 3600, delivery_lead_secs: 6 * 3600, delivery_grace_secs: 6 * 3600, catchup_grace_secs: 48 * 3600, min_price: near("0.01").toString(),
   challenge_secs: 86400, unbond_secs: 30 * 86400, max_round_gap_secs: 2 * 3600, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 4000,
-  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder,
+  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder, fee_bps: FEE_BPS, treasury,
 });
 
-export const FAST_CONFIG = (recorder: string): Config => ({
+/** Short epochs for a real node. With no treasury, no fee. */
+export const FAST_CONFIG = (recorder: string, treasury: string | null = null): Config => ({
   slot_secs: 4, epoch_slots: 4, post_grace_secs: 14, delivery_lead_secs: 8, delivery_grace_secs: 15, catchup_grace_secs: 15, min_price: near("0.001").toString(),
   challenge_secs: 16, unbond_secs: 4, max_round_gap_secs: 6, min_bond: near(1).toString(), min_coverage_bps: 5000, prover_bps: 4000,
-  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder,
+  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.2").toString(), recorder, fee_bps: treasury ? FEE_BPS : 0, treasury,
 });
 
 function mkRounds(w: Pick<World, "chain" | "recorder">) {
@@ -64,14 +70,15 @@ export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?
   const chain = new VmChain(contract, startMs, wasmPath);
   const recorder = "recorder.test";
   const owner = "owner.test";
-  for (const a of [recorder, owner]) chain.vm.fund(a, near(1000));
-  const r = chain.vm.call(owner, "new", { owner, config: VM_CONFIG(recorder), feeds: FEEDS });
+  const treasury = "treasury.test";
+  for (const a of [recorder, owner, treasury]) chain.vm.fund(a, near(1000));
+  const r = chain.vm.call(owner, "new", { owner, config: VM_CONFIG(recorder, treasury), feeds: FEEDS });
   if (!r.ok) throw new Error(`new: ${r.reason}`);
   const timing = await Timing.read(chain);
   const prices = new Prices(chain);
   const rounds = mkRounds({ chain, recorder });
   const w = {
-    config: timing.config, kind: "vm" as const, chain, timing, prices, contract, recorder, owner,
+    config: timing.config, kind: "vm" as const, chain, timing, prices, contract, recorder, owner, treasury,
     acct: (n: string) => `${n}.test`,
     fund: async (n: string, amount: bigint) => {
       chain.vm.fund(`${n}.test`, amount);
@@ -91,24 +98,26 @@ export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?
   return w;
 }
 
-export async function sandboxWorld(config: (r: string) => Config = FAST_CONFIG, wasmPath: string = process.env.KEYHOLE_WASM ?? WASM): Promise<World & { chain: RpcChain; sb: Sandbox }> {
+export async function sandboxWorld(config: (recorder: string, treasury: string) => Config = FAST_CONFIG, wasmPath: string = process.env.KEYHOLE_WASM ?? WASM): Promise<World & { chain: RpcChain; sb: Sandbox }> {
   const sb = await startSandbox();
   const c = await sb.net.sub(sb.root, "keyhole", 12);
   await sb.net.deploy(c, wasmPath);
   const chain = new RpcChain(sb.net, c.id);
   const recorderA = await sb.net.sub(sb.root, "recorder", 5);
   const ownerA = await sb.net.sub(sb.root, "owner", 5);
+  const treasuryA = await sb.net.sub(sb.root, "treasury", 1);
   chain.add(recorderA);
   chain.add(ownerA);
+  chain.add(treasuryA);
   chain.add(c);
-  const r = await chain.call(ownerA.id, "new", { owner: ownerA.id, config: config(recorderA.id), feeds: FEEDS });
+  const r = await chain.call(ownerA.id, "new", { owner: ownerA.id, config: config(recorderA.id, treasuryA.id), feeds: FEEDS });
   if (!r.ok) throw new Error(`new: ${r.reason}`);
   const timing = await Timing.read(chain);
   const prices = new Prices(chain);
   const rounds = mkRounds({ chain, recorder: recorderA.id });
   const named = new Map<string, Named>();
   return {
-    config: timing.config, kind: "sandbox", chain, timing, prices, sb, contract: c.id, recorder: recorderA.id, owner: ownerA.id,
+    config: timing.config, kind: "sandbox", chain, timing, prices, sb, contract: c.id, recorder: recorderA.id, owner: ownerA.id, treasury: treasuryA.id,
     acct: (n: string) => `${n}.${sb.root.id}`,
     fund: async (n: string, amount: bigint) => {
       const near_ = Number(amount / 10n ** 21n) / 1000;

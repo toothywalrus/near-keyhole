@@ -12,8 +12,8 @@ use std::collections::HashMap;
 const GAS_ON_TRANSFER: Gas = Gas::from_tgas(25);
 const GAS_RESOLVE: Gas = Gas::from_tgas(10);
 /// What each token prepays at mint, for the storage its later life may need and no later caller pays for: the next holder's entry in `owned`, the credit entries
-/// its settlement or dispute creates, a resale listing. So the contract's own balance never pays for anyone's storage.
-pub const TOKEN_ALLOWANCE_BYTES: u64 = 500;
+/// its settlement or dispute creates (the payee's and the treasury's), a resale listing. So the contract's own balance never pays for anyone's storage.
+pub const TOKEN_ALLOWANCE_BYTES: u64 = 600;
 /// And for each epoch it covers, the row a refused delivery may have to create there.
 pub const TOKEN_ALLOWANCE_PER_EPOCH: u64 = 150;
 

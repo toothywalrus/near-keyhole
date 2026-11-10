@@ -31,6 +31,9 @@ const solvent = async (w: World, label: string) => {
 
 const BOND = near(5);
 const PRICE = near("0.1");
+/** The protocol's cut of a closed sale, as the contract computes it: rounded down. */
+const feeOf = (w: World, price: bigint) => (price * BigInt(w.config.fee_bps ?? 0)) / 10_000n;
+const creditOf = async (w: World, account: string) => BigInt(await w.chain.view("credit_of", { account }));
 
 async function newTrader(w: World, name: string, seed = "shared", opts: { floor_bps?: number; book?: number; base?: bigint; slope?: bigint; root?: Uint8Array; bond?: bigint } = {}): Promise<TraderAgent> {
   const account = await w.fund(name, near(40));
@@ -332,8 +335,10 @@ async function run(w: World): Promise<void> {
   refused("a low bid is refused", await w.chain.call(carol, "buy_resale", { token_id: res.id, buyer_pub: hex(buyerKey().pub) }, near("0.1")), "ask");
   const c1 = buyerKey();
   const bobCredit = BigInt(await w.chain.view("credit_of", { account: bob }));
+  const trCredit = await creditOf(w, w.treasury);
   accepted("the resale goes through, and the seller is paid", await w.chain.call(carol, "buy_resale", { token_id: res.id, buyer_pub: hex(c1.pub) }, near(1)));
-  check("the seller gets the asking price", BigInt(await w.chain.view("credit_of", { account: bob })) - bobCredit === near("0.3"));
+  check("the seller gets the asking price, less the protocol's fee", BigInt(await w.chain.view("credit_of", { account: bob })) - bobCredit === near("0.3") - feeOf(w, near("0.3")));
+  check("FEE: a resale pays the fee at once, so selling cheap to your own account and reselling dodges nothing", (await creditOf(w, w.treasury)) - trCredit === feeOf(w, near("0.3")) && feeOf(w, near("0.3")) > 0n);
   const nft = await w.chain.view("nft_token", { token_id: String(res.id) });
   check("NEP-171 shows the new holder", nft.owner_id === carol, nft.owner_id);
   refused("RESALE REPLAY: the seller can't dispute any more", await w.chain.call(bob, "dispute_wrap", { token_id: res.id, one_time_secret: hex(res.one.secret), node_index: 0 }, near(1)), "only the holder");
@@ -409,10 +414,38 @@ async function run(w: World): Promise<void> {
   refused("a dispute after the challenge window is refused", await w.chain.call(bob, "dispute_wrap", { token_id: v1.id, one_time_secret: hex(v1.one.secret), node_index: 0 }, near(1)), "over");
   const vc = BigInt(await w.chain.view("credit_of", { account: vic.account }));
   const st = await w.chain.call(dave, "settle", { token_id: v1.id });
-  check("anyone can settle: the escrow goes to the trader", st.ok && st.value === "closed" && BigInt(await w.chain.view("credit_of", { account: vic.account })) - vc === PRICE, String(st.value ?? st.reason));
+  check("anyone can settle: the escrow goes to the trader, less the protocol's fee", st.ok && st.value === "closed" && BigInt(await w.chain.view("credit_of", { account: vic.account })) - vc === PRICE - feeOf(w, PRICE), String(st.value ?? st.reason));
   refused("settling twice is refused", await w.chain.call(dave, "settle", { token_id: v1.id }), "can't be settled");
   check("a closed window no longer counts against the bond", BigInt((await vic.record()).liability) === 0n);
   await solvent(w, "after settling");
+
+  console.log("\n-- The protocol fee: from a sale the trader earned, never from a refund or a bond --");
+  {
+    check("this deployment takes a protocol fee, credited to its treasury", (w.config.fee_bps ?? 0) > 0 && w.config.treasury === w.treasury, `${w.config.fee_bps} bps to ${w.config.treasury}`);
+    await w.rounds();
+    // A price that isn't a round number, so a fee rounded up rather than down shows by a yocto.
+    const fia = await newTrader(w, "fia", "shared", { base: PRICE + 7n, slope: 0n });
+    e = await nextEpoch(w);
+    await honestEpoch(w, fia, e, [trade(0, 1, "fine")]);
+    const f1 = await buy(w, bob, fia, e, e);
+    const f2 = await buy(w, carol, fia, e, e);
+    accepted("she delivers the first window, and never the second", await fia.deliver(f1.id));
+    const [p1, p2] = [BigInt((await f1.token()).price), BigInt((await f2.token()).price)];
+    await w.chain.advanceTo(Math.max(Number((await f1.token()).settle_at_ms), Number((await f2.token()).settle_at_ms)));
+    await w.rounds();
+    const [tc0, fc0, rec0] = [await creditOf(w, w.treasury), await creditOf(w, fia.account), await fia.record()];
+    const s1 = await w.chain.call(dave, "settle", { token_id: f1.id });
+    const [tc1, fc1, rec1] = [await creditOf(w, w.treasury), await creditOf(w, fia.account), await fia.record()];
+    check("FEE: a closed sale pays the trader its price less the fee", s1.ok && s1.value === "closed" && fc1 - fc0 === p1 - feeOf(w, p1), `${fc1 - fc0} of ${p1}`);
+    check("FEE: the fee is credited to the treasury, to the yocto", tc1 - tc0 === feeOf(w, p1) && feeOf(w, p1) > 0n, `${tc1 - tc0}`);
+    check("FEE: no part of it comes from the bond", rec1.bond === rec0.bond && rec1.burned === rec0.burned);
+    const cc0 = await creditOf(w, carol);
+    const s2 = await w.chain.call(dave, "settle", { token_id: f2.id });
+    check("FEE: a window that goes back to its holder goes back whole, and the treasury takes nothing", s2.ok && s2.value === "refunded" && (await creditOf(w, carol)) - cc0 === p2 && (await creditOf(w, w.treasury)) === tc1, String(s2.value ?? s2.reason));
+    const tw = await w.chain.call(w.treasury, "withdraw", {});
+    check("the treasury withdraws its fees like anyone else", tw.ok && (await creditOf(w, w.treasury)) === 0n, tw.reason ?? "");
+    await solvent(w, "after the fee");
+  }
 
   console.log("\n-- The floor and the lapse: refunds from the bond --");
   await w.rounds();
@@ -436,11 +469,13 @@ async function run(w: World): Promise<void> {
   const xr = await xan.record();
   const xb0 = BigInt(await w.chain.view("credit_of", { account: bob }));
   const xt0 = BigInt(await w.chain.view("credit_of", { account: xan.account }));
+  const xtr0 = await creditOf(w, w.treasury);
   const s1 = await w.chain.call(dave, "settle", { token_id: x1.id });
   check("FLOOR: a window past the floor goes back to its holder", s1.ok && s1.value === "refunded", `figure ${xf.pnl_e6}, floor -100000000: ${s1.value ?? s1.reason}`);
   const xprice = BigInt((await x1.token()).price);
   check("the holder gets the whole price, whatever the size of the bond", BigInt(await w.chain.view("credit_of", { account: bob })) - xb0 === xprice);
   check("the trader doesn't get the escrow", BigInt(await w.chain.view("credit_of", { account: xan.account })) === xt0);
+  check("and the treasury takes no fee from a refund", (await creditOf(w, w.treasury)) === xtr0);
   check("and his bond is untouched: a true loss costs him the sale, never the bond", BigInt((await xan.record()).burned) === 0n && BigInt((await xan.record()).bond) === BigInt(xr.bond));
   accepted("the other window too", await w.chain.call(dave, "settle", { token_id: x2.id }));
   refused("it can't be settled twice", await w.chain.call(dave, "settle", { token_id: x2.id }), "can't be settled");
@@ -456,8 +491,10 @@ async function run(w: World): Promise<void> {
   await w.chain.advanceTo(w.timing.epochStart(e + 1) + (w.config.post_grace_secs + 1) * 1000);
   refused("LAPSE: a figure after the grace is refused", await yan.post(e, 0n), "too late");
   await w.chain.advanceTo(Number((await y1.token()).settle_at_ms));
+  const ytr0 = await creditOf(w, w.treasury);
   const ys = await w.chain.call(dave, "settle", { token_id: y1.id });
   check("LAPSE: a window with a missing figure goes back to its holder", ys.ok && ys.value === "refunded", String(ys.value ?? ys.reason));
+  check("and the treasury takes no fee from it", (await creditOf(w, w.treasury)) === ytr0);
   check("and a missing figure burns half the price from the bond: that one is his doing", BigInt((await yan.record()).burned) === BigInt((await y1.token()).price) / 2n, (await yan.record()).burned);
   refused("KNOWN BAD: a window with a missed figure isn't for sale, or it would be free reading", await w.chain.call(dave, "buy_window", { trader: yan.account, first_epoch: e, last_epoch: e, buyer_pub: hex(buyerKey().pub) }, near(3)), "no figure");
   await solvent(w, "after the lapse");
@@ -599,7 +636,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   await w.rounds();
   accepted("settle", await w.chain.call(buyer, "settle", { token_id: s.id }));
   const c0 = BigInt(await w.chain.view("credit_of", { account: brokenId }));
-  check("the escrow is credited", c0 >= PRICE);
+  check("the escrow is credited, less the protocol's fee", c0 >= PRICE - feeOf(w, PRICE));
   const wd = await w.chain.call(brokenId, "withdraw", {});
   check("the transfer fails, the callback says so", wd.ok && wd.value === false, JSON.stringify(wd.value ?? wd.reason));
   check("FAILED TRANSFER: the credit is restored in full", BigInt(await w.chain.view("credit_of", { account: brokenId })) === c0);
@@ -784,13 +821,20 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     await w.chain.advanceTo(Number((await fr.token()).settle_at_ms));
     const ddc = BigInt(await w.chain.view("credit_of", { account: dd.account }));
     const fs = await w.chain.call(reader, "settle", { token_id: fr.id });
-    check("FREE READ: a loss already posted when the window was bought can't make it refundable", fs.ok && fs.value === "closed" && BigInt(await w.chain.view("credit_of", { account: dd.account })) - ddc === BigInt((await fr.token()).price), String(fs.value ?? fs.reason));
+    check("FREE READ: a loss already posted when the window was bought can't make it refundable", fs.ok && fs.value === "closed" && BigInt(await w.chain.view("credit_of", { account: dd.account })) - ddc === BigInt((await fr.token()).price) - feeOf(w, BigInt((await fr.token()).price)), String(fs.value ?? fs.reason));
 
     // R4. An oracle outage must never stop an honest trader posting in time.
     const { VmChain } = await import("./vmchain.ts");
     const c5 = new VmChain("kh5.test", Date.UTC(2026, 9, 1));
     c5.vm.fund("o.test", near(10));
     refused("ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice the round gap is refused", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, post_grace_secs: 3600, max_round_gap_secs: 3600 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }), "round gap");
+    refused("FEE CAP: a deployment taking more than 20% of a sale is refused", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, fee_bps: 2001 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }), "at most 2000");
+    refused("FEE: a fee with nobody to receive it is refused", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, treasury: null }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }), "needs a treasury");
+    refused("FEE: the treasury can't be the contract itself, which could never withdraw", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, treasury: "kh5.test" }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }), "can't be the contract");
+    const c6 = new VmChain("kh6.test", Date.UTC(2026, 9, 1));
+    c6.vm.fund("o.test", near(10));
+    accepted("a fee of exactly 20% is allowed", c6.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, fee_bps: 2000 }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }));
+    accepted("a deployment with no fee needs no treasury", c5.vm.call("o.test", "new", { owner: "o.test", config: { ...w.config, fee_bps: 0, treasury: null }, feeds: [{ symbol: "ETH/USD", source: "Recorded" }] }));
     await solvent(w, "after the third read");
   }
 
@@ -1054,10 +1098,11 @@ try {
 } catch (e) {
   check("the suite ran to the end", false, String((e as Error).stack ?? e));
 }
-w.stop();
+// The result first, then the cleanup: a run killed while a node shuts down has still said how it went.
 const bad = results.filter((r) => !r.ok);
 console.log(`\n${results.length - bad.length}/${results.length} attack checks passed in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 if (bad.length) {
   for (const b of bad) console.log(`  FAILED: ${b.name}: ${b.detail}`);
 }
+w.stop();
 process.exit(bad.length ? 1 : 0);

@@ -226,7 +226,13 @@ impl Keyhole {
         k.state = if breached { TokenState::Refunded } else { TokenState::Closed };
         self.put_trader(t);
         self.tokens.insert(token_id, k);
-        self.move_to_credit(&payee, price);
+        // The protocol's fee comes out of a sale the trader earned, and only that: a refund goes back whole, and nothing here touches a bond.
+        let fee = if breached { 0 } else { self.fee_of(price) };
+        self.move_to_credit(&payee, checked_sub(price, fee));
+        if fee > 0 {
+            let treasury = self.config.treasury.clone().unwrap_or_else(|| env::panic_str("a fee needs a treasury"));
+            self.move_to_credit(&treasury, fee);
+        }
         (if breached { "refunded" } else { "closed" }).to_string()
     }
 
@@ -294,7 +300,14 @@ impl Keyhole {
         k.buyer_pub = Some(buyer_pub);
         k.resale_price = None;
         self.tokens.insert(token_id, k);
-        self.credit(&seller, ask);
+        // A resale pays the protocol's fee at once, since the seller is paid at once: otherwise a trader's own second account could buy at the curve's price and resell
+        // at the market's, and the fee would see only the first.
+        let fee = self.fee_of(ask);
+        self.credit(&seller, checked_sub(ask, fee));
+        if fee > 0 {
+            let treasury = self.config.treasury.clone().unwrap_or_else(|| env::panic_str("a fee needs a treasury"));
+            self.credit(&treasury, fee);
+        }
         self.flush_all();
         self.charge_storage(before, attached - ask, &who);
         nft::nep171_transfer(&seller, &who, token_id);
@@ -325,6 +338,11 @@ impl Keyhole {
         }
         let floor = (t.book_usd_e6.0 as i128).saturating_mul(t.floor_bps as i128) / 10_000;
         require!(!complete || total >= -floor, "that window is already past its floor, so its refund is already owed: it isn't for sale");
+    }
+
+    /// The protocol's cut of a closed sale, rounded down: a trader is never charged a yocto more than the rate.
+    pub(crate) fn fee_of(&self, price: u128) -> u128 {
+        keyhole_core::mul_div(price, self.config.fee_bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"))
     }
 
     fn penalty_of(&self, price: u128) -> u128 {

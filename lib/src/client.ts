@@ -28,6 +28,8 @@ export type Config = {
   slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number; catchup_grace_secs: number; min_price: string;
   challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; penalty_bps: number;
   max_window_epochs: number; min_dispute: string; audit_bond: string; recorder: string | null;
+  /** The protocol's cut of a closed sale, in basis points, and who receives it. Absent from a config written before the fee: no fee. */
+  fee_bps?: number; treasury?: string | null;
 };
 export type Clock = { now_ms: string; genesis_ms: string; slot: string; epoch: number };
 export type EntryRec = { seq: string; slot: number; at_ms: string; ct: string; tag: string; head: string };
