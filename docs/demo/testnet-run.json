@@ -198,5 +198,31 @@
    "tgas": 6.70611659141,
    "note": ""
   }
- ]
+ ],
+ "outlayer": {
+  "trader": "oliutl.near-keyhole-y4ow.testnet",
+  "epoch": 8,
+  "wasm_url": "https://test.fastfs.io/owner.near-keyhole-y4ow.testnet/outlayer.testnet/5d814c083a12364aff3482b484e60c57994f18972f2275a7d47524c9cc24a78c.wasm",
+  "wasm_hash": "5d814c083a12364aff3482b484e60c57994f18972f2275a7d47524c9cc24a78c",
+  "upload_tx": "6TSbLfB6bQWYkFzVzcBjSXwhAZx9gEYMYgRqJLXZRTk6",
+  "direct": {
+   "request_tx": "9yQdrxsicFRVf1Ni4kYdkUfcEdnnpatx9pshyos5zWkS",
+   "request_id": 15448,
+   "figure": "12352646",
+   "posted": "12352646",
+   "via": "outlayer.testnet, returned to oliutl.near-keyhole-y4ow.testnet's transaction",
+   "attestation": "docs/research/outlayer-attestation-request-15448.json",
+   "secret_tx": "69QxQvacsDt4qFJ2M4gyB2DTV6tXNYP5pfuSYAKN3Ca3"
+  },
+  "contract_path": {
+   "request_tx": "9MHogMxp4DAfMkaKgx1KaTf2NejpsUVrk7jJsRvuuny6",
+   "outcome": "outlayer.testnet refused the arguments: the deployed contract sends resource_limits as strings (invalid type: string \"10000000000\", expected u64). Its callback logged \"OutLayer gave no result\" and wrote no label. Fixed in source after this deployment (attest.rs)"
+  }
+ },
+ "code": {
+  "sha256": "8d6385fd2c0632934f30e90e8d3c41c293e77a85d99fb5bc179cb76c5e7313d0",
+  "code_hash": "AWvWFjMtUXJfuQXt3Ed1afCXR3MKLrDGBGwR83SdX1nF",
+  "source_commit": "a23a06c",
+  "built": "res/keyhole.wasm at a23a06c (git show a23a06c:res/keyhole.wasm)"
+ }
 }
