@@ -30,13 +30,13 @@ async function session(name: string, width: number, height: number) {
   await page.goto(`${url}#/t/lucky-seven`);
   await page.waitForSelector(".cal");
   await page.screenshot({ path: `${out}/${name}-trader.png`, fullPage: true });
-  await page.click("button.primary");
+  await page.click(".panel.buy button.primary");
   await page.waitForSelector(".check table", { timeout: 20000 });
   await page.waitForTimeout(900);
   await page.screenshot({ path: `${out}/${name}-reader.png`, fullPage: true });
-  const tryBtn = await page.$(".past .link");
+  const tryBtn = await page.$(".past button.try");
   if (tryBtn) { await tryBtn.click(); await page.waitForTimeout(150); }
-  const prove = await page.$(".check .link.danger");
+  const prove = await page.$(".check button.prove");
   if (prove) { await prove.click(); await page.waitForSelector(".audit-log .verdict", { timeout: 15000 }); }
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/${name}-caught.png`, fullPage: true });

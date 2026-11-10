@@ -47,16 +47,16 @@ async function run(browser: Browser, size: (typeof SIZES)[number]) {
   await page.waitForSelector(".check table", { timeout: 30000 });
   await page.waitForTimeout(600);
   await shot(page, size.name, "04-bought");
-  await page.locator(".past .link").first().click();
+  await page.locator(".past button.try").first().click();
   await page.waitForSelector(".past .failmsg");
   await shot(page, size.name, "05-sealed", ".journal li.past", "center");
   await shot(page, size.name, "06-false", ".check", "start");
-  await page.locator(".check .link.danger").first().click();
+  await page.locator(".check button.prove").first().click();
   await page.waitForSelector(".audit-log .verdict", { timeout: 30000 });
   await shot(page, size.name, "07-caught", ".audit-log", "center");
   await page.goto(`${url}#/`);
   await page.waitForSelector(".brow.caught");
-  await shot(page, size.name, "08-board-after");
+  await shot(page, size.name, "08-board-after", size.name === "phone" ? ".board" : ".controls");
   await page.goto(`${url}#/t/mistral`);
   await page.waitForSelector(".cal");
   await page.check(".cheat input");
@@ -71,6 +71,15 @@ async function run(browser: Browser, size: (typeof SIZES)[number]) {
   await page.waitForTimeout(2500);
   await shot(page, size.name, "11-proof");
   await ctx.close();
+
+  // Loading: the contract wasm takes its time.
+  const ctx1 = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.scale, colorScheme: "light", reducedMotion: "reduce" });
+  const p1 = await ctx1.newPage();
+  await p1.route("**/keyhole.wasm", async (r) => { await new Promise((ok) => setTimeout(ok, 4000)); await r.continue().catch(() => {}); });
+  await p1.goto(url);
+  await p1.waitForSelector(".state.boot");
+  await shot(p1, size.name, "00-loading");
+  await ctx1.close();
 
   // The boot error: the contract wasm doesn't arrive.
   const ctx2 = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.scale, colorScheme: "light" });

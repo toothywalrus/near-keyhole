@@ -8,7 +8,7 @@
 
 1. `git clone https://github.com/toothywalrus/near-keyhole && cd near-keyhole && npm ci`
 2. `npm run judge`: about a minute on a 2-CPU box, free, no keys. It ends in the table below.
-3. `npm run web`, then open http://localhost:5173: the board. Buy a week of `lucky-seven`, read it, try the next day's entry, and **Prove it**.
+3. `npm run web`, then open http://localhost:5191: the board. Press **Buy a week of lucky-seven**, read it, try the next day's entry, and **Prove it**. The page walks you through it.
 
 **Prerequisites.** `npm run judge` needs only Node 20 or newer and network access to NEAR testnet's public RPC (`--offline` skips those reads), on any OS. No Rust, no keys, no local node, no browser.
 `npm run judge:full` (about 17 minutes, plus 11 for the mutants) also needs: Linux with **glibc 2.38 or newer** (Ubuntu 24.04, Debian 13) or macOS on Apple Silicon, for NEAR's sandbox binary 2.14.0, which it downloads (about 60 MB); **Chromium and its system libraries** (`npx playwright install --with-deps chromium`); **Rust 1.93.0**, pinned by `contracts/rust-toolchain.toml` (rustup installs it), with `cargo-near` 0.22; and `wasmtime` for the job. Anything missing shows as SKIP with the reason, never as FAIL.
@@ -35,7 +35,7 @@ PASS  Copy trade: NEP-413 token_diff on the mainnet intents.near wasm, local nod
 PASS  The complete moment, on a local NEAR node                                     29 transactions
 PASS  Attested job under wasmtime (SIMULATED label), OutLayer's yield shape         17/17 job checks passed
 PASS  Attack suite on a local NEAR node, real epochs                                210/210 attack checks passed
-PASS  The web app, driven in a headless browser                                     27/27 page checks passed
+PASS  The web app, driven in a headless browser                                     33/33 page checks passed
 PASS  Mutation check: every security-critical line broken, rebuilt, and caught     94/94 mutants caught
 ```
 
@@ -126,15 +126,15 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 
 `web/dist/` is a static build, ready to host. `npm run web` serves it in development; any file server works for `web/dist/`:
 
-1. **The board.** Seven books. PnL with gaps charged, bond in NEAR and against the PnL, age, trades, buyers, how many epochs a past buyer could check, gaps, and a deflated Sharpe with the number of assumed journals you choose (blank on too few active days). See that the top number comes with a bond. "One of these numbers is false."
-2. **`lucky-seven`.** The public journal is black bars with real ciphertext inside. Buy seven days. A one-time key is made in the tab, and the trader's agent, played by the page, wraps the nodes.
-3. **The reader.** The ruler draws what you bought. Entries in the window decrypt. **"Try to open it anyway"** on the next day's entry tries every key your window can derive, and none opens.
-4. **Check the figures.** Your tab recomputes each epoch. They don't match. **"Copy it here"** first, if you like: it signs a real intent and settles it on the real `intents.near` wasm in your tab, with a local solver. **"Prove it"** runs `audit_open`, `audit_step` and `audit_conclude`. The trader is slashed, 40% of the bond is yours, the rest burns, and the board now says so for good.
+1. **The board.** "One of these numbers is false." Beside it, **Try it: catch a false figure** lists steps 2 to 4 and has one button, **Buy a week of lucky-seven**. Below, seven books: PnL with gaps charged, bond in NEAR and against the PnL, age, trades, buyers, how many epochs a past buyer could check, gaps, and a deflated Sharpe with the number of assumed journals you choose (blank on too few active days). See that the top number comes with a bond.
+2. **`lucky-seven`.** The posted PnL, with the bond behind it. The public journal is black lacquer bars with real ciphertext inside. **Buy this week**: a one-time key is made in the tab, and the trader's agent, played by the page, wraps the nodes. From here on, the top of each page shows which of the three steps you're on.
+3. **The reader.** The keyhole draws what you bought: a brass window in the lacquered journal, and the nodes that cover exactly it. Entries in the window decrypt. **"Try to open it anyway"** on the next day's entry tries every key your window can derive, and none opens.
+4. **Check the figures.** Your tab recomputes each epoch. They don't match. **"Copy it here"** first, if you like: it signs a real intent and settles it on the real `intents.near` wasm in your tab, with a local solver. **"Prove it"** runs `audit_open`, `audit_step` and `audit_conclude`. The trader is slashed: the receipt shows his bond before, 40% to you, the rest burned, and links the same proof on testnet. The board now says so for good.
 5. Tick **"let this trader send garbage"** on another book, buy, and dispute.
 
 All of it runs **the real contract wasm in your tab** on a local chain with no gas metering (`docs/decisions/0007`), with the same 5% fee. Journals are SEEDED, and every page says so. Reloading restarts the chain. "Proof" lists the testnet run and reads the testnet contract live.
 
-Screenshots: [board](docs/demo/board.png), [reader](docs/demo/reader.png), [caught](docs/demo/caught.png). Recording: [`docs/demo/keyhole-demo.mp4`](docs/demo/keyhole-demo.mp4).
+Screenshots at 1440×900: [the board](docs/screenshots/after/desktop-01-board.png), [a bought window](docs/screenshots/after/desktop-04-bought.png), [the liar caught](docs/screenshots/after/desktop-07-caught.png); at 390×844: [the board](docs/screenshots/after/phone-01-board.png), [caught](docs/screenshots/after/phone-07-caught.png). Every state, errors included, is in [`docs/screenshots/after/`](docs/screenshots/after/) (`npx tsx tools/screens.ts` retakes them). Recording, of the page before its redesign: [`docs/demo/keyhole-demo.mp4`](docs/demo/keyhole-demo.mp4).
 
 ## On testnet
 
@@ -254,7 +254,7 @@ Others in the field, as of Nov 5 (145 entries, read from the hackathon's API): n
 
 **Copied from our own MIT repos and adapted:** `tools/nearkit.ts` and `tools/keys.ts` from near-verdict; `contracts/keyhole/src/nft.rs` and `contracts/mock-outlayer` from near-ghost-duels; `contracts/test-token` from near-circle (which took it from near-crop-cover and near-account-nfts); the wasip2 job's skeleton from near-verdict's `outlayer/`. The 1Click call is from near-lab's `spikes/oneclick-quote`. OutLayer's ECIES and FastFS formats in `tools/outlayer.ts` follow its CLI and dashboard (out-layer/outlayer-cli, out-layer/dashboard, Apache-2.0); no code was copied.
 
-**Libraries:** near-sdk and near-contract-standards 5.29, x25519-dalek 2, sha2, proptest (Rust); near-api-js 7, @noble/curves, @noble/hashes, @noble/ciphers, @scure/base, React 19, Vite 8, Newsreader and IBM Plex Mono through Fontsource, Playwright, tsx (TypeScript). `res/intents.near.wasm` is the unmodified mainnet contract, pulled over RPC by `tools/pull-intents.ts` (code hash `BtA1BEFN…`, source at github.com/near/intents). Tools: wasmtime, wasm-opt, cargo-near, ffmpeg.
+**Libraries:** near-sdk and near-contract-standards 5.29, x25519-dalek 2, sha2, proptest (Rust); near-api-js 7, @noble/curves, @noble/hashes, @noble/ciphers, @scure/base, React 19, Vite 8, Libre Caslon and Spline Sans Mono through Fontsource, Playwright, tsx (TypeScript). `res/intents.near.wasm` is the unmodified mainnet contract, pulled over RPC by `tools/pull-intents.ts` (code hash `BtA1BEFN…`, source at github.com/near/intents). Tools: wasmtime, wasm-opt, cargo-near, ffmpeg.
 
 **Data:** real Chainlink rounds read from Ethereum mainnet by `tools/record-rounds.ts` into `fixtures/chainlink-rounds.json`.
 
