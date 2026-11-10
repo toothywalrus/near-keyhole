@@ -197,6 +197,12 @@
    "tx": "4Hbb4JHrVejh24NMSJqB4decG3RSjkhYvdrXu8vV5zqi",
    "tgas": 6.70611659141,
    "note": ""
+  },
+  {
+   "what": "settle, later: the false dispute's window closes for vega once its challenge window is over",
+   "tx": "6mHkLQka1yTNFqj8fqE6hoHXqgNLyrgzq66BVpBpFNik",
+   "tgas": 3.170651724769,
+   "note": "anyone can call it; run on 2026-11-10 after the demo"
   }
  ],
  "outlayer": {

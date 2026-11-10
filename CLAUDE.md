@@ -1,29 +1,24 @@
 # Instructions for Claude Code
 
-@~/dev/claude-conventions/project-memory-system.md
+Notes for an AI coding assistant working in this repo: what it is, the rules that must hold, and the traps.
 
 ## What this repo is
 
-**Keyhole:** sell a provable window into a private trade journal on NEAR. A trader commits to a GGM key tree and a bond, writes numbered encrypted entries as they happen, and posts each epoch's PnL. A buyer pays into escrow for a window of epochs and receives the tree nodes covering exactly that window, wrapped to a one-time key. The contract rules on the sale itself (x25519 + ChaCha20 in wasm) and recomputes PnL from opened entries against oracle prices, slashing the bond on a false figure: 40% to the prover, the rest burned, and never a yocto to a buyer. It's a candidate entry for NEAR HACKATHON (tracks privacy, defi, agents), from Illia Polosukhin's Nov 4 idea.
-
-It came out of `toothywalrus/near-lab` (round six, that repo's `0010` and `docs/ideas/keyhole.md`).
+**Keyhole:** sell a provable window into a private trade journal on NEAR. A trader commits to a GGM key tree and a bond, writes numbered encrypted entries as they happen, and posts each epoch's PnL. A buyer pays into escrow for a window of epochs and receives the tree nodes covering exactly that window, wrapped to a one-time key. The contract rules on the sale itself (x25519 + ChaCha20 in wasm) and recomputes PnL from opened entries against oracle prices, slashing the bond on a false figure: 40% to the prover, the rest burned, and never a yocto to a buyer. It's an entry for NEAR HACKATHON (tracks privacy and defi), from Illia Polosukhin's Nov 4 idea.
 
 ## Rules that are load-bearing
 
-1. **This is a hackathon entry, judged partly by AI.** Claude Code and Codex run the README. Every feature must be reachable by "do X, see Y" steps a judge can run for free. Keep `README.md` and `JUDGES.md` true at every commit. `npm run judge` is the fast path a screener must finish: under 3 minutes on a 2-CPU Linux box with only `npm ci` (59 s on the screeners' Debian 12 image with 2 CPUs, 2 min 6 s with the host busy, 2026-11-10), no local node, no Rust, no browser. Everything slower goes in `npm run judge:full` (`0018`).
+1. **Every claim is runnable.** Every feature must be reachable by "do X, see Y" steps anyone can run for free from a fresh clone. Keep `README.md` and `JUDGES.md` true at every commit. `npm run judge` is the fast path: under 3 minutes on a 2-CPU Linux box with only `npm ci` (59 to 73 s measured on Debian 12 with 2 CPUs, about 2 minutes on a busy host), no local node, no Rust, no browser. Everything slower goes in `npm run judge:full` (`0018`).
 2. **A simulated attestation must never pass for a real one.** `AttestKind` is set by the code path (`docs/decisions/0009`). Seeded journals are labeled SEEDED on every page.
-3. **The owner does every irreversible or outward step himself:** making the repo public, posting on X, the submission, anything on mainnet, signing up anywhere. Prepare these and wait.
+3. **The author does every irreversible or outward step himself:** making the repo public, posting, the submission, anything on mainnet, signing up anywhere. Prepare these and wait.
 4. **Testnet by default. No secrets in git,** not even gitignored files: keys live in the OS keyring (service `near-lab-testnet`: the macOS keychain, or `secret-tool` on Linux) or in environment variables, and `tools/keys.ts` never falls back to keeping one in memory. Mainnet keys use the service `near-mainnet`.
-5. **This repo must stand on its own.** Research lives in near-lab (private); nothing here may depend on reading it.
+5. **This repo must stand on its own.** Nothing here may depend on reading another repository.
 6. **Every implementation of the PnL rule must agree to the unit.** Rust core, TypeScript twin, contract, job: change one and `fixtures/vectors.json` must be regenerated and every check re-run. Rounding drift means honest traders get slashed (`0004`).
 
 ## Issue tracking / decision records
 
-This repo follows the GitHub Issues backlog and decision-records system in `@~/dev/claude-conventions/project-memory-system.md`.
-
-Repo-specific specifics:
-- Issues live on `toothywalrus/near-keyhole`, via `gh`'s default auth.
-- Topic labels: `topic:contract`, `topic:crypto`, `topic:web`, `topic:copy`, `topic:hackathon`.
+- `docs/decisions/` holds short records of why a non-obvious choice was made (Context, Decision, Consequences), numbered and never rewritten: a later decision gets a new record and the index marks the old one superseded. Write one with the change that needs it. No markdown inside code directories.
+- The backlog is GitHub Issues on `toothywalrus/near-keyhole`. Topic labels: `topic:contract`, `topic:crypto`, `topic:web`, `topic:copy`, `topic:hackathon`. A commit that works on an issue names it (`#N`).
 
 ## Gotchas
 
