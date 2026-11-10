@@ -26,6 +26,7 @@
     "verify": "tsx tools/verify.ts",
     "page-test": "tsx tools/page-test.ts",
     "judge": "tsx tools/judge.ts",
+    "judge:full": "tsx tools/judge.ts --full",
     "record": "tsx tools/record-demo.ts",
     "kani": "sh tools/kani.sh",
     "check-res": "sh tools/check-res.sh"

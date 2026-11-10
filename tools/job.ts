@@ -97,7 +97,7 @@ try {
 } catch (e) {
   check("the job path ran to the end", false, String((e as Error).stack ?? e));
 }
-w.stop();
 const bad = results.filter((r) => !r.ok);
 console.log(`\n${results.length - bad.length}/${results.length} job checks passed. The job's sha256: ${jobHash}`);
+w.stop();
 process.exit(bad.length ? 1 : 0);

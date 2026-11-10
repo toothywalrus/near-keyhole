@@ -97,7 +97,7 @@ await page.waitForSelector(".cal");
 const overflow2 = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check("nor does a trader's page", overflow2 <= 0, `${overflow2}px`);
 check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 120));
+console.log(`\n${n - bad}/${n} page checks passed`);
 await browser.close();
 server.close();
-console.log(`\n${n - bad}/${n} page checks passed`);
 process.exit(bad ? 1 : 0);
