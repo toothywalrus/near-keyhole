@@ -6,7 +6,8 @@
 // compares, and throws if anything differs. NO_KEYCHAIN=1 is the one way to opt into a key that lives in this process only, for throwaway accounts.
 import { execFileSync, spawnSync } from "node:child_process";
 
-export const SERVICE = "near-lab-testnet";
+/** `near-lab-testnet` for testnet. Mainnet keys live under another service (tools/mainnet.ts sets KEYCHAIN_SERVICE=near-mainnet), so a testnet tool can never find one. */
+export const SERVICE = process.env.KEYCHAIN_SERVICE ?? "near-lab-testnet";
 export type Backend = "keychain" | "secret-tool" | "memory" | "none";
 const envName = (id: string) => `KEY_${id.replace(/[.-]/g, "_")}`;
 

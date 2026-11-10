@@ -191,6 +191,19 @@ say("\n== A trader with no buyers can still earn a number: the attested job, lab
     say(`   (skipped: wasmtime isn't installed here: ${String(err).slice(0, 80)})`);
   }
 }
+say(`\n== The first window closes: vega is paid, less the protocol's ${(w.config.fee_bps ?? 0) / 100}%. A refund never pays a fee. ==`);
+{
+  const tok = await w.chain.view<TokenRec>("get_token", { token_id: tokenId });
+  await w.chain.advanceTo(Number(tok.settle_at_ms) + 1000);
+  const [tc0, vc0] = [BigInt(await w.chain.view("credit_of", { account: w.treasury })), BigInt(await w.chain.view("credit_of", { account: vega.account }))];
+  const st = record("settle: the challenge window is over, the escrow is released", await w.chain.call(buyer, "settle", { token_id: tokenId }));
+  const price = BigInt(tok.price);
+  const fee = (price * BigInt(w.config.fee_bps ?? 0)) / 10_000n;
+  const [tc1, vc1] = [BigInt(await w.chain.view("credit_of", { account: w.treasury })), BigInt(await w.chain.view("credit_of", { account: vega.account }))];
+  must(st.value === "closed" && vc1 - vc0 === price - fee, "vega is credited the price less the fee", `${nearStr(vc1 - vc0)} of ${nearStr(price)}`);
+  must(tc1 - tc0 === fee && fee > 0n, `the treasury is credited ${w.config.fee_bps} bps of it`, `${nearStr(fee)} to ${w.treasury}`);
+}
+
 if (TESTNET) {
   say("\n== The price table can read near-borrowed-oracle: MPC-proven Chainlink rounds, on testnet. ==");
   const imp = record("import_round: a real cross-contract read of the proven round", await w.chain.call(w.owner, "import_round", { feed: 3 }, near("0.003")));
@@ -204,11 +217,11 @@ say("\n== What it cost, measured on this chain ==");
 for (const s of steps.filter((x) => x.tgas)) say(`   ${(s.tgas ?? 0).toFixed(2).padStart(7)} Tgas  ${s.what}`);
 
 const out = {
-  chain: TESTNET ? "testnet" : "sandbox", contract: w.contract, at: new Date().toISOString(), epoch: e0,
+  chain: TESTNET ? "testnet" : "sandbox", contract: w.contract, at: new Date().toISOString(), epoch: e0, deploy_tx: (w as any).deployTx ?? null, owner: w.owner, treasury: w.treasury,
   traders: { vega: vega.account, lucky: lucky.account, mallory: mallory.account }, buyer, tokens: { vega: tokenId, lucky: Number(b2.value), mallory: Number(b3.value) },
   steps,
 };
 if (TESTNET || process.argv.includes("--write")) writeFileSync(new URL(TESTNET ? "../docs/demo/testnet-run.json" : "../docs/research/gas-sandbox.json", import.meta.url), JSON.stringify(out, null, 1));
-w.stop();
 say(failures.length ? `\nFAILED:\n  ${failures.join("\n  ")}` : `\nThe whole moment ran. ${steps.length} transactions, every one above.`);
+w.stop();
 process.exit(failures.length ? 1 : 0);

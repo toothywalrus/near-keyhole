@@ -2,6 +2,7 @@
 // back and compared, so a funded account can't end up with a key nobody kept. One draw per run: a refusal from the faucet is reported, not retried in a loop.
 //   npx tsx tools/faucet.ts --probe              the keyring round-trip only: store, read back and clear a throwaway
 //   npx tsx tools/faucet.ts <name>.testnet       one draw
+//   npx tsx tools/faucet.ts --check <id>         does the keyring's key for <id> match a key on the account? Prints public keys only
 import { KeyPair } from "near-api-js";
 import { randomBytes } from "node:crypto";
 import { BACKEND, DURABLE, deleteKey, hasKey, keyFor, saveKey } from "./keys.ts";
@@ -25,6 +26,16 @@ if (process.argv[2] === "--probe") {
   const gone = !hasKey(probe);
   console.log(`keyring (${BACKEND}): store + read back ${ok ? "OK" : "FAILED"}, clear ${gone ? "OK" : "FAILED"}`);
   process.exit(ok && gone ? 0 : 1);
+}
+
+if (process.argv[2] === "--check") {
+  const who = process.argv[3];
+  const net = new Net(process.env.NEAR_RPC ?? "https://test.rpc.fastnear.com");
+  const pub = KeyPair.fromString(keyFor(who) as never).getPublicKey().toString();
+  const onChain = ((await net.provider.viewAccessKeyList({ accountId: who } as never)) as unknown as { keys: { public_key: string }[] }).keys.map((k) => k.public_key);
+  const ok = onChain.includes(pub);
+  console.log(`${who}: the keyring's key (${pub}) is ${ok ? "" : "NOT "}on the account (${onChain.length} key(s): ${onChain.join(", ")})`);
+  process.exit(ok ? 0 : 1);
 }
 
 const id = process.argv[2];
