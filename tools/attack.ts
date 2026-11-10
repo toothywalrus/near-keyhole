@@ -1108,7 +1108,7 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));
 }
 
-/** The price delay (`docs/decisions/0020`), on a world of its own: an hour's delay, rounds two hours apart at most, a six-hour posting grace. */
+/** The price delay (`docs/decisions/0021`), on a world of its own: an hour's delay, rounds two hours apart at most, a six-hour posting grace. */
 async function delayed(): Promise<void> {
   console.log("\n-- A round seen before it lands (price_delay_secs) --");
   const DELAY = 3600;

@@ -55,7 +55,7 @@ try {
   if (!out.ok) throw new Error(out.err);
   check("JOB = TRADER = CONTRACT'S RULE: the job's figure equals the local replay, to the unit", out.out.pnl_e6 === fig.pnl_e6.toString(), `job ${out.out.pnl_e6}, local ${fig.pnl_e6}`);
   check("it read the whole epoch", out.out.applied === 2 && out.out.void === 0, `applied ${out.out.applied}, void ${out.out.void}`);
-  // The price delay (docs/decisions/0020): the job and the local replay must move together. Everything is handed to the job here, with a delay this deployment doesn't have.
+  // The price delay (docs/decisions/0021): the job and the local replay must move together. Everything is handed to the job here, with a delay this deployment doesn't have.
   {
     const D = 3000;
     const tr = await w.chain.view<{ book_usd_e6: string }>("get_trader", { account });

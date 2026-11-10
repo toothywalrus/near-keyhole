@@ -1,4 +1,4 @@
-# 0020: A trade is priced at the first round at least `price_delay_secs` after it
+# 0021: A trade is priced at the first round at least `price_delay_secs` after it
 
 **Context.** `0019` stated the limit: on a live feed a round's answer is readable in the source chain's mempool
 before the round's own timestamp, so "the first round at or after the entry" can be a price the trader already

@@ -21,7 +21,7 @@ export const TESTNET_CONFIG = (recorder: string, treasury: string): Config => ({
   slot_secs: 20, epoch_slots: 9, post_grace_secs: 240, delivery_lead_secs: 60, delivery_grace_secs: 180, catchup_grace_secs: 600, min_price: near("0.005").toString(),
   challenge_secs: 300, unbond_secs: 600, max_round_gap_secs: 80, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 4000,
   penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.03").toString(), recorder, fee_bps: FEE_BPS, treasury,
-  // One slot: on testnet the feeds are recorded, so this shows the rule, not a defence (docs/decisions/0020).
+  // One slot: on testnet the feeds are recorded, so this shows the rule, not a defence (docs/decisions/0021).
   price_delay_secs: 20,
 });
 
