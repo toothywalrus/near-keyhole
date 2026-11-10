@@ -1,5 +1,5 @@
 // The judge's command. Free, no keys, nothing to install beyond `npm ci`.
-//   npm run judge               the fast path: about a minute on a 2-CPU Linux box. No local node, no Rust, no browser.
+//   npm run judge               the fast path: about two minutes on a 2-CPU Linux box. No local node, no Rust, no browser.
 //                               The TypeScript twin, the attack suite and the ledger fuzz on the real contract wasm, then the deployed contract re-read from testnet.
 //   npm run judge -- --offline  the same without the testnet reads (they show as SKIP)
 //   npm run judge:full          also the Rust tests, the suites on a local NEAR node, the web app in a headless browser, and every mutant (about 45 minutes)
