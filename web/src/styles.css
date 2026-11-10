@@ -189,8 +189,9 @@ a.brow:hover .who b { text-decoration: underline; text-decoration-thickness: 1px
 .record { margin-top: 34px; }
 .record h2 { margin: 0 0 4px; font: 400 26px/1.15 var(--display); }
 
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 22px 0 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
-.fact { padding: 11px 14px 13px 0; border-bottom: 1px solid var(--line); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 22px 0 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); overflow: hidden; }
+/* rules between rows of facts; the last row's rule slides under the frame */
+.fact { padding: 11px 14px 13px 0; border-bottom: 1px solid var(--line); margin-bottom: -1px; }
 .fact + .fact { padding-left: 14px; border-left: 1px solid var(--line); }
 .fact .label { font: 500 10.5px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
 .fact .value { font: 600 19px/1.2 var(--mono); margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
