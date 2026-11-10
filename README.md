@@ -7,14 +7,14 @@
 ## Quick start
 
 1. `git clone https://github.com/toothywalrus/near-keyhole && cd near-keyhole && npm ci`
-2. `npm run judge`: about two minutes on a 2-CPU box, free, no keys. It ends in the table below.
+2. `npm run judge`: about a minute on a 2-CPU box, free, no keys. It ends in the table below.
 3. `npm run web`, then open http://localhost:5173: the board. Buy a week of `lucky-seven`, read it, try the next day's entry, and **Prove it**.
 
 **Prerequisites.** `npm run judge` needs only Node 20 or newer and network access to NEAR testnet's public RPC (`--offline` skips those reads), on any OS. No Rust, no keys, no local node, no browser.
 `npm run judge:full` (about 17 minutes, plus 11 for the mutants) also needs: Linux with **glibc 2.38 or newer** (Ubuntu 24.04, Debian 13) or macOS on Apple Silicon, for NEAR's sandbox binary 2.14.0, which it downloads (about 60 MB); **Chromium and its system libraries** (`npx playwright install --with-deps chromium`); **Rust 1.93.0**, pinned by `contracts/rust-toolchain.toml` (rustup installs it), with `cargo-near` 0.22; and `wasmtime` for the job. Anything missing shows as SKIP with the reason, never as FAIL.
 **Docker, on any Linux:** `docker run --rm -v "$PWD":/src:ro node:22-bookworm bash -c 'cp -a /src /w && cd /w && rm -rf node_modules && npm ci && npm run judge'`
 
-What `npm run judge` prints at the end (measured from a fresh clone in Debian 12, the image the screeners used, with 2 CPUs and 3 GB, on a host busy with other work (load average 10 to 19): `npm ci` 9 s, `npm run judge` 116 s, 2 min 6 s in all. On an Apple Silicon Mac it takes about 12 s. Without network the testnet row says SKIP):
+What `npm run judge` prints at the end (measured from a fresh clone in Debian 12, the image the screeners used, with 2 CPUs and 3 GB: `npm ci` 5 s and `npm run judge` 53 s, **59 s in all**; 2 min 6 s on the same box while other sandboxes kept it busy (load average 10 to 19). On an Apple Silicon Mac it takes about 12 s. Without network the testnet row says SKIP):
 
 ```
 PASS  Testnet: the deployed contract re-read from the chain (views only)                26/26 chain checks passed
@@ -105,7 +105,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 
 | Do | See |
 |---|---|
-| `npm run judge` | The fast path, about two minutes on 2 CPUs: the table above |
+| `npm run judge` | The fast path, about a minute on 2 CPUs: the table above |
 | `npm run judge:full` | Everything below that runs on this machine, ending in a table: about 17 minutes, plus 11 for the mutants (`--no-mutate` leaves them out) |
 | `npm run attack` | 354 attack checks on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
 | `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 210 checks (the rest need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |

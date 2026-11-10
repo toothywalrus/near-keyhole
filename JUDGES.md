@@ -1,6 +1,6 @@
 # For judges: every claim, its code, its test, the command, the output
 
-Everything here runs from a fresh clone with `npm ci`, free and with no keys, except where a row says otherwise. `npm run judge` is the fast path (about two minutes on a busy 2-CPU Linux box: the TypeScript twin, the attack suite, the ledger fuzz and the testnet re-read) and ends in a table; `npm run judge:full` runs every other command below that this machine can, and says SKIP, with the reason, for the rest.
+Everything here runs from a fresh clone with `npm ci`, free and with no keys, except where a row says otherwise. `npm run judge` is the fast path (about a minute on a 2-CPU Linux box, two when the box is busy: the TypeScript twin, the attack suite, the ledger fuzz and the testnet re-read) and ends in a table; `npm run judge:full` runs every other command below that this machine can, and says SKIP, with the reason, for the rest.
 
 | # | Claim | Code | Test | Command | Expected output |
 |---|---|---|---|---|---|
