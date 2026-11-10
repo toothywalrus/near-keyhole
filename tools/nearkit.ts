@@ -86,6 +86,25 @@ export class Net {
   }
 }
 
+/** Archival nodes, tried in order. A regular RPC node forgets a transaction after about five epochs (two to three days), so a lookup of an old one must go here. */
+export const ARCHIVAL_RPCS = (process.env.NEAR_ARCHIVAL_RPC ?? "https://archival-rpc.testnet.fastnear.com,https://archival-rpc.testnet.near.org").split(",");
+
+/** Is this transaction on chain, and did it succeed? Each node is asked in turn; "doesn't exist" from one isn't the last word. */
+export async function txOutcome(hash: string, sender: string, rpcs: string[] = ARCHIVAL_RPCS, f: typeof fetch = fetch): Promise<{ found: boolean; ok: boolean; rpc?: string; why?: string }> {
+  let why = "";
+  for (const rpc of rpcs) {
+    try {
+      const r = await f(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: hash, sender_account_id: sender, wait_until: "NONE" } }) });
+      const j = (await r.json()) as any;
+      if (j.result?.status) return { found: true, ok: j.result.status.Failure === undefined, rpc };
+      why = j.error?.cause?.name ?? j.error?.message ?? `HTTP ${r.status}`;
+    } catch (e) {
+      why = String((e as Error).message ?? e).slice(0, 80);
+    }
+  }
+  return { found: false, ok: false, why };
+}
+
 // ---- a local sandbox node ----
 
 export const SANDBOX_VERSION = "2.14.0";
