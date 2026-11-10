@@ -278,6 +278,7 @@ impl Keyhole {
         require!(k.owner == who, "only the holder can list");
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
         require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
+        require!(!matches!(self.trader(k.trader).status, TraderStatus::Slashed { .. }), "this trader was slashed: the window can only be refunded to its holder");
         k.resale_price = price;
         self.tokens.insert(token_id, k);
     }
@@ -288,6 +289,8 @@ impl Keyhole {
         let mut k = self.token(token_id);
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
         require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
+        // A window on a slashed trader is worth its refund and nothing else: a listing left from before the slash could otherwise sell it for more to someone who hasn't looked.
+        require!(!matches!(self.trader(k.trader).status, TraderStatus::Slashed { .. }), "this trader was slashed: the window can only be refunded to its holder");
         let ask = k.resale_price.unwrap_or_else(|| env::panic_str("this token isn't for sale")).0;
         require!(who != k.owner, "you already hold it");
         require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");

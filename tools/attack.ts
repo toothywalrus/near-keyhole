@@ -1124,6 +1124,10 @@ async function delayed(): Promise<void> {
   const hon = await newTrader(w, "honest-delayed", "delay-a");
   const fr = await newTrader(w, "front-runner", "delay-b");
   const e = await nextEpoch(w);
+  // A window far ahead on the trader who is about to be caught, listed for resale at more than it cost.
+  const dave = await w.fund("dave", near(50));
+  const ahead = await buy(w, carol, fr, e + 5, e + 5);
+  accepted("a future window on him is listed for resale, above its price", await w.chain.call(carol, "list_resale", { token_id: ahead.id, price: near(2).toString() }));
   // Both write the same trade. One second later a round lands at a price they could have read in the source chain's mempool; the next round, past the delay, differs.
   for (const t of [hon, fr]) accepted(`${t === hon ? "an honest trader" : "a front-runner"} writes a long`, await t.write(trade(0, 2, "long")));
   accepted("a round one second later: the one a mempool watcher already knew", await w.roundAt(0, 2000_00000000n));
@@ -1147,6 +1151,12 @@ async function delayed(): Promise<void> {
   const figF = await fr.figure(e, w.prices);
   const vf = await runAudit(w.chain, carol, fr.account, e, figF);
   check("KNOWN FILL: the figure priced at the round he already knew is false, and slashes", vf.verdict.ok && vf.verdict.value.trader_at_fault === true, vf.verdict.value?.detail ?? vf.verdict.reason ?? "");
+  // He is slashed now. The listing from before must not sell his window for more than the refund it's worth.
+  refused("SLASHED RESALE: a window on a slashed trader can't be bought from its holder", await w.chain.call(dave, "buy_resale", { token_id: ahead.id, buyer_pub: hex(buyerKey().pub) }, near(3)), "was slashed");
+  refused("nor listed again", await w.chain.call(carol, "list_resale", { token_id: ahead.id, price: near(1).toString() }), "was slashed");
+  const before = await creditOf(w, carol);
+  accepted("its holder claims the refund", await w.chain.call(carol, "claim_refund", { token_id: ahead.id }));
+  check("and gets the whole price back", (await creditOf(w, carol)) - before === BigInt((await ahead.token()).price));
   // No round at all after the delay: void only once the delay and twice the gap have passed.
   const late = await newTrader(w, "late", "delay-c");
   const e2 = await nextEpoch(w);

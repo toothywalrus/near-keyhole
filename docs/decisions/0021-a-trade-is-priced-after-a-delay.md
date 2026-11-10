@@ -22,13 +22,15 @@ version. This is that version's source. It isn't deployed.
   Chainlink report. Zero keeps the old rule, and the seeded web app and the local test worlds stay at zero, with a
   world of its own for the delayed rule in the attack suite.
 
-Two smaller hardenings ride with it, found in the same read (#21):
+Three smaller hardenings ride with it (#21):
 
 - `max_window_epochs` must be 1 to 32 at `new`: a window's `known_mask` has one bit per epoch, and a longer window
   would make every such purchase panic on the shift.
 - An attested figure can't be replaced by one from a weaker source: `SimulatedLocal` < `OutLayerStandIn` <
   `OutLayerTee`. Before, the owner's local runner could overwrite an enclave's figure with its own. The label
   stayed truthful, but the stronger evidence was erased.
+
+- A window on a slashed trader can't be listed or bought from its holder: it's worth its refund and nothing else, and a listing left from before the slash could otherwise sell it for more to a buyer who hadn't looked. Found in the second read (#21).
 
 A holder who took a token by plain transfer and never registered a one-time key still sees that window settle like a
 delivered one. That was looked at again and kept: refunding it would let a buyer park money in windows he never
@@ -44,4 +46,4 @@ means to read and tie up a trader's bond coverage at no cost. The code and `JUDG
 - The state layout changed (`Config` has one more field), which `0017` allows: a new version is a new account.
 - Tests: the attack suite's "A round seen before it lands" section (a round inside the delay can't price a trade; a
   figure priced at it is slashed; the honest delayed figure stands; void only after delay + twice the gap; `new`
-  refuses a grace that doesn't cover the delay), `DOWNGRADE`, and four mutants.
+  refuses a grace that doesn't cover the delay), `DOWNGRADE`, `SLASHED RESALE`, and six mutants.
