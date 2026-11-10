@@ -256,7 +256,7 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
         <div>
           <p className="kicker"><a href="#/">The board</a> / <a href={`#/t/${handle}`}>{t.handle}</a> / window #{id}</p>
           <h1>{dateOf(s.timing.epochStart(token.first_epoch))} to {dateOf(s.timing.epochStart(token.last_epoch))}</h1>
-          <p className="blurb">Your window into {t.handle}'s journal: NEP-171 token #{id}. Paid {lnear(token.price)} Ⓝ, in escrow until {timeOf(Number(token.settle_at_ms))}. State: {token.state}.</p>
+          <p className="blurb">Your window into {t.handle}'s journal: NEP-171 token #{id}. Paid {lnear(token.price)} Ⓝ{token.state === "Refunded" ? ", and the escrow is yours again" : token.state === "Closed" ? ", released to the trader" : `, in escrow until ${timeOf(Number(token.settle_at_ms))}`}. State: {token.state}.</p>
         </div>
       </section>
 
@@ -363,7 +363,7 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
                 </table>
               </div>
             ) : <p className="note">Nothing to check until the keys arrive.</p>}
-            {falseRows.length && !t.status?.Slashed ? <p className="verdict alarm"><b>{falseRows.length === epochRows.length ? "Every figure here is false." : `${falseRows.length} of these figures are false.`}</b> The difference is {money(totalPosted - totalMine, 2).replace("+", "")} of PnL that didn't happen. Prove any one of them, and the contract recomputes it and slashes his bond.</p> : null}
+            {falseRows.length && !t.status?.Slashed ? <p className="verdict alarm"><b>{falseRows.length === epochRows.length ? "Every day's figure here is false." : `${falseRows.length} of these daily figures are false.`}</b> His number on the board is the sum of figures like these, and in your window alone it's {money(totalPosted - totalMine, 2).replace("+", "")} of PnL that didn't happen. One false day is enough: prove any one, and the contract recomputes it and slashes his whole bond.</p> : null}
             {reader && !falseRows.length && !t.status?.Slashed && epochRows.length ? <p className="verdict plain"><b>Every figure in your window adds up.</b> This trader posted what his entries say. That's what a bond is for.</p> : null}
             {audit ? (
               <div className="audit-log" aria-live="polite">

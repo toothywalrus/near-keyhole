@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Pill, Spark } from "./bits.tsx";
 import { TryIt } from "./Guide.tsx";
+import { LiveStrip } from "./Live.tsx";
+import { useRun } from "./testnet.ts";
 import { dsrOf, lnear, money, pctStr, rowOf, type Row, TARGET, timeOf, useStore } from "./store.ts";
 
 type Sort = "pnl" | "dsr" | "bond";
@@ -31,6 +33,7 @@ export function Board() {
   const week = (r: Row) => s.v<string>("quote", { trader: r.t.account, first_epoch: r.t.first_epoch, last_epoch: r.t.first_epoch + 6 });
   const target = rows.find((r) => r.handle === TARGET);
   const m = s.moment();
+  const run = useRun();
   return (
     <>
       <section className="lede">
@@ -84,6 +87,8 @@ export function Board() {
           );
         })}
       </div>
+
+      <LiveStrip run={run} />
 
       <section className="fineprint">
         <p><b>What this table can't tell you.</b> A journal is what its trader wrote: nothing here shows a trade really happened. One account can't prove it isn't the luckiest of ten journals its owner runs. Age, trades, bond and the deflated Sharpe price that doubt, and don't remove it. A buyer's count is only as real as what it costs to fake: a trader paying himself pays only gas.</p>

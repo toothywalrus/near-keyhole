@@ -66,6 +66,18 @@ The run above ended on 2026-11-10 and its traders stopped posting. Epochs on thi
 
 The false dispute's window (token 4) was still `Delivered` when the run ended. `settle` can be called by anyone once the challenge window is over, and it was, later the same day: [`6mHkLQka1y…`](https://testnet.nearblocks.io/txns/6mHkLQka1yTNFqj8fqE6hoHXqgNLyrgzq66BVpBpFNik), 3.17 Tgas, closed for vega with the 5% fee to the treasury.
 
+The contract is open to anyone, and a trader whose agent is offline can be made to refuse a window (see the limits). So the run's two traders that were still selling, vega and the enclave run's trader, paused their sales with `set_paused` once the run was over, which is what that method is for: [`BEnxvYtdx1…`](https://testnet.nearblocks.io/txns/BEnxvYtdx1J1UesrJER15hq7RxeYR3NzMh8gvwsvYmwm), [`W5HDYSBhEd…`](https://testnet.nearblocks.io/txns/W5HDYSBhEdywrYLe3HC4dv362x4Kadrh2LuAfPBEsbJ). Both are still `Active`, and anyone can still register as a trader of his own.
+
+## The next version, built and not deployed
+
+This tree's contract is ahead of the deployed one: the `request_attested` fix, the price delay, the attestation rank and the window bound (`docs/decisions/0021`). `tools/redeploy.ts` puts it on a fresh account, locked, runs the whole flow and the contract's own OutLayer request there, re-points the repo and runs the chain checks. With no confirmation it only prints its plan; it refuses anything but a fresh funded testnet root, and the two roots already used:
+
+```
+npx tsx tools/faucet.ts <name>.testnet
+KEYHOLE_ROOT=<name>.testnet npx tsx tools/redeploy.ts                              # the plan, read-only
+CONFIRM_TESTNET_DEPLOY=1 KEYHOLE_ROOT=<name>.testnet npx tsx tools/redeploy.ts     # about 20 minutes, about 9 testnet NEAR
+```
+
 ## A deployment of your own
 
 `KEYHOLE_ROOT=<your-account>.testnet npm run demo -- --testnet` runs the whole flow on a fresh locked deployment under a funded root account whose key is in the OS keyring (the macOS keychain, or `secret-tool` on Linux). `npx tsx tools/faucet.ts <name>.testnet` makes such an account from the public faucet. A deployment takes about 9 testnet NEAR, most of it the contract's storage. Running `npx tsx tools/outlayer.ts` after it, on a build with the `request_attested` fix (this tree), is what gives an epoch the contract's own `OutLayerTee` label.

@@ -1,0 +1,413 @@
+{
+ "clock": {
+  "now_ms": "1794313553391",
+  "genesis_ms": "1794292527438",
+  "slot": "1051",
+  "epoch": 116
+ },
+ "get_config": {
+  "slot_secs": 20,
+  "epoch_slots": 9,
+  "post_grace_secs": 180,
+  "delivery_lead_secs": 60,
+  "delivery_grace_secs": 180,
+  "catchup_grace_secs": 600,
+  "challenge_secs": 240,
+  "unbond_secs": 600,
+  "min_bond": "300000000000000000000000",
+  "min_price": "5000000000000000000000",
+  "min_coverage_bps": 5000,
+  "prover_bps": 4000,
+  "penalty_bps": 5000,
+  "max_window_epochs": 31,
+  "min_dispute": "10000000000000000000000",
+  "audit_bond": "30000000000000000000000",
+  "max_round_gap_secs": 80,
+  "recorder": "recorder.near-keyhole-y4ow.testnet",
+  "fee_bps": 500,
+  "treasury": "treasury.near-keyhole-y4ow.testnet"
+ },
+ "solvency": {
+  "obligations": "887644000000000000000000",
+  "balance": "6147844849222112700000000",
+  "storage_locked": "4443230000000000000000000",
+  "slack": "816970849222112700000000"
+ },
+ "nft_total_supply": "4",
+ "view_access_key_list": [],
+ "list_traders{\"from\":0,\"limit\":100}": [
+  {
+   "id": 0,
+   "account": "vegao55.near-keyhole-y4ow.testnet",
+   "handle": "vega",
+   "root": "7f23c9a8717e54b0a5fb7fcb2fad18f721bf5823cea593c26495a5c2a4ee65c5",
+   "registered_ms": "1794292544398",
+   "first_epoch": 0,
+   "status": "Active",
+   "bond": "345700000000000000000000",
+   "liability": "0",
+   "book_usd_e6": "100000000000",
+   "floor_bps": 1000,
+   "base_price": "10000000000000000000000",
+   "slope": "2000000000000000000000",
+   "next_seq": "3",
+   "head": "3564abea907a32877fa729e43b019908aa872f2fa0e7582b41c90650f514d12d",
+   "next_epoch": 2,
+   "posted_epochs": 1,
+   "missed_epochs": 1,
+   "cum_pnl_e6": "26348218",
+   "sold": 2,
+   "buyers": 2,
+   "late_deliveries": 0,
+   "paused": true,
+   "refused_epochs": 0,
+   "voided_e6": "0",
+   "burned": "0",
+   "last_post_ms": "1794292906811"
+  },
+  {
+   "id": 1,
+   "account": "luckyo55.near-keyhole-y4ow.testnet",
+   "handle": "lucky",
+   "root": "3ed199d8954cc5dd7fb4858c6e1c460f50b9580044dc0631377d43d721ed3c68",
+   "registered_ms": "1794292548627",
+   "first_epoch": 0,
+   "status": {
+    "Slashed": {
+     "reason": "epoch 1: posted 25380469723, recomputed 380469723",
+     "by": "ineso55.near-keyhole-y4ow.testnet",
+     "at_ms": "1794292967112"
+    }
+   },
+   "bond": "0",
+   "liability": "0",
+   "book_usd_e6": "100000000000",
+   "floor_bps": 1000,
+   "base_price": "10000000000000000000000",
+   "slope": "2000000000000000000000",
+   "next_seq": "2",
+   "head": "58c244c12553172e5690bbdd6df0c629400750a7508712d7a402a2e1fc2b0b47",
+   "next_epoch": 2,
+   "posted_epochs": 1,
+   "missed_epochs": 1,
+   "cum_pnl_e6": "380469723",
+   "sold": 1,
+   "buyers": 1,
+   "late_deliveries": 0,
+   "paused": false,
+   "refused_epochs": 0,
+   "voided_e6": "0",
+   "burned": "207402000000000000000000",
+   "last_post_ms": "1794292911149"
+  },
+  {
+   "id": 2,
+   "account": "malloryo55.near-keyhole-y4ow.testnet",
+   "handle": "mallory",
+   "root": "95e4369d20d198c9af491a3e7993af64bacaf2291fe00d500801bb7b366ab2c6",
+   "registered_ms": "1794292552310",
+   "first_epoch": 0,
+   "status": {
+    "Slashed": {
+     "reason": "the wrapped node doesn't match its commitment",
+     "by": "ineso55.near-keyhole-y4ow.testnet",
+     "at_ms": "1794292990072"
+    }
+   },
+   "bond": "0",
+   "liability": "0",
+   "book_usd_e6": "100000000000",
+   "floor_bps": 1000,
+   "base_price": "10000000000000000000000",
+   "slope": "2000000000000000000000",
+   "next_seq": "0",
+   "head": "0000000000000000000000000000000000000000000000000000000000000000",
+   "next_epoch": 2,
+   "posted_epochs": 1,
+   "missed_epochs": 1,
+   "cum_pnl_e6": "0",
+   "sold": 1,
+   "buyers": 1,
+   "late_deliveries": 0,
+   "paused": false,
+   "refused_epochs": 0,
+   "voided_e6": "0",
+   "burned": "207366000000000000000000",
+   "last_post_ms": "1794292915352"
+  },
+  {
+   "id": 3,
+   "account": "oliutl.near-keyhole-y4ow.testnet",
+   "handle": "oliutl",
+   "root": "d3d0a34398d5478a4ceb073321f7109e68d5b3be800555aa8539ec9e24319d1f",
+   "registered_ms": "1794293845561",
+   "first_epoch": 7,
+   "status": "Active",
+   "bond": "345700000000000000000000",
+   "liability": "0",
+   "book_usd_e6": "100000000000",
+   "floor_bps": 1000,
+   "base_price": "10000000000000000000000",
+   "slope": "0",
+   "next_seq": "2",
+   "head": "e08cc38169f7a882c18c6835e91778b7e6a16c789a5768d0e5661b48af117cc2",
+   "next_epoch": 9,
+   "posted_epochs": 1,
+   "missed_epochs": 1,
+   "cum_pnl_e6": "12352646",
+   "sold": 0,
+   "buyers": 0,
+   "late_deliveries": 0,
+   "paused": true,
+   "refused_epochs": 0,
+   "voided_e6": "0",
+   "burned": "0",
+   "last_post_ms": "1794294165513"
+  },
+  {
+   "id": 4,
+   "account": "stranger.testnet",
+   "handle": "NOT-OURS: buy my coin",
+   "root": "7f23c9a8717e54b0a5fb7fcb2fad18f721bf5823cea593c26495a5c2a4ee65c5",
+   "registered_ms": "1794292544398",
+   "first_epoch": 0,
+   "status": "Active",
+   "bond": "345700000000000000000000",
+   "liability": "0",
+   "book_usd_e6": "100000000000",
+   "floor_bps": 1000,
+   "base_price": "10000000000000000000000",
+   "slope": "2000000000000000000000",
+   "next_seq": "3",
+   "head": "3564abea907a32877fa729e43b019908aa872f2fa0e7582b41c90650f514d12d",
+   "next_epoch": 2,
+   "posted_epochs": 1,
+   "missed_epochs": 1,
+   "cum_pnl_e6": "26348218",
+   "sold": 0,
+   "buyers": 0,
+   "late_deliveries": 0,
+   "paused": true,
+   "refused_epochs": 0,
+   "voided_e6": "0",
+   "burned": "0",
+   "last_post_ms": "1794292906811"
+  }
+ ],
+ "get_epochs{\"account\":\"vegao55.near-keyhole-y4ow.testnet\",\"from\":1,\"limit\":1}": [
+  {
+   "epoch": 1,
+   "first_seq": "0",
+   "entries": 2,
+   "posted_e6": "26348218",
+   "posted_ms": "1794292906811",
+   "verdict": "Unchallenged",
+   "audits_passed": 0,
+   "covering_sales": 2,
+   "refused_sales": 0,
+   "attested": {
+    "kind": "SimulatedLocal",
+    "via": "owner.near-keyhole-y4ow.testnet",
+    "pnl_e6": "26348218",
+    "job_sha256": "5d814c083a12364aff3482b484e60c57994f18972f2275a7d47524c9cc24a78c",
+    "at_ms": "1794293016926"
+   }
+  }
+ ],
+ "get_epochs{\"account\":\"luckyo55.near-keyhole-y4ow.testnet\",\"from\":1,\"limit\":1}": [
+  {
+   "epoch": 1,
+   "first_seq": "0",
+   "entries": 2,
+   "posted_e6": "25380469723",
+   "posted_ms": "1794292911149",
+   "verdict": {
+    "False": {
+     "recomputed_e6": "380469723"
+    }
+   },
+   "audits_passed": 0,
+   "covering_sales": 1,
+   "refused_sales": 0,
+   "attested": null
+  }
+ ],
+ "get_epochs{\"account\":\"malloryo55.near-keyhole-y4ow.testnet\",\"from\":1,\"limit\":1}": [
+  {
+   "epoch": 1,
+   "first_seq": "0",
+   "entries": 0,
+   "posted_e6": "0",
+   "posted_ms": "1794292915352",
+   "verdict": "Unchallenged",
+   "audits_passed": 0,
+   "covering_sales": 0,
+   "refused_sales": 0,
+   "attested": null
+  }
+ ],
+ "get_epochs{\"account\":\"oliutl.near-keyhole-y4ow.testnet\",\"from\":8,\"limit\":1}": [
+  {
+   "epoch": 8,
+   "first_seq": "0",
+   "entries": 2,
+   "posted_e6": "12352646",
+   "posted_ms": "1794294165513",
+   "verdict": "Unchallenged",
+   "audits_passed": 0,
+   "covering_sales": 0,
+   "refused_sales": 0,
+   "attested": null
+  }
+ ],
+ "get_token{\"token_id\":1}": {
+  "id": 1,
+  "trader": 0,
+  "first_epoch": 1,
+  "last_epoch": 1,
+  "first_slot": 9,
+  "last_slot": 17,
+  "owner": "ineso55.near-keyhole-y4ow.testnet",
+  "price": "10000000000000000000000",
+  "buyer_pub": "67a6bf897bca3336371251e237ce319c4e2c8f8dac37d4b78959170a84e56b48",
+  "state": "Closed",
+  "bought_ms": "1794292938629",
+  "deliver_by_ms": "1794293538629",
+  "settle_at_ms": "1794293778629",
+  "resale_price": null,
+  "eph": "a231f47e943b7d2b5abe25b62a6c9a28b94a91b082bcfc588d3ab76dc99ee12f",
+  "wrapped": [
+   "fe9ca9164b330f4567dfa000466b14945c59200a030573e3712dcda2bb0da474",
+   "a29a4c7ee2ea0c4efa6ff53d802401abe12072903d4d1a0db63eff0c747965af",
+   "17b226ca142bfdb7c35184128175efa594140155b887ae277703694ea4a4e9d1",
+   "ab4fad53b263d26b449c15f3a131cad82ba3e79562b6e4cabcb345e2fd5cd4c3"
+  ],
+  "commits": [
+   "3ef773b212202843ec96ed4d2dc0d327dfd363888728599f227d7de03d46b371",
+   "44367d49dfed6e7143cc0d3c717eeb742795bfd33524b4aa950d50c0dcf8685b",
+   "4a988c70cb306c5f377433dfd99fa55cf536c53f1d23c5375b4bb2d770ad473a",
+   "92bcf003fcdce4923cc546031f09e126fda78143ed5bc8837b5a2f71018dcfbd"
+  ],
+  "disputes_lost": 0,
+  "known_mask": 1
+ },
+ "get_token{\"token_id\":2}": {
+  "id": 2,
+  "trader": 1,
+  "first_epoch": 1,
+  "last_epoch": 1,
+  "first_slot": 9,
+  "last_slot": 17,
+  "owner": "ineso55.near-keyhole-y4ow.testnet",
+  "price": "10000000000000000000000",
+  "buyer_pub": "31aadaa9bfcf96634aef1664fcbbd92a895cf841bb58a389f58d215060c3370c",
+  "state": "Refunded",
+  "bought_ms": "1794292949391",
+  "deliver_by_ms": "1794293549391",
+  "settle_at_ms": "1794293789391",
+  "resale_price": null,
+  "eph": "0c41c6a52ead1360fdaefba5973ff2a413d2e42e6a840dfd81788cbddf3aba74",
+  "wrapped": [
+   "4747e7c0c657ac2cf9aab04fc4ca5bc160c4999610dc03b9d5a1cee822dd65b6",
+   "bd4ab109dcbb1c799a9ec3f3bf50ec976609222c0568e2f2f50b171c3316273d",
+   "e3338b2123b71f2480865fe330ebda91c255067e25b22ac07191aa18cd8e7089",
+   "803d768a3e7be0896de8673c5156af090db73874d6cce5be1e907677b5e76e30"
+  ],
+  "commits": [
+   "5632f369dbe44d9b005d2cf6f28a0a3d46a8b669ebbf6696e85b0995a64f3a1b",
+   "02bbb64b48a28c14a060361d55b009016188c71a375ad50ed2015c9698f43b29",
+   "71601aad1827096abdb82fdcf7e67c47eebedc8854d881314cc0237d5692cd7b",
+   "ac498e56f936687d5444dbbba6639778b2980be33afd61c7733ef20edf93decc"
+  ],
+  "disputes_lost": 0,
+  "known_mask": 1
+ },
+ "get_token{\"token_id\":3}": {
+  "id": 3,
+  "trader": 2,
+  "first_epoch": 1,
+  "last_epoch": 1,
+  "first_slot": 9,
+  "last_slot": 17,
+  "owner": "ineso55.near-keyhole-y4ow.testnet",
+  "price": "10000000000000000000000",
+  "buyer_pub": "284e85f045a049ea028820c7824ce661c342bd55e72286c43459945bd623402e",
+  "state": "Refunded",
+  "bought_ms": "1794292980479",
+  "deliver_by_ms": "1794293580479",
+  "settle_at_ms": "1794293820479",
+  "resale_price": null,
+  "eph": "64c49dc5fc303db1eaffbef727f1840d6cff5ab161455b0127d5bfc643538200",
+  "wrapped": [
+   "9274d0ddfd14d9c4683098b9f4ad4f89ece0074e682fb99830cdee05d3420c2b",
+   "0f1511db103f5fa3d896892ed0b977e6cafc45806c122e9d0e441f9d706af862",
+   "54b7be2bcb1e2a3b1189d4dc1f8427c9cdda735e5bcf5d9e87fb4653f5678423",
+   "753e1a8396c5f115e986c4ccc8a9afdc5e13f29b06225d7b7d058e21cf55d858"
+  ],
+  "commits": [
+   "0a3af46f3c0dc0c911a7ead59feb9f37badc7c5e4531cef1dca42e81d97dd047",
+   "76338bb188737d19635622509193f6c2b70609bbcb055ba522344f9d077f6069",
+   "30b80a4c9e831df329f7b93810b79e8b5aa6ec9ae7222aa6ecc57b0c6063c52a",
+   "e4772d22c27d5cd8ddfb84ee4eb4b4ef603d84fd2da0074eecc2d7588ca23f41"
+  ],
+  "disputes_lost": 0,
+  "known_mask": 1
+ },
+ "get_token{\"token_id\":4}": {
+  "id": 4,
+  "trader": 0,
+  "first_epoch": 1,
+  "last_epoch": 1,
+  "first_slot": 9,
+  "last_slot": 17,
+  "owner": "grifo55.near-keyhole-y4ow.testnet",
+  "price": "12000000000000000000000",
+  "buyer_pub": "f5a5e906268bfb171ba2207a17778d7a49fcca256e435a7d76c82ebfd6e57e73",
+  "state": "Closed",
+  "bought_ms": "1794292996766",
+  "deliver_by_ms": "1794293596766",
+  "settle_at_ms": "1794293836766",
+  "resale_price": null,
+  "eph": "31adcbc6d9ae18ebee10f8df4d83344f3dcf37e0fb9d84c0aee606b46cd7cf21",
+  "wrapped": [
+   "097d822ccb8716ebcb0b87aa152c2256bfd2ff7587117841ca8e9993327e6740",
+   "cbdfd7db0e93b2393988ab89d43e0e77c0e7b3eebc9183807e76115b1a87d96f",
+   "1a0e27d4476d3b7ff64444673ff76e4b72fa4a5486405a07242b7f917fc28430",
+   "9a6b3e8bc4736d4d56db585616121e694dbd892b48909fcf12533fd0812cb3ab"
+  ],
+  "commits": [
+   "3ef773b212202843ec96ed4d2dc0d327dfd363888728599f227d7de03d46b371",
+   "44367d49dfed6e7143cc0d3c717eeb742795bfd33524b4aa950d50c0dcf8685b",
+   "4a988c70cb306c5f377433dfd99fa55cf536c53f1d23c5375b4bb2d770ad473a",
+   "92bcf003fcdce4923cc546031f09e126fda78143ed5bc8837b5a2f71018dcfbd"
+  ],
+  "disputes_lost": 1,
+  "known_mask": 1
+ },
+ "get_entries{\"account\":\"vegao55.near-keyhole-y4ow.testnet\",\"from\":\"0\",\"limit\":6}": [
+  {
+   "seq": "0",
+   "slot": 9,
+   "at_ms": "1794292710516",
+   "ct": "79c031316dcb1f276b84cf4a76193b239b177042535491b3cc4d3c3caebd96749185a5534072efe947f28465a301cc06b3da3e562016b4ad6fdbd0fa9f06dc2a83acb47e93ae63907a6514f533b7909e89f1ff517d18a983c3bc213a6631cd131005f01595ddc83f22eb6c6175f959f6b9d85a70d3aa1f1296cfee5d4de5b6b3",
+   "tag": "7ea585db17ab017821a07e2dc36cae06bd0511f398ab22b6bfd2243189240e80",
+   "head": "e2dc0609f6bf917615c4a7f505bcc3193ae8c6750cd2ee75265b036ae611bc39"
+  },
+  {
+   "seq": "1",
+   "slot": 9,
+   "at_ms": "1794292724240",
+   "ct": "a2616c7ccb4405f2f4997a01d4b0107242f9e3f811f707e1f63c700a1db2b18bb82f1db82d08d0ad715e37c6a1f00793f94078fb1d636f4aef7a114988717424b707a885ae096656ebbeb9cb531b4a20477d9199f375aaf7b780324059d824ccf4f75e1396466eb93e9e5132fa2ead7ac657e880650d5f43d13462cf3f6d9a51",
+   "tag": "a87628ab0727f86c8a2e4c74a7cb40108a34f211e739f7b95ef024d732c47c47",
+   "head": "91d4693e8b4882240e7b904f4d5f82fa8b0e83d4b7faa32607cbb911320fe06f"
+  },
+  {
+   "seq": "2",
+   "slot": 19,
+   "at_ms": "1794292920211",
+   "ct": "903c557104bed335bb3ad95cca38d8f33e83a158660fcab5f22adf028176cabe3cb11a3ea646fc18513d893533f64c5710acb40f14bf755449509024781841177ce14501c57b85ba811ff0cb3593ae319c7311797ad630c490b422dfaf195b9892f2e1ee3a7a3a72bbd55a2730bb5c2a28e724df97371fc22746840ad58802ac",
+   "tag": "43018641a5e6258a4ebefe0d63f738cba5492c6c17df6d6f73cdb08b9c5eeb56",
+   "head": "3564abea907a32877fa729e43b019908aa872f2fa0e7582b41c90650f514d12d"
+  }
+ ]
+}
