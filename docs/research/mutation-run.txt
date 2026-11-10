@@ -1,4 +1,8 @@
-Mutating 94 security-critical lines. The attack suite must notice each.
+
+> mutate
+> tsx tools/mutate.ts
+
+Mutating 100 security-critical lines. The attack suite must notice each.
 
 ✓ caught: dispute_wrap accepts a secret that isn't the buyer's key       by "dispute: a wrong secret proves nothing and is refused" and 5 more
 ✓ caught: dispute_wrap slashes when the node matches, not when it doesn't by "GARBAGE KEY: the contract unwraps, compares and slashes" and 7 more
@@ -41,7 +45,13 @@ Mutating 94 security-critical lines. The attack suite must notice each.
 ✓ caught: a refused loss is voided, laundering it                        by "LAUNDERED LOSS: refusing his own buyer can't raise his record"
 ✓ caught: a near-free price is allowed                                   by "a price below the minimum is refused at registration: ACCEPTED" and 1 more
 ✓ caught: a loss known at purchase makes the window refundable           by "FREE READ: a loss already posted when the window was bought can't make"
-✓ caught: a grace shorter than an oracle outage is allowed               by "ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice " and 4 more
+✓ caught: a grace shorter than an oracle outage is allowed               by "ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice " and 5 more
+✓ caught: the posting grace needn't outlast the price delay              by "new refuses a posting grace that doesn't outlast twice the round gap a"
+✓ caught: a trade is priced at a round inside the price delay            by "KNOWN FILL: a round inside the delay can't price the trade" and 3 more
+✓ caught: a window may be longer than its mask of known epochs           by "new refuses a window longer than its 32-bit mask of known epochs: ACCE" and 1 more
+✓ caught: a window on a slashed trader can still be bought from its holder by "SLASHED RESALE: a window on a slashed trader can't be bought from its " and 3 more
+✓ caught: a window on a slashed trader can still be listed               by "nor listed again: ACCEPTED"
+✓ caught: a local run replaces an enclave's figure                       by "DOWNGRADE: a local runner can't replace the enclave's figure" and 2 more
 ✓ caught: a stand-in earns the enclave's label                           by "STAND-IN: a callback from any other contract can't earn the enclave's "
 ✓ caught: the floor never triggers                                       by "FLOOR: a window past the floor goes back to its holder" and 5 more
 ✓ caught: a missing figure doesn't count as a breach                     by "LAPSE: a window with a missing figure goes back to its holder" and 3 more
@@ -58,7 +68,7 @@ Mutating 94 security-critical lines. The attack suite must notice each.
 ✓ caught: dispute_entry slashes when the entry opens                     by "dispute_entry on the entry that does open is dismissed: the entry open" and 4 more
 ✓ caught: anyone can step someone's audit                                by "audit: someone else can't step this audit"
 ✓ caught: an audit concludes with entries unopened                       by "audit: concluding before opening every entry is refused" and 8 more
-✓ caught: a price hint can be before the trade                           by "audit: a price hint before the trade is refused" and 3 more
+✓ caught: a price hint can be before the trade                           by "audit: a price hint before the trade is refused" and 6 more
 ✓ caught: a claim that no round follows needn't be true                  by "audit: a wrong mark hint is refused" and 1 more
 ✓ caught: a claim that no round follows needn't wait                     by "before the wait is over, claiming no round is refused: ACCEPTED" and 1 more
 ✓ caught: a round long after the trade still prices it                   by "and the contract agrees: that round prices nothing"
@@ -76,7 +86,7 @@ Mutating 94 security-critical lines. The attack suite must notice each.
 ✓ caught: a token that comes back keeps its listing                      by "a receiver that lists it and hands it back leaves no listing behind: f"
 ✓ caught: a slashed trader can be slashed again                          by "a slashed trader can't be slashed twice: ACCEPTED"
 ✓ caught: a bond leaves before the delay                                 by "the bond stays at risk through the delay: ACCEPTED" and 1 more
-✓ caught: a local runner's figure reads as the enclave's                 by "SIMULATED: a local run is labeled as one, by the code path, with no wa" and 1 more
+✓ caught: a local runner's figure reads as the enclave's                 by "SIMULATED: a local run is labeled as one, by the code path, with no wa" and 4 more
 ✓ caught: anyone can report an attested figure                           by "a non-runner can't report an attested figure: not a registered trader"
 ✓ caught: buy_window charges no storage                                  by "an unbonding trader can't sell: bob.test can't afford this" and 1 more
 ✓ caught: record_round charges no storage                                by "a round that doesn't pay for its storage is refused: ACCEPTED"
@@ -95,4 +105,4 @@ Mutating 94 security-critical lines. The attack suite must notice each.
 ✓ caught: the exposure limit is gone                                     by "EXPOSURE: the contract agrees to the unit, voids included"
 ✓ caught: an entry's tag isn't checked when opening                      by "audit: a bad key is refused and records nothing" and 13 more
 
-94/94 mutants caught, in 648 s
+100/100 mutants caught, in 734 s

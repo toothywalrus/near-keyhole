@@ -23,12 +23,12 @@ What `npm run judge` ends with (measured in Debian 12 with 2 CPUs and 3 GB: 59 t
 PASS  Testnet: the deployed contract re-read from the chain (views only)        26/26 chain checks passed
 PASS  TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded
       state; a copy trade on the real intents.near wasm; key store; guards     tests passed: 27
-PASS  Attack suite on the real contract wasm (local host)                       377/377 attack checks passed
+PASS  Attack suite on the real contract wasm (local host)                       382/382 attack checks passed
 PASS  Ledger fuzz: every yocto re-added after each random operation             614 random operations, books balanced
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
 
-(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (18 checks), the web app in a headless browser (42 checks) and the mutation check (98 of 98 mutants caught).
+(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (18 checks), the web app in a headless browser (42 checks) and the mutation check (100 of 100 mutants caught).
 
 ## Status (2026-11-10)
 
@@ -40,7 +40,7 @@ PASS  Ledger fuzz: every yocto re-added after each random operation             
 - Every journal on the web app's board is **SEEDED**: rule-based strategies run over real recorded Chainlink rounds. The trades never happened, and the page runs the contract on a local chain in your browser.
 - Prices on testnet are real Chainlink rounds **replayed by a trusted recorder**, labeled `Recorded` by the contract's `get_feeds`.
 - The attested figure on vega's epoch is a local run under wasmtime with **no enclave**, labeled `SimulatedLocal` by the contract. The enclave run was asked for by the trader directly, because the locked contract's own `request_attested` sent OutLayer arguments it refuses (fixed in source since). So **no epoch on testnet is labeled `OutLayerTee`**, and the deployed wasm is the build of `a23a06c`.
-- **This tree's contract is a version ahead of the deployed one, and isn't deployed.** It has that fix, a price delay that closes the live-feed limit below (`price_delay_secs`), a rule that a weaker attestation label can't replace a stronger one, and a bound on window length (`docs/decisions/0021`). It's built (`res/`), tested here and what the web app runs. `npm run verify` checks the deployed code against git at `a23a06c`. Deploying it is one guarded command, `tools/redeploy.ts`, on a fresh funded testnet root.
+- **This tree's contract is a version ahead of the deployed one, and isn't deployed.** It has that fix, a price delay that closes the live-feed limit below (`price_delay_secs`), a rule that a weaker attestation label can't replace a stronger one, a bound on window length, and a rule that a slashed trader's windows can't be resold (`docs/decisions/0021`). It's built (`res/`), tested here and what the web app runs. `npm run verify` checks the deployed code against git at `a23a06c`. Deploying it is one guarded command, `tools/redeploy.ts`, on a fresh funded testnet root.
 - The tokens and solver in the copy paths are local stand-ins; only the Intents contract is the real wasm. `copy/confidential-adapter.ts` is written against the docs and has **never been exercised**.
 
 **What it isn't.** A journal is what the trader wrote: a checkable *signal record*, not a brokerage statement and not proof of a trade. Confidential Intents documents no public viewing key (read 2026-11-05), so the key here covers the journal, not a real confidential fill (`docs/decisions/0014`). No human has audited the contract. Nothing has touched mainnet.
@@ -94,13 +94,13 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 |---|---|
 | `npm run judge` | The fast path, about 75 s on 2 CPUs: the table above |
 | `npm run judge:full` | Everything below that runs on this machine, ending in a table: about 17 minutes, plus 11 for the mutants (`--no-mutate` leaves them out) |
-| `npm run attack` | About 30 named attacks, 377 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
+| `npm run attack` | About 30 named attacks, 382 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
 | `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 210 checks (the rest need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas: 29 transactions |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto, the treasury's fees included |
-| `npm run mutate` | Needs Rust and cargo-near. Breaks 98 security-critical lines one at a time and rebuilds: `98/98 mutants caught` in one pass. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust and cargo-near. Breaks 100 security-critical lines one at a time and rebuilds: `100/100 mutants caught` in one pass. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction. About 10 minutes, most of it waiting for a real epoch to end on the node |
