@@ -28,7 +28,7 @@ PASS  Ledger fuzz: every yocto re-added after each random operation             
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
 
-(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (17 checks), the web app in a headless browser (34 checks) and the mutation check (94 of 94 mutants caught).
+(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (17 checks), the web app in a headless browser (42 checks) and the mutation check (94 of 94 mutants caught).
 
 ## Status (2026-11-10)
 
@@ -83,7 +83,7 @@ Details and every step's cost: [`docs/research/killtest-2026-11-05.md`](docs/res
 
 **Who earns.** The trader, 95% of every sale that closes in his favour. The protocol, **5%** (`fee_bps`, set once per deployment, at most 20%), credited to a treasury at settlement (`docs/decisions/0016`). A refunded window, a slashed trader and a missed delivery pay no fee, and no fee ever comes from a bond: the protocol earns only when a buyer got what he paid for, so it has no stake in how a dispute ends.
 
-**Where it stands.** Testnet, the fee live in the locked contract, no users and no revenue. The page is a seeded demo with no wallet path to the testnet contract yet. A first real sale is prepared for mainnet and not run ([`docs/deployments.md`](docs/deployments.md)); the legal posture of selling signals is open. One other team, NOVA, has shipped this idea on mainnet with a different design: [`docs/competitors.md`](docs/competitors.md).
+**Where it stands.** Testnet, the fee live in the locked contract, no users and no revenue. The page is a seeded demo; it reads the testnet contract live but has no wallet, so acting on testnet takes the command line. A first real sale is prepared for mainnet and not run ([`docs/deployments.md`](docs/deployments.md)); the legal posture of selling signals is open. One other team, NOVA, has shipped this idea on mainnet with a different design: [`docs/competitors.md`](docs/competitors.md).
 
 ## Do this, see that
 
@@ -106,7 +106,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 | `npm run verify` | Re-reads the testnet deployment from the chain: code hash, no key on the account, the fee, slashed traders, the hash chain recomputed, feeds' labels, OutLayer's attestation recomputed from its transaction, and the run's transactions on an archival node |
 | `npm test` | The TypeScript twin against the Rust core's vectors, the deflated Sharpe, the seeded state, the key store and the mainnet guards: 24 tests |
 | `cd contracts && cargo test --release -p keyhole-core --features sha2` | Property tests: a window's nodes read exactly that window and nothing outside it (15 tests) |
-| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser: 34 checks |
+| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 42 checks |
 | `npm run web`, or `npm run web:build` and serve `web/dist/` | The web app: see below |
 
 ### The web app
@@ -118,6 +118,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 3. **The reader.** The keyhole draws what you bought: a brass window in the lacquered journal, and the tree nodes that cover exactly it. Entries in the window decrypt. **Try to open it anyway** on the next day's entry tries every key your window can derive, and none opens.
 4. **Check the figures.** Your tab recomputes each day, and they don't match. **Prove it** runs `audit_open`, `audit_step` and `audit_conclude`: the trader is slashed, and the receipt shows his bond before, 40% to you, the rest burned, and the same proof on testnet. **Copy it here** signs a real intent and settles it on the `intents.near` wasm in the tab, with a local solver.
 5. Tick **let this trader send garbage** on another book, buy, and dispute.
+6. **Proof** is the part that isn't a simulation: it reads the real contract on NEAR testnet as the page loads (view calls only, no key): its locked account, the run's traders with both slashes as the contract recorded them, the windows sold, and a journal's ciphertext. The board carries one line of it. A stranger's handle on that open contract is counted, never printed.
 
 Screenshots at 1440×900: [the board](docs/screenshots/after/desktop-01-board.png), [a bought window](docs/screenshots/after/desktop-04-bought.png), [the liar caught](docs/screenshots/after/desktop-07-caught.png); at 390×844: [the board](docs/screenshots/after/phone-01-board.png), [caught](docs/screenshots/after/phone-07-caught.png). Every state, errors included: [`docs/screenshots/after/`](docs/screenshots/after/).
 

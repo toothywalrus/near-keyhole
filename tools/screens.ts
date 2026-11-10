@@ -67,9 +67,16 @@ async function run(browser: Browser, size: (typeof SIZES)[number]) {
   await page.waitForSelector(".verdict.ok");
   await shot(page, size.name, "10-disputed");
   await page.goto(`${url}#/proof`);
-  await page.waitForSelector("table.live, .proof .note", { timeout: 15000 });
-  await page.waitForTimeout(2500);
+  // The live read of the real contract: wait for it, or for the page to say testnet couldn't be read.
+  await page.waitForSelector(".livebox table.live, .proof .verdict.alarm", { timeout: 30000 });
+  await page.waitForTimeout(600);
   await shot(page, size.name, "11-proof");
+  await shot(page, size.name, "13-live-traders", ".livebox h3", "start");
+  await shot(page, size.name, "14-live-journal", ".livejournal", "center");
+  await page.goto(`${url}#/`);
+  await page.waitForSelector(".brow:not(.head)");
+  await page.waitForSelector(".livestrip", { timeout: 30000 }).catch(() => {});
+  await shot(page, size.name, "15-board-live", ".livestrip", "center");
   await ctx.close();
 
   // Loading: the contract wasm takes its time.

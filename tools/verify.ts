@@ -11,7 +11,24 @@ import { ARCHIVAL_RPCS, Net, txOutcome } from "./nearkit.ts";
 const run = JSON.parse(readFileSync(new URL("../docs/demo/testnet-run.json", import.meta.url), "utf8"));
 const net = new Net(process.env.NEAR_RPC ?? "https://test.rpc.fastnear.com");
 const C: string = run.contract;
-const v = <T = any>(m: string, a: Record<string, unknown> = {}) => net.view<T>(C, m, a);
+/** A public RPC drops a request now and then. Three tries, a moment apart, before a read counts as failed: a busy node isn't a false claim. */
+async function tries<T>(f: () => Promise<T>, n = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try { return await f(); } catch (e) { if (i >= n) throw e; await new Promise((ok) => setTimeout(ok, 1500 * i)); }
+  }
+}
+const v = <T = any>(m: string, a: Record<string, unknown> = {}) => tries(() => net.view<T>(C, m, a));
+/** A transaction by hash, from the first archival node that has it. */
+async function txOf(hash: string, sender: string): Promise<any> {
+  for (let round = 0; round < 2; round++) {
+    for (const rpc of ARCHIVAL_RPCS) {
+      const j = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: hash, sender_account_id: sender, wait_until: "NONE" } }), signal: AbortSignal.timeout(20_000) }).then((x) => x.json() as any).catch(() => null);
+      if (j?.result?.transaction) return j;
+    }
+    await new Promise((ok) => setTimeout(ok, 2000));
+  }
+  return null;
+}
 let bad = 0;
 let n = 0;
 const check = (name: string, ok: boolean, detail = "") => {
@@ -21,7 +38,7 @@ const check = (name: string, ok: boolean, detail = "") => {
 };
 
 console.log(`Reading ${C} on NEAR testnet (https://testnet.nearblocks.io/address/${C})\n`);
-const acct = await net.provider.viewAccount({ accountId: C });
+const acct = await tries(() => net.provider.viewAccount({ accountId: C }));
 const wasm = readFileSync(new URL("../res/keyhole.wasm", import.meta.url));
 const local = base58.encode(createHash("sha256").update(wasm).digest());
 if (acct.code_hash === local || !run.code) {
@@ -33,11 +50,11 @@ if (acct.code_hash === local || !run.code) {
   check(`the code on chain is res/keyhole.wasm as built at ${run.code.source_commit}, byte for byte`, acct.code_hash === run.code.code_hash && (then === null || then === acct.code_hash), `code_hash ${acct.code_hash}${then === null ? " (no git here: compared with the recorded hash)" : ", = git show " + run.code.source_commit + ":res/keyhole.wasm"}`);
   console.log(`  (this tree's res/keyhole.wasm is ahead of the deployment by one fix: request_attested sends OutLayer's resource limits as numbers, which outlayer.testnet requires.)`);
 }
-const keys = ((await net.provider.viewAccessKeyList({ accountId: C } as never)) as unknown as { keys: { access_key: { permission: unknown } }[] }).keys;
+const keys = ((await tries(() => net.provider.viewAccessKeyList({ accountId: C } as never))) as unknown as { keys: { access_key: { permission: unknown } }[] }).keys;
 check("LOCKED: the contract account holds no key at all, so nobody can change its code or move its NEAR", keys.length === 0, `${keys.length} access key(s)`);
 if (run.deploy_tx) {
   // Deploy, `new` and the key's deletion were one transaction: there was never a moment with code and a key on the account together.
-  const r = await fetch(ARCHIVAL_RPCS[0], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: run.deploy_tx, sender_account_id: C, wait_until: "NONE" } }) }).then((x) => x.json() as any).catch(() => null);
+  const r = await txOf(run.deploy_tx, C);
   const kinds = (r?.result?.transaction?.actions ?? []).map((a: any) => (typeof a === "string" ? a : Object.keys(a)[0]));
   check("it was deployed, initialised and locked in one transaction", JSON.stringify(kinds) === JSON.stringify(["DeployContract", "FunctionCall", "DeleteKey"]) && r?.result?.status?.Failure === undefined, `${kinds.join(" + ")}: https://testnet.nearblocks.io/txns/${run.deploy_tx}`);
 }
@@ -72,7 +89,7 @@ if (run.outlayer) {
   if (o.direct) {
     // The job in OutLayer's TEE, asked for by the trader himself. Its attestation binds the wasm, the input and the output; the last two recompute from the chain.
     const att = existsSync(new URL(`../${o.direct.attestation}`, import.meta.url)) ? JSON.parse(readFileSync(new URL(`../${o.direct.attestation}`, import.meta.url), "utf8")).attestation : null;
-    const tx = await fetch(ARCHIVAL_RPCS[0], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: o.direct.request_tx, sender_account_id: o.trader, wait_until: "NONE" } }) }).then((x) => x.json() as any).catch(() => null);
+    const tx = await txOf(o.direct.request_tx, o.trader);
     const outBytes = tx?.result?.status?.SuccessValue ? Buffer.from(tx.result.status.SuccessValue, "base64") : Buffer.alloc(0);
     const args = tx?.result?.transaction?.actions?.[0]?.FunctionCall?.args ? JSON.parse(Buffer.from(tx.result.transaction.actions[0].FunctionCall.args, "base64").toString()) : {};
     const sha = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
