@@ -134,8 +134,8 @@ const tests = readdirSync("lib/test").filter((f) => f.endsWith(".test.ts")).map(
 const local = [
   tsx(["--test", ...tests], 420).then((x) => add("TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded state; a copy trade on the real intents.near wasm; key store; mainnet guards", x, tally(x.out, /pass \d+/).replace("pass", "tests passed:"))),
   tsx(["tools/attack.ts", "--quiet"], 420).then((x) => add("Attack suite on the real contract wasm (local host)", x, tally(x.out, /\d+\/\d+ attack checks passed/))),
-  // 2 x 150 here; `npm run fuzz` does 3 x 700. The ledger is re-added from views after every operation, so the cost grows faster than the count.
-  tsx(["tools/fuzz.ts", "150", "2"], 420).then((x) => add("Ledger fuzz: every yocto re-added after each random operation", x, `${tally(x.out, /\d+ random operations/)}, books balanced`)),
+  // 2 x 300 here; `npm run fuzz` does 3 x 700. The ledger is re-added from views after every operation, so the cost grows faster than the count.
+  tsx(["tools/fuzz.ts", "300", "2"], 420).then((x) => add("Ledger fuzz: every yocto re-added after each random operation", x, `${tally(x.out, /\d+ random operations/)}, books balanced`)),
 ];
 await Promise.all([...local, chain]);
 // The table keeps one order, whatever finished first.
