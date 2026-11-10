@@ -87,7 +87,8 @@ impl Keyhole {
             .with_unused_gas_weight(1)
             .request_execution(
                 json!({ "WasmUrl": { "url": o.wasm_url, "hash": o.wasm_hash, "build_target": "wasm32-wasip2" } }),
-                Some(json!({ "max_instructions": o.max_instructions, "max_memory_mb": 64, "max_execution_seconds": o.max_execution_seconds })),
+                // Numbers, not U64's strings: outlayer.testnet's `ResourceLimits` takes `u64`, and refused a string on 2026-11-10 ("invalid type: string").
+                Some(json!({ "max_instructions": o.max_instructions.0, "max_memory_mb": 64, "max_execution_seconds": o.max_execution_seconds.0 })),
                 Some(json!({ "contract": env::current_account_id(), "trader": who, "epoch": epoch, "rpc": o.rpc }).to_string()),
                 secrets_ref,
                 Some("Json".into()),

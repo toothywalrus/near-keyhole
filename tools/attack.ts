@@ -903,11 +903,20 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const ra = await w.chain.call(at.account, "request_attested", { epoch: ae }, near("0.02"));
     const rr1 = (await w.chain.view("get_epochs", { account: at.account, from: ae, limit: 1 }))[0];
     check("STAND-IN: a callback from any other contract can't earn the enclave's label", ra.ok && rr1.attested?.kind === "OutLayerStandIn" && rr1.attested?.job_sha256 === "aa".repeat(32), JSON.stringify(rr1.attested?.kind ?? ra.reason));
-    vm.mock("outlayer.testnet", job(ae + 1));
+    // The arguments as outlayer.testnet's own contract deserializes them (out-layer/outlayer contract/src/lib.rs): a U64 sent as a string failed there.
+    let sent: any = null;
+    vm.mock("outlayer.testnet", (m: string, args: any) => {
+      sent = args;
+      return job(ae + 1)(m);
+    });
     accepted("and at OutLayer's own account", await w.chain.call(w.owner, "set_outlayer", cfg("outlayer.testnet")));
     await w.chain.call(at.account, "request_attested", { epoch: ae + 1 }, near("0.02"));
     const rr2 = (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0];
     check("only a callback from OutLayer's own account gets it", rr2.attested?.kind === "OutLayerTee", JSON.stringify(rr2.attested?.kind));
+    const lim = sent?.resource_limits ?? {};
+    check("REAL OUTLAYER'S TYPES: resource limits are JSON numbers, the source a WasmUrl with a 64-hex hash, the format Json",
+      ["max_instructions", "max_memory_mb", "max_execution_seconds"].every((k) => Number.isInteger(lim[k])) && /^[0-9a-f]{64}$/.test(sent?.source?.WasmUrl?.hash ?? "") && typeof sent?.source?.WasmUrl?.url === "string" && sent?.response_format === "Json" && typeof sent?.input_data === "string",
+      JSON.stringify({ resource_limits: lim, response_format: sent?.response_format }));
     refused("a deposit that can't pay for the callback's storage is refused", await w.chain.call(at.account, "request_attested", { epoch: ae }, 1n), "storage");
   }
 

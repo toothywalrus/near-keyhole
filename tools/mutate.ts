@@ -98,6 +98,7 @@ const MUTANTS: M[] = [
   { name: "the fee rounds up", file: `${K}sale.rs`, from: `keyhole_core::mul_div(price, self.config.fee_bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow"))\n    }`, to: `keyhole_core::mul_div(price, self.config.fee_bps as u128, 10_000).unwrap_or_else(|| env::panic_str("amount overflow")) + if price * self.config.fee_bps as u128 % 10_000 == 0 { 0 } else { 1 }\n    }` },
   { name: "a resale pays no fee", file: `${K}sale.rs`, from: `let fee = self.fee_of(ask);`, to: `let fee = 0u128; let _ = ask;` },
   { name: "the treasury can be the contract itself", file: `${K}lib.rs`, from: `if c.treasury.as_ref() == Some(contract) {`, to: `if false && c.treasury.as_ref() == Some(contract) {` },
+  { name: "OutLayer's resource limits go as strings", file: `${K}attest.rs`, from: `"max_instructions": o.max_instructions.0,`, to: `"max_instructions": o.max_instructions,` },
   { name: "a fee over the cap is allowed", file: `${K}lib.rs`, from: `if c.fee_bps > MAX_FEE_BPS {`, to: `if false {` },
   { name: "a fee with no treasury is allowed", file: `${K}lib.rs`, from: `if c.fee_bps > 0 && c.treasury.is_none() {`, to: `if false {` },
   { name: "the core's descent reaches outside a node's subtree", file: "core/src/ggm.rs", from: `if shift >= 32 || (to.index >> shift) != from.index {`, to: `if shift >= 32 {` },
