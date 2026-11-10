@@ -7,7 +7,7 @@
 //!
 //! Input on stdin:
 //!   {"contract": "...", "trader": "...", "epoch": 3, "rpc": "http://..."}      read everything else from the chain over HTTP (wasi:http), or
-//!   {"trader": "...", "epoch": 3, "data": {book_usd_e6, feeds, epoch_end_ms, head, entries, rounds, gap_ms, now_ms}}   everything given (tests, and hosts without HTTP)
+//!   {"trader": "...", "epoch": 3, "data": {book_usd_e6, feeds, epoch_end_ms, head, entries, rounds, gap_ms, delay_ms, now_ms}}   everything given (tests, and hosts without HTTP)
 //! Key material, never in the input: KEYHOLE_NODES='[{"level":..,"index":..,"value":"<hex>"}]' from the environment, which is OutLayer's secret mechanism.
 //! Output on stdout: {"trader","epoch","pnl_e6","head","applied","void","job_sha256"}. Anything else (a key that opens nothing, a missing round) exits 1.
 use keyhole_core::entry;
@@ -102,11 +102,13 @@ fn from_chain(input: &Value) -> Res<Value> {
     let epoch_end_ms = num(&clock["genesis_ms"], "genesis")? + (epoch + 1) * num(&cfg["epoch_slots"], "epoch_slots")? * slot_ms;
     let head = entries.last().map(|e| e["head"].clone()).unwrap_or(t["head"].clone());
     Ok(json!({ "book_usd_e6": t["book_usd_e6"], "feeds": rounds.len(), "epoch_end_ms": epoch_end_ms, "head": head, "entries": entries, "rounds": rounds,
-        "gap_ms": num(&cfg["max_round_gap_secs"], "gap")? * 1000, "now_ms": num(&clock["now_ms"], "now")? }))
+        "gap_ms": num(&cfg["max_round_gap_secs"], "gap")? * 1000, "delay_ms": cfg["price_delay_secs"].as_u64().unwrap_or(0) * 1000, "now_ms": num(&clock["now_ms"], "now")? }))
 }
 
 /// The contract's rule: `Ok(Some(price))`, or `Ok(None)` when the trade is void: the next round came too late, or none came and the wait is over. `Err` when it can't be known yet.
-fn price_of(rounds: &[(u64, i64)], at: u64, gap: u64, now: u64) -> Res<Option<(usize, i64)>> {
+/// Pricing starts `delay` after the moment itself (`price_delay_secs`).
+fn price_of(rounds: &[(u64, i64)], moment: u64, delay: u64, gap: u64, now: u64) -> Res<Option<(usize, i64)>> {
+    let at = moment.saturating_add(delay);
     let i = rounds.partition_point(|r| r.0 < at);
     match rounds.get(i) {
         Some(r) if r.0 > at + gap => Ok(None),
@@ -133,6 +135,7 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
     let book_usd: i128 = data["book_usd_e6"].as_str().and_then(|s| s.parse().ok()).ok_or("book_usd_e6")?;
     let mut book = Book::default();
     let (gap, now) = (num(&data["gap_ms"], "gap_ms")?, num(&data["now_ms"], "now_ms")?);
+    let delay = data["delay_ms"].as_u64().unwrap_or(0);
     for e in data["entries"].as_array().ok_or("entries")? {
         let (seq, slot) = (num(&e["seq"], "seq")?, num(&e["slot"], "slot")? as u32);
         let leaf = nodes.iter().find_map(|(id, v)| ggm::leaf_from::<Sha2>(v, *id, DEPTH, slot)).ok_or(format!("entry {seq}: slot {slot} isn't under the nodes given"))?;
@@ -142,7 +145,7 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
         let opened = entry::open::<Sha2>(&key, seq, slot, &ct, &tag).ok_or(format!("entry {seq} doesn't open"))?;
         match opened {
             Some(t) if (t.feed as usize) < feeds => {
-                match price_of(&rounds[t.feed as usize], num(&e["at_ms"], "at_ms")?, gap, now)? {
+                match price_of(&rounds[t.feed as usize], num(&e["at_ms"], "at_ms")?, delay, gap, now)? {
                     Some((_, p)) => {
                         book.apply(t.feed as usize, t.qty_e8, p, feeds, book_usd);
                     }
@@ -156,10 +159,10 @@ fn run(input: &Value, nodes_json: &str) -> Res<Value> {
     let mut marks = [None; MAX_FEEDS];
     for f in 0..MAX_FEEDS {
         if book.positions[f] != 0 {
-            marks[f] = Some(match price_of(&rounds[f], end, gap, now)? {
+            marks[f] = Some(match price_of(&rounds[f], end, delay, gap, now)? {
                 Some((_, p)) => p,
-                // The feed went quiet: the last round before the end.
-                None => rounds[f].get(rounds[f].partition_point(|r| r.0 < end).wrapping_sub(1)).ok_or("no round to mark at")?.1,
+                // The feed went quiet: the last round before the end (and its delay), as `mark_at` takes it.
+                None => rounds[f].get(rounds[f].partition_point(|r| r.0 < end.saturating_add(delay)).wrapping_sub(1)).ok_or("no round to mark at")?.1,
             });
         }
     }

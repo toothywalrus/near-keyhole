@@ -18,9 +18,11 @@ const CONTRACT_NEAR = 4.7;
 export const BORROWED_FEED = { symbol: "ETH/USD (MPC-proven)", source: { BorrowedOracle: { oracle: "oracle.borrowed-oracle-u2hivj.testnet", pair: "ETH/USD" } } };
 
 export const TESTNET_CONFIG = (recorder: string, treasury: string): Config => ({
-  slot_secs: 20, epoch_slots: 9, post_grace_secs: 180, delivery_lead_secs: 60, delivery_grace_secs: 180, catchup_grace_secs: 600, min_price: near("0.005").toString(),
-  challenge_secs: 240, unbond_secs: 600, max_round_gap_secs: 80, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 4000,
+  slot_secs: 20, epoch_slots: 9, post_grace_secs: 240, delivery_lead_secs: 60, delivery_grace_secs: 180, catchup_grace_secs: 600, min_price: near("0.005").toString(),
+  challenge_secs: 300, unbond_secs: 600, max_round_gap_secs: 80, min_bond: near("0.3").toString(), min_coverage_bps: 5000, prover_bps: 4000,
   penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.01").toString(), audit_bond: near("0.03").toString(), recorder, fee_bps: FEE_BPS, treasury,
+  // One slot: on testnet the feeds are recorded, so this shows the rule, not a defence (docs/decisions/0020).
+  price_delay_secs: 20,
 });
 
 function named(net: Net, id: string): Named {
@@ -89,6 +91,9 @@ export async function testnetWorld(): Promise<World & { chain: RpcChain; net: Ne
       return a.id;
     },
     rounds: async () => {
+      // Past the price delay, so that these rounds can price what was written before them.
+      const delay = (timing.config.price_delay_secs ?? 0) * 1000;
+      if (delay) await new Promise((ok) => setTimeout(ok, delay + 1500));
       for (let f = 0; f < 3; f++) {
         const [id, answer, updated] = series[f][at[f]++ % series[f].length];
         const r = await chain.call(recorderA.id, "record_round", { feed: f, round_id: String(BigInt(id) & 0xffffffffffffn), answer_e8: Number(answer), source_updated_at: String(updated) }, near("0.002"));

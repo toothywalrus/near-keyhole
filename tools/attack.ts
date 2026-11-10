@@ -4,9 +4,9 @@
 // Exits 1 on any failure. KEYHOLE_WASM points it at another build: the mutation check uses that.
 import { hex, sha256, unhex, utf8 } from "../lib/src/bytes.ts";
 import { encryptEntry, entryKey, type Entry } from "../lib/src/entry.ts";
-import { buyerKey, DEPTH, loadEntries, near, NO_SETTLEMENT, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
+import { buyerKey, DEPTH, loadEntries, near, NO_SETTLEMENT, Prices, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
 import { commit, cover, Tree } from "../lib/src/ggm.ts";
-import { agent, sandboxWorld, seedOf, vmWorld, type World } from "./world.ts";
+import { agent, sandboxWorld, seedOf, VM_CONFIG, vmWorld, type World } from "./world.ts";
 
 const SANDBOX = process.argv.includes("--sandbox");
 const QUIET = process.argv.includes("--quiet");
@@ -918,6 +918,16 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
       ["max_instructions", "max_memory_mb", "max_execution_seconds"].every((k) => Number.isInteger(lim[k])) && /^[0-9a-f]{64}$/.test(sent?.source?.WasmUrl?.hash ?? "") && typeof sent?.source?.WasmUrl?.url === "string" && sent?.response_format === "Json" && typeof sent?.input_data === "string",
       JSON.stringify({ resource_limits: lim, response_format: sent?.response_format }));
     refused("a deposit that can't pay for the callback's storage is refused", await w.chain.call(at.account, "request_attested", { epoch: ae }, 1n), "storage");
+    // A weaker label can't replace a stronger one: the owner's local runner can't erase what the enclave reported.
+    const runner2 = await w.fund("runner2", near(2));
+    accepted("the owner registers another local runner", await w.chain.call(w.owner, "set_runner", { runner: runner2, enabled: true }));
+    const local = (epoch: number) => ({ output: { trader: at.account, epoch, pnl_e6: "777", head, job_sha256: "bb".repeat(32) } });
+    refused("DOWNGRADE: a local runner can't replace the enclave's figure", await w.chain.call(runner2, "submit_attested", local(ae + 1), near("0.01")), "stronger source");
+    refused("nor a stand-in's", await w.chain.call(runner2, "submit_attested", local(ae), near("0.01")), "stronger source");
+    const kept = (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0];
+    check("the enclave's figure and label are still there", kept.attested?.kind === "OutLayerTee" && kept.attested?.pnl_e6 === "0", JSON.stringify(kept.attested));
+    await w.chain.call(at.account, "request_attested", { epoch: ae + 1 }, near("0.02"));
+    check("the enclave itself can report again", (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0].attested?.kind === "OutLayerTee");
   }
 
   console.log("\n-- Posting winners only --");
@@ -1098,12 +1108,69 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));
 }
 
+/** The price delay (`docs/decisions/0020`), on a world of its own: an hour's delay, rounds two hours apart at most, a six-hour posting grace. */
+async function delayed(): Promise<void> {
+  console.log("\n-- A round seen before it lands (price_delay_secs) --");
+  const DELAY = 3600;
+  const cfg = (over: Record<string, unknown>) => (recorder: string, treasury: string) => ({ ...VM_CONFIG(recorder, treasury), ...over });
+  const why = async (over: Record<string, unknown>) => vmWorld(undefined, undefined, cfg(over)).then(() => "ACCEPTED", (e) => String((e as Error).message));
+  // VM_CONFIG: a 6 h grace and a 2 h gap, so the grace outlasts twice the gap by under 2 h.
+  check("new refuses a posting grace that doesn't outlast twice the round gap and the price delay", (await why({ price_delay_secs: 2 * 3600 })).includes("price delay"), await why({ price_delay_secs: 2 * 3600 }));
+  check("new refuses a window longer than its 32-bit mask of known epochs", (await why({ max_window_epochs: 33 })).includes("1 to 32"), await why({ max_window_epochs: 33 }));
+  check("and a window of no epochs", (await why({ max_window_epochs: 0 })).includes("1 to 32"));
+  const w = await vmWorld(undefined, undefined, cfg({ price_delay_secs: DELAY }));
+  const carol = await w.fund("carol", near(50));
+  await w.rounds();
+  const hon = await newTrader(w, "honest-delayed", "delay-a");
+  const fr = await newTrader(w, "front-runner", "delay-b");
+  const e = await nextEpoch(w);
+  // Both write the same trade. One second later a round lands at a price they could have read in the source chain's mempool; the next round, past the delay, differs.
+  for (const t of [hon, fr]) accepted(`${t === hon ? "an honest trader" : "a front-runner"} writes a long`, await t.write(trade(0, 2, "long")));
+  accepted("a round one second later: the one a mempool watcher already knew", await w.roundAt(0, 2000_00000000n));
+  w.chain.vm.advance(DELAY * 1000);
+  accepted("the first round past the delay", await w.roundAt(0, 2100_00000000n));
+  await closeEpoch(w, e);
+  const figH = await hon.figure(e, w.prices);
+  // The same replay with no delay: what the rule was before, and what a trader who knew his fill would post.
+  const p0 = new Prices(w.chain);
+  await p0.load();
+  p0.delayMs = 0;
+  const known = await fr.figure(e, p0);
+  check("the two rules give different figures here", known.pnl_e6 !== figH.pnl_e6 && known.openings[0].price_index + 1 === figH.openings[0].price_index, `known fill ${known.pnl_e6}, delayed ${figH.pnl_e6}`);
+  accepted("the honest trader posts the delayed figure", await hon.post(e, figH.pnl_e6));
+  accepted("the front-runner posts the figure at the fill he knew", await fr.post(e, known.pnl_e6));
+  const op = await w.chain.call(carol, "audit_open", { trader: hon.account, epoch: e }, near("0.5"));
+  refused("KNOWN FILL: a round inside the delay can't price the trade", await w.chain.call(carol, "audit_step", { audit: Number(op.value), openings: [{ ...figH.openings[0], price_index: known.openings[0].price_index }] }), "wrong price hint");
+  accepted("the round past the delay does", await w.chain.call(carol, "audit_step", { audit: Number(op.value), openings: figH.openings }));
+  const vh = await w.chain.call(carol, "audit_conclude", { audit: Number(op.value), mark_indices: figH.mark_indices });
+  check("the honest figure stands, and the mark waits out the delay too", vh.ok && vh.value.trader_at_fault === false, vh.value?.detail ?? vh.reason ?? "");
+  const figF = await fr.figure(e, w.prices);
+  const vf = await runAudit(w.chain, carol, fr.account, e, figF);
+  check("KNOWN FILL: the figure priced at the round he already knew is false, and slashes", vf.verdict.ok && vf.verdict.value.trader_at_fault === true, vf.verdict.value?.detail ?? vf.verdict.reason ?? "");
+  // No round at all after the delay: void only once the delay and twice the gap have passed.
+  const late = await newTrader(w, "late", "delay-c");
+  const e2 = await nextEpoch(w);
+  accepted("a trade with no round after it", await late.write(trade(1, 1, "quiet feed")));
+  w.chain.vm.advance((DELAY + 2 * 2 * 3600) * 1000 - 60_000);
+  await w.prices.load();
+  let early = "";
+  try { await late.figure(e2, w.prices); } catch (x) { early = String((x as Error).message); }
+  check("its figure can't be known until the delay and twice the gap are over", early.includes("no round after"), early);
+  w.chain.vm.advance(120_000);
+  await w.prices.load();
+  const voided = await late.figure(e2, w.prices);
+  check("after that the trade is void, and the figure is zero", voided.trades[0].priceE8 === null && voided.pnl_e6 === 0n, `${voided.pnl_e6}`);
+  const s = await w.chain.view("solvency");
+  check("solvency holds: after the delayed audits", BigInt(s.slack) >= 0n);
+}
+
 const started = Date.now();
 const w = SANDBOX ? await sandboxWorld() : await vmWorld();
 console.log(`Attack suite on ${SANDBOX ? "a local NEAR sandbox node" : "the local wasm host (the real contract, no gas metering)"}.`);
 try {
   await run(w);
   if (!SANDBOX) await vmOnly(w as any);
+  if (!SANDBOX) await delayed();
 } catch (e) {
   check("the suite ran to the end", false, String((e as Error).stack ?? e));
 }

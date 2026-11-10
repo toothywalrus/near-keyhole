@@ -229,6 +229,7 @@
   "sha256": "8d6385fd2c0632934f30e90e8d3c41c293e77a85d99fb5bc179cb76c5e7313d0",
   "code_hash": "AWvWFjMtUXJfuQXt3Ed1afCXR3MKLrDGBGwR83SdX1nF",
   "source_commit": "a23a06c",
-  "built": "res/keyhole.wasm at a23a06c (git show a23a06c:res/keyhole.wasm)"
+  "built": "res/keyhole.wasm at a23a06c (git show a23a06c:res/keyhole.wasm)",
+  "ahead": "request_attested sends OutLayer's resource limits as numbers; a price delay (price_delay_secs); a weaker attestation label can't replace a stronger one; max_window_epochs is bounded"
  }
 }

@@ -26,7 +26,7 @@ const STORAGE = near("0.01");
 
 export type Config = {
   slot_secs: number; epoch_slots: number; post_grace_secs: number; delivery_lead_secs: number; delivery_grace_secs: number; catchup_grace_secs: number; min_price: string;
-  challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; min_bond: string; min_coverage_bps: number; prover_bps: number; penalty_bps: number;
+  challenge_secs: number; unbond_secs: number; max_round_gap_secs: number; price_delay_secs?: number; min_bond: string; min_coverage_bps: number; prover_bps: number; penalty_bps: number;
   max_window_epochs: number; min_dispute: string; audit_bond: string; recorder: string | null;
   /** The protocol's cut of a closed sale, in basis points, and who receives it. Absent from a config written before the fee: no fee. */
   fee_bps?: number; treasury?: string | null;
@@ -63,12 +63,15 @@ export function firstRoundAtOrAfter(rounds: Round[], at: number): number {
 export class Prices {
   rounds: Round[][] = [];
   gapMs = 0;
+  /** `price_delay_secs`: pricing starts this long after an entry, or after an epoch's end. */
+  delayMs = 0;
   nowMs = 0;
   constructor(private chain: Chain) {}
   async load(): Promise<void> {
     const feeds = await this.chain.view<{ rounds: number }[]>("get_feeds");
     const cfg = await this.chain.view<Config>("get_config");
     this.gapMs = cfg.max_round_gap_secs * 1000;
+    this.delayMs = (cfg.price_delay_secs ?? 0) * 1000;
     this.nowMs = await this.chain.nowMs();
     this.rounds = [];
     for (let f = 0; f < feeds.length; f++) {
@@ -88,8 +91,9 @@ export class Prices {
  * The contract's price rule: the first round at or after a moment. `price: null` means void: that round came too late, or none came and the wait is over. Before
  * the wait is over with no round, the figure can't be known yet, and this throws. `index` is the hint the contract wants, even when void.
  */
-export function priceOf(prices: Prices, feed: number, at: number): { index: number; price: bigint | null } {
+export function priceOf(prices: Prices, feed: number, moment: number): { index: number; price: bigint | null } {
   const rounds = prices.rounds[feed];
+  const at = moment + prices.delayMs;
   const i = firstRoundAtOrAfter(rounds, at);
   if (i < 0) {
     if (prices.nowMs <= at + 2 * prices.gapMs) throw new Error(`no round after ${at} on feed ${feed} yet`);

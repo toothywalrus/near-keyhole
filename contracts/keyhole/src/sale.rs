@@ -210,6 +210,8 @@ impl Keyhole {
             self.refund_undelivered(k);
             return "refunded".to_string();
         }
+        // A holder who took the token by plain transfer and never registered a key gave the trader nobody to deliver to. That window settles like a delivered one.
+        // Refunding it instead would let a buyer park money in windows he never means to read and tie up a trader's bond coverage for free.
         let holder_absent = k.state == TokenState::Pending;
         require!(k.state == TokenState::Delivered || holder_absent, "this window can't be settled");
         let price = k.price.0;
