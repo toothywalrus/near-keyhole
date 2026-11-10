@@ -53,9 +53,9 @@ Attach `caught.png`.
 > The key sale has no operator. If the trader sends a garbage key, the buyer reveals a one-time secret, and the contract itself runs x25519 and ChaCha20 to check the delivery. It refunds the buyer and slashes the trader, for about 10 Tgas.
 
 **5/** Attacks refused
-> We tried to break it 337 ways: garbage key, backdated entry, deleted loser, window overreach, resale replay, a lie about PnL. Every one is refused.
+> We tried to break it 353 ways: garbage key, backdated entry, deleted loser, window overreach, resale replay, a lie about PnL. Every one is refused.
 >
-> `npm run attack` runs them in about 15 s.
+> `npm run attack` runs them in about 20 s.
 
 **6/** Being honest about it
 > Not the first copy-trading build here. NOVA shipped one on mainnet, with a TEE that rotates keys. Keyhole is a different bet: no TEE, no revocation, and the PnL can be challenged before you pay.
@@ -71,7 +71,7 @@ Attach `caught.png`.
 
 1. **"Try to open it anyway"**: every key the window allows, failing on the next day's entry. Caption: *"This is what a revoked key looks like when nobody has to revoke it."*
 2. **The lying trader caught:** the board, the recompute in the tab, Prove it, the bond slashed. Caption: the figures, and "one of these numbers was false."
-3. **The attack suite scrolling:** `npm run attack` ending at 337 refused, then one attack explained in one line.
+3. **The attack suite scrolling:** `npm run attack` ending at 353 refused, then one attack explained in one line.
 
 **Video:** the recording is 1280×720 and 77 s. A 1920×1080 cut is better for X, because NOVA's post was 1080p. `npm run record` re-records it.
 

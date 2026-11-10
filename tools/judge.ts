@@ -3,6 +3,7 @@
 //                               The TypeScript twin, the attack suite and the ledger fuzz on the real contract wasm, then the deployed contract re-read from testnet.
 //   npm run judge -- --offline  the same without the testnet reads (they show as SKIP)
 //   npm run judge:full          also the Rust tests, the suites on a local NEAR node, the web app in a headless browser, and every mutant (about 45 minutes)
+//   npm run judge:full -- --no-mutate   all of that but the mutants (30 minutes or more on their own: npm run mutate; the last log is docs/research/mutation-run.txt)
 // Every step prints its own row the moment it ends, so a run that is cut off still shows what it got. A step whose tool is missing says SKIP and why, never FAIL.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
@@ -11,6 +12,7 @@ import { join } from "node:path";
 
 const FULL = process.argv.includes("--full");
 const OFFLINE = process.argv.includes("--offline");
+const MUTATE = !process.argv.includes("--no-mutate");
 const extraPath = [join(homedir(), ".cargo/bin"), "/opt/homebrew/bin", "/opt/homebrew/opt/rustup/bin"].filter((p) => existsSync(p));
 const repoEnv = { ...process.env, PATH: [...extraPath, process.env.PATH].join(":") };
 type Row = { step: string; ok: boolean | null; detail: string; secs: number };
@@ -173,8 +175,9 @@ if (FULL) {
     add("The web app, driven in a headless browser", r, tally(r.out, /\d+\/\d+ page checks passed/));
   } else skip("The web app in a headless browser", "no Chromium: npx playwright install --with-deps chromium");
 
-  if (has("cargo", "near", "--version")) {
-    r = await tsx(["tools/mutate.ts"], 5400);
+  if (!MUTATE) skip("Mutation check", "--no-mutate; `npm run mutate` runs it alone, and the last full log is docs/research/mutation-run.txt");
+  else if (has("cargo", "near", "--version")) {
+    r = await tsx(["tools/mutate.ts"], 7200);
     add("Mutation check: every security-critical line broken, rebuilt, and caught", r, tally(r.out, /\d+\/\d+ mutants caught/));
   } else skip("Mutation check", "needs cargo-near (cargo install cargo-near); the last full log is docs/research/mutation-run.txt");
 } else {
