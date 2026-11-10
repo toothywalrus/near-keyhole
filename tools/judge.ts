@@ -128,17 +128,20 @@ const chain = (async () => {
   add(step, r, tally(r.out, /\d+\/\d+ chain checks passed/));
 })();
 
+// The three local steps run side by side too: on a 2-CPU box each leaves most of a core idle (they're single-threaded JavaScript), and side by side they
+// finish in about the time of the longest. Each prints its row the moment it ends.
 const tests = readdirSync("lib/test").filter((f) => f.endsWith(".test.ts")).map((f) => `lib/test/${f}`);
-let r = await tsx(["--test", ...tests], 240);
-add("TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded state; a copy trade on the real intents.near wasm", r, tally(r.out, /pass \d+/).replace("pass", "tests passed:"));
-
-r = await tsx(["tools/attack.ts", "--quiet"], 300);
-add("Attack suite on the real contract wasm (local host)", r, tally(r.out, /\d+\/\d+ attack checks passed/));
-
-r = await tsx(["tools/fuzz.ts", "300", "2"], 300);
-add("Ledger fuzz: every yocto re-added after each random operation", r, `${tally(r.out, /\d+ random operations/)}, books balanced`);
-
-await chain;
+const local = [
+  tsx(["--test", ...tests], 420).then((x) => add("TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded state; a copy trade on the real intents.near wasm; key store; mainnet guards", x, tally(x.out, /pass \d+/).replace("pass", "tests passed:"))),
+  tsx(["tools/attack.ts", "--quiet"], 420).then((x) => add("Attack suite on the real contract wasm (local host)", x, tally(x.out, /\d+\/\d+ attack checks passed/))),
+  // 2 x 150 here; `npm run fuzz` does 3 x 700. The ledger is re-added from views after every operation, so the cost grows faster than the count.
+  tsx(["tools/fuzz.ts", "150", "2"], 420).then((x) => add("Ledger fuzz: every yocto re-added after each random operation", x, `${tally(x.out, /\d+ random operations/)}, books balanced`)),
+];
+await Promise.all([...local, chain]);
+// The table keeps one order, whatever finished first.
+const ORDER = ["Testnet", "TypeScript", "Attack", "Ledger"];
+rows.sort((a, b) => ORDER.findIndex((k) => a.step.startsWith(k)) - ORDER.findIndex((k) => b.step.startsWith(k)));
+let r: Awaited<ReturnType<typeof run>>;
 
 if (FULL) {
   if (has("cargo", "--version")) {
