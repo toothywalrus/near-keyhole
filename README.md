@@ -28,7 +28,7 @@ PASS  Ledger fuzz: every yocto re-added after each random operation             
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
 
-(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (18 checks), the web app in a headless browser (42 checks) and the mutation check (100 of 100 mutants caught).
+(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (18 checks), the web app in a headless browser (43 checks) and the mutation check (100 of 100 mutants caught).
 
 ## Status (2026-11-10)
 
@@ -107,7 +107,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 | `npm run verify` | Re-reads the testnet deployment from the chain: code hash, no key on the account, the fee, slashed traders, the hash chain recomputed, feeds' labels, OutLayer's attestation recomputed from its transaction, and the run's transactions on an archival node |
 | `npm test` | The TypeScript twin against the Rust core's vectors, the deflated Sharpe, the seeded state, the key store, the mainnet and redeploy guards, and the next deployment's configuration: 27 tests |
 | `cd contracts && cargo test --release -p keyhole-core --features sha2` | Property tests: a window's nodes read exactly that window and nothing outside it (15 tests) |
-| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 42 checks |
+| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 43 checks |
 | `npm run web`, or `npm run web:build` and serve `web/dist/` | The web app: see below |
 
 ### The web app

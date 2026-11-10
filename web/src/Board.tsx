@@ -50,6 +50,8 @@ export function Board() {
         <TryIt target={target} price={target && !target.slashed ? week(target) : null} />
       </section>
 
+      <LiveStrip run={run} />
+
       <div className="controls">
         <div className="seg" role="group" aria-label="Sort by">
           <span className="seg-label">Sort</span>
@@ -87,8 +89,6 @@ export function Board() {
           );
         })}
       </div>
-
-      <LiveStrip run={run} />
 
       <section className="fineprint">
         <p><b>What this table can't tell you.</b> A journal is what its trader wrote: nothing here shows a trade really happened. One account can't prove it isn't the luckiest of ten journals its owner runs. Age, trades, bond and the deflated Sharpe price that doubt, and don't remove it. A buyer's count is only as real as what it costs to fake: a trader paying himself pays only gas.</p>
