@@ -42,6 +42,8 @@ Contract [`app.near-keyhole-y4ow.testnet`](https://testnet.nearblocks.io/address
 
 Run it yourself on your own deploy with `KEYHOLE_ROOT=<your-account>.testnet npm run demo -- --testnet` (a funded root account, its key in the OS keyring: the macOS keychain, or `secret-tool` on Linux; `npx tsx tools/faucet.ts <name>.testnet` makes one from the public faucet).
 
+**The run's journals keep no secret.** Its traders (vega, lucky, mallory) used the repo's test seeds for their key trees (`tools/world.ts`), which anyone can recompute from the account names, so their entries on the public chain can be opened by any reader of this repository. The run shows the rules working; it isn't a private journal. The OutLayer run's trader below used a random seed from the keyring, and `tools/demo.ts` does the same on testnet from now on, recording `"seeds": "keyring"` in the run's record.
+
 **The first deployment stays on chain as history:** [`app.keyhole-g1zo8i.testnet`](https://testnet.nearblocks.io/address/app.keyhole-g1zo8i.testnet), from 2026-11-05, before the fee, with a full-access key. Its run is [`docs/demo/testnet-run-v1-unlocked.json`](docs/demo/testnet-run-v1-unlocked.json). A new version goes to a new account (`docs/decisions/0017`).
 
 ## In OutLayer's TEE, on testnet
