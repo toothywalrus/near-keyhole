@@ -1106,6 +1106,81 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   c2.vm.mock("oracle.test", () => { throw new Error("oracle down"); });
   const down = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));
+
+  // A feed's first round used to be exempt from "too old to import". A trade written while the feed was empty is void once the wait is over, and a figure
+  // posted on that has been audited as right; an old first round arriving later would price the trade after all and turn the honest figure false.
+  {
+    const c4 = new VmChain("kh4.test", Date.UTC(2026, 9, 31));
+    for (const a of ["o.test", "t.test", "aud.test", "aud2.test"]) c4.vm.fund(a, near(100));
+    accepted("another deployment with one proven feed, and no round on it yet", c4.vm.call("o.test", "new", { owner: "o.test", config: cfg, feeds: [{ symbol: "ETH/USD", source: { BorrowedOracle: { oracle: "oracle.test", pair: "ETH/USD" } } }] }));
+    const t4 = await (await import("../lib/src/client.ts")).Timing.read(c4);
+    const early = new TraderAgent(c4, "t.test", seedOf("first-round"), t4);
+    accepted("a trader on it", await early.register("early", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const e4 = t4.epochOf(await c4.nowMs()) + 1;
+    await c4.advanceTo(t4.epochStart(e4));
+    accepted("a trade while the feed has no round", await early.write(trade(0, 1, "the feed is still empty")));
+    const at4 = await c4.nowMs();
+    const end4 = t4.epochStart(e4 + 1);
+    await c4.advanceTo(end4 + 1000);
+    const p4 = new Prices(c4);
+    await p4.load();
+    const f4 = await early.figure(e4, p4);
+    accepted("no round came in time, so the trade is void and he posts zero", await early.post(e4, f4.pnl_e6));
+    const a4 = await runAudit(c4, "aud.test", "t.test", e4, f4, { bond: near(1) });
+    check("an audit finds that figure right", a4.verdict.ok && a4.verdict.value.trader_at_fault === false && f4.book.void === 1, a4.verdict.value?.detail ?? a4.verdict.reason ?? "");
+    const oracleSays = (t_s: number, answer: string, id: string) => c4.vm.mock("oracle.test", () => ({ pair: "ETH/USD", age_secs: 10, answer, decimals: 8, round_id: id, updated_at: String(t_s), proven_at_ms: "1", chain: "base-sepolia" }));
+    // The oracle's round is from a minute after the trade: almost a day old by now, and it would be the feed's first.
+    oracleSays(Math.floor(at4 / 1000) + 60, "200000000000", "1");
+    const lateFirst = c4.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
+    check("LATE FIRST ROUND: a feed's first round can't be imported old, once the contract was there to price trades by it", lateFirst.ok && lateFirst.value === false && c4.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 }).length === 0, JSON.stringify(lateFirst.value ?? lateFirst.reason));
+    c4.vm.advance(60_000);
+    oracleSays(Math.floor(end4 / 1000) + 30, "230000000000", "2");
+    const fresh = c4.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
+    check("a fresh round is still imported, first or not", fresh.ok && fresh.value === true, JSON.stringify(fresh.value ?? fresh.reason));
+    await p4.load();
+    const again4 = await early.figure(e4, p4);
+    const b4 = await runAudit(c4, "aud2.test", "t.test", e4, again4, { bond: near(1) });
+    check("LATE FIRST ROUND: the figure audited as right is still right, and the honest trader isn't slashed", again4.pnl_e6 === f4.pnl_e6 && b4.verdict.ok && b4.verdict.value.trader_at_fault === false && (await early.record()).status === "Active", b4.verdict.value?.detail ?? b4.verdict.reason ?? "");
+  }
+
+  console.log("\n-- Windows nobody registered a key for, on a trader who misses a figure --");
+  {
+    // A stranger buys windows on a coming epoch and passes each to a second account, which never registers a one-time key: the trader has nobody to deliver to.
+    // If the trader then misses that epoch's figure, each of those windows used to burn half its price from the bond, and the stranger got every yocto back:
+    // the per-window burn that `0015` ended for refused deliveries, by another door.
+    const down = new TraderAgent(w.chain, await w.fund("down", near(200)), seedOf("shared"), w.timing);
+    accepted("an honest trader with a 10 NEAR bond", await down.register("down", { book_usd: 100_000, floor_bps: 1000, base_price: near("0.3"), slope: 0n, bond: near(10) }));
+    const ke = (await nextEpoch(w)) + 3;
+    const parker = await w.fund("parker", near(200));
+    const parked = await w.fund("parked", near(1));
+    const held: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const k = await buy(w, parker, down, ke, ke);
+      const moved = await w.chain.call(parker, "nft_transfer", { receiver_id: parked, token_id: String(k.id) }, 1n);
+      if (!moved.ok) throw new Error(moved.reason);
+      held.push(k.id);
+    }
+    const one = await buy(w, buyer, down, ke, ke);
+    // The trader's agent is down for that epoch: no delivery, no figure.
+    const kt = await w.chain.view<TokenRec>("get_token", { token_id: one.id });
+    await w.chain.advanceTo(Number(kt.settle_at_ms) + 1000);
+    const bond0 = BigInt((await down.record()).bond);
+    const c0 = await creditOf(w, parked);
+    let paid = 0n;
+    for (const id of held) {
+      const s = await w.chain.call(parker, "settle", { token_id: id });
+      if (!s.ok || s.value !== "refunded") throw new Error(`settle: ${s.reason ?? s.value}`);
+      paid += BigInt((await w.chain.view<TokenRec>("get_token", { token_id: id })).price);
+    }
+    const bond1 = BigInt((await down.record()).bond);
+    check("KEYLESS: a window with no key registered goes back whole when its figure is missing", (await creditOf(w, parked)) - c0 === paid, `${(await creditOf(w, parked)) - c0} of ${paid}`);
+    check("KEYLESS: and burns nothing, however many there are: the trader had nobody to deliver to", bond1 === bond0, `burned ${Number((bond0 - bond1) / 10n ** 21n) / 1000} NEAR for five windows`);
+    accepted("the buyer who did register a key is refused a delivery, and claims", await w.chain.call(buyer, "claim_undelivered", { token_id: one.id }));
+    const bond2 = BigInt((await down.record()).bond);
+    check("the refusal itself still burns half that window's price, once for the epoch", bond1 - bond2 === BigInt(kt.price) / 2n, `burned ${Number((bond1 - bond2) / 10n ** 21n) / 1000} NEAR`);
+    check("and the missed epoch is on his record", (await w.chain.view("score", { account: down.account })).missed >= 1);
+    await solvent(w, "after the keyless windows");
+  }
 }
 
 /** The price delay (`docs/decisions/0021`), on a world of its own: an hour's delay, rounds two hours apart at most, a six-hour posting grace. */

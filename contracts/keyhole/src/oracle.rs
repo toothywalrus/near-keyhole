@@ -112,12 +112,13 @@ impl Keyhole {
         require!(answer > 0, "a price is positive");
         let t = p.updated_at.0.saturating_mul(1000);
         let n = self.feeds[feed as usize].rounds;
+        // Too old to import: figures already computed without it must stay right. A feed's first round is exempt only if it is older than this contract: no entry
+        // is that old, so it prices nothing. A later one would price trades already void, and already audited as void, on a feed that was still empty.
+        if (n > 0 || t >= self.genesis_ms) && t + self.config.max_round_gap_secs as u64 * 1000 < self.now_ms() {
+            env::log_str("that round is too old to import");
+            return false;
+        }
         if n > 0 {
-            // Too old to import: figures already computed without it must stay right. A feed's first round is exempt, since nothing was priced before it.
-            if t + self.config.max_round_gap_secs as u64 * 1000 < self.now_ms() {
-                env::log_str("that round is too old to import");
-                return false;
-            }
             let last = self.rounds.get(&Self::key(feed as u32, n as u64 - 1)).cloned();
             if last.map(|l| l.t_ms.0 >= t).unwrap_or(false) {
                 env::log_str("no newer round to import");

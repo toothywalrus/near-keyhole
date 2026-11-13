@@ -221,7 +221,9 @@ impl Keyhole {
         // A missing figure is the trader's doing: it burns. A loss past the floor, truly posted, is just a loss: the buyer gets the escrow back and the bond is
         // untouched, or strangers could buy into a drawdown to burn it (#15). Only a figure that differs from the journal can cost a bond, through an audit.
         if breach == Breach::MissingFigure {
-            let penalty = self.penalty_of(price);
+            // Not for a window nobody registered a key for: the trader had nobody to deliver to, and a stranger could otherwise park any number of such windows on an
+            // epoch and burn half of each from the bond of a trader whose agent was down for it, at no cost to himself. The refund and the record's charge stay.
+            let penalty = if holder_absent { 0 } else { self.penalty_of(price) };
             self.burn(&mut t, penalty);
         }
         let payee = if breached { k.owner.clone() } else { t.account.clone() };

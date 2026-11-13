@@ -107,6 +107,8 @@ const MUTANTS: M[] = [
   { name: "OutLayer's resource limits go as strings", file: `${K}attest.rs`, from: `"max_instructions": o.max_instructions.0,`, to: `"max_instructions": o.max_instructions,` },
   { name: "a fee over the cap is allowed", file: `${K}lib.rs`, from: `if c.fee_bps > MAX_FEE_BPS {`, to: `if false {` },
   { name: "a fee with no treasury is allowed", file: `${K}lib.rs`, from: `if c.fee_bps > 0 && c.treasury.is_none() {`, to: `if false {` },
+  { name: "a keyless window burns the bond when its figure is missing", file: `${K}sale.rs`, from: `let penalty = if holder_absent { 0 } else { self.penalty_of(price) };`, to: `let penalty = self.penalty_of(price);` },
+  { name: "a feed's first round is imported however old it is", file: `${K}oracle.rs`, from: `if (n > 0 || t >= self.genesis_ms) && t + self.config.max_round_gap_secs as u64 * 1000 < self.now_ms() {`, to: `if n > 0 && t + self.config.max_round_gap_secs as u64 * 1000 < self.now_ms() {` },
   { name: "the core's descent reaches outside a node's subtree", file: "core/src/ggm.rs", from: `if shift >= 32 || (to.index >> shift) != from.index {`, to: `if shift >= 32 {` },
   { name: "the PnL rounds toward zero instead of down", file: "core/src/pnl.rs", from: `total_e16.div_euclid(DIV_E10)`, to: `total_e16 / DIV_E10` },
   { name: "the exposure limit is gone", file: "core/src/pnl.rs", from: `if exposure > limit_e16 {\n            return None;\n        }`, to: `let _ = (exposure, limit_e16);` },
