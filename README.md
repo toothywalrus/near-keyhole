@@ -23,12 +23,12 @@ What `npm run judge` ends with (measured in Debian 12 with 2 CPUs and 3 GB: 59 t
 PASS  Testnet: the deployed contract re-read from the chain (views only)        26/26 chain checks passed
 PASS  TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded
       state; a copy trade on the real intents.near wasm; key store; guards     tests passed: 24
-PASS  Attack suite on the real contract wasm (local host)                       354/354 attack checks passed
+PASS  Attack suite on the real contract wasm (local host)                       357/357 attack checks passed
 PASS  Ledger fuzz: every yocto re-added after each random operation             614 random operations, books balanced
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
 
-(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (17 checks), the web app in a headless browser (43 checks) and the mutation check (94 of 94 mutants caught).
+(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (17 checks), the web app in a headless browser (45 checks) and the mutation check (94 of 94 mutants caught).
 
 ## Status (2026-11-10)
 
@@ -93,7 +93,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 |---|---|
 | `npm run judge` | The fast path, about 75 s on 2 CPUs: the table above |
 | `npm run judge:full` | Everything below that runs on this machine, ending in a table: about 17 minutes, plus 11 for the mutants (`--no-mutate` leaves them out) |
-| `npm run attack` | About 30 named attacks, 354 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
+| `npm run attack` | About 30 named attacks, 357 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
 | `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 210 checks (the rest need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas: 29 transactions |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
@@ -106,7 +106,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 | `npm run verify` | Re-reads the testnet deployment from the chain: code hash, no key on the account, the fee, slashed traders, the hash chain recomputed, feeds' labels, OutLayer's attestation recomputed from its transaction, and the run's transactions on an archival node |
 | `npm test` | The TypeScript twin against the Rust core's vectors, the deflated Sharpe, the seeded state, the key store and the mainnet guards: 24 tests |
 | `cd contracts && cargo test --release -p keyhole-core --features sha2` | Property tests: a window's nodes read exactly that window and nothing outside it (15 tests) |
-| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 43 checks |
+| `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 45 checks |
 | `npm run web`, or `npm run web:build` and serve `web/dist/` | The web app: see below |
 
 ### The web app
