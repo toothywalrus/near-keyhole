@@ -31,7 +31,7 @@ Attach `docs/demo/caught.png`: the receipt of the slash.
 > The key sale has no operator. If the trader sends a garbage key, the buyer reveals a one-time secret, and the contract itself runs x25519 and ChaCha20 to check the delivery. It refunds the buyer and slashes the trader, for about 10 Tgas.
 
 **5/** Attacks refused
-> About 30 named attacks, 354 checks: garbage key, backdated entry, deleted loser, window overreach, resale replay, a lie about PnL. Every one is refused.
+> About 30 named attacks, 407 checks: garbage key, backdated entry, deleted loser, window overreach, resale replay, a lie about PnL. Every one is refused.
 >
 > `npm run attack` runs them in about 2 s.
 
@@ -51,6 +51,6 @@ One a day at most, each 60 s or less, 16:9:
 
 1. **"Try to open it anyway"**: every key the window allows, failing on the next day's entry. Caption: *"This is what a revoked key looks like when nobody has to revoke it."*
 2. **The lying trader caught:** the board, the recompute in the tab, Prove it, the bond slashed. Caption: the figures, and "one of these numbers was false."
-3. **The attack suite scrolling:** `npm run attack` ending at 354 checks passed, then one attack explained in one line.
+3. **The attack suite scrolling:** `npm run attack` ending at 407 checks passed, then one attack explained in one line.
 
 `npm run record` re-records the video and the three images from `web/dist`.

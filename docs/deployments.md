@@ -72,7 +72,7 @@ The contract is open to anyone, and a trader whose agent is offline can be made 
 
 ## The next version, built and not deployed
 
-This tree's contract is ahead of the deployed one: the `request_attested` fix, the price delay, the attestation rank and the window bound (`docs/decisions/0021`). `tools/redeploy.ts` puts it on a fresh account, locked, runs the whole flow and the contract's own OutLayer request there, re-points the repo and runs the chain checks. With no confirmation it only prints its plan; it refuses anything but a fresh funded testnet root, and the two roots already used:
+This tree's contract is ahead of the deployed one: the `request_attested` fix, the price delay, the attestation rank and the window bound (`docs/decisions/0021`), and the keyless-window and first-round fixes (`0023`, `0024`). `tools/redeploy.ts` puts it on a fresh account, locked, runs the whole flow and the contract's own OutLayer request there, re-points the repo and runs the chain checks. With no confirmation it only prints its plan; it refuses anything but a fresh funded testnet root, and the two roots already used:
 
 ```
 npx tsx tools/faucet.ts <name>.testnet

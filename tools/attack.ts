@@ -1273,6 +1273,28 @@ async function delayed(): Promise<void> {
   await w.prices.load();
   const voided = await late.figure(e2, w.prices);
   check("after that the trade is void, and the figure is zero", voided.trades[0].priceE8 === null && voided.pnl_e6 === 0n, `${voided.pnl_e6}`);
+  // What the delay doesn't cover (`docs/decisions/0022`): a `Recorded` round is stamped with the moment it was recorded here, whatever its source round is. A recorder
+  // that records the source's latest round again, unchanged, after the delay fills the trade at a price that was public before the entry. The delay bounds a
+  // borrowed feed, whose rounds carry their source's time and can't be imported twice; on a recorded feed it's only as good as the recorder.
+  const stale = await newTrader(w, "stale-fill", "delay-d");
+  const e3 = await nextEpoch(w);
+  const record = (id: string, answer: bigint, updated: string) => w.chain.call(w.recorder, "record_round", { feed: 2, round_id: id, answer_e8: Number(answer), source_updated_at: updated }, near("0.002"));
+  const n2 = (await w.chain.view("get_feeds"))[2].rounds;
+  const A = BigInt((await w.chain.view("get_rounds", { feed: 2, from: n2 - 1, limit: 1 }))[0].answer_e8);
+  accepted("the source's latest round, recorded: public", await record("777", A, "1000"));
+  w.chain.vm.advance(1000);
+  accepted("a long written after it, by a trader who sees the market above the oracle already", await stale.write(trade(2, 100, "the oracle is behind the market")));
+  w.chain.vm.advance(DELAY * 1000 + 5000);
+  accepted("past the delay the recorder records the source's latest again: the same round 777", await record("777", A, "1000"));
+  w.chain.vm.advance(1000);
+  accepted("he writes the sale", await stale.write(trade(2, -100, "out when the oracle catches up")));
+  w.chain.vm.advance(DELAY * 1000 + 5000);
+  accepted("then the source moves, 4% up, to where the market was", await record("778", (A * 104n) / 100n, "5000"));
+  await closeEpoch(w, e3);
+  const figS = await stale.figure(e3, w.prices);
+  accepted("he posts the figure", await stale.post(e3, figS.pnl_e6));
+  const vs = await runAudit(w.chain, carol, stale.account, e3, figS);
+  check("LIMIT, shown: on a recorded feed a round recorded again after the delay fills a trade at a price known before it, and the audit finds the gain right", figS.trades[0].priceE8 === A && figS.pnl_e6 > 0n && vs.verdict.ok && vs.verdict.value.trader_at_fault === false, `bought at ${Number(A) / 1e8}, the round already public; figure ${figS.pnl_e6}`);
   const s = await w.chain.view("solvency");
   check("solvency holds: after the delayed audits", BigInt(s.slack) >= 0n);
 }
