@@ -4,7 +4,7 @@
 // Exits 1 on any failure. KEYHOLE_WASM points it at another build: the mutation check uses that.
 import { hex, sha256, unhex, utf8 } from "../lib/src/bytes.ts";
 import { encryptEntry, entryKey, type Entry } from "../lib/src/entry.ts";
-import { buyerKey, DEPTH, loadEntries, near, NO_SETTLEMENT, Prices, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
+import { buyerKey, DEPTH, firstRoundAtOrAfter, loadEntries, near, NO_SETTLEMENT, Prices, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
 import { commit, cover, Tree } from "../lib/src/ggm.ts";
 import { agent, sandboxWorld, seedOf, VM_CONFIG, vmWorld, type World } from "./world.ts";
 
@@ -1052,6 +1052,34 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     accepted("she posts the zero", await late.post(eL, fl.pnl_e6));
     const a5 = await runAudit(c3, "aud.test", "aud2.test", eL, fl, { bond: near(1) });
     check("and the contract agrees: that round prices nothing", a5.verdict.ok && a5.verdict.value.trader_at_fault === false, a5.verdict.value?.detail ?? a5.verdict.reason ?? "");
+  }
+
+  console.log("\n-- What a stranger with no key can work out (a stated limit, shown) --");
+  {
+    // An entry's time, an epoch's entry count and its posted figure are public, and so are the rounds. For an epoch with ONE trade that is one equation in one
+    // unknown: figure = size x (mark - fill). Nobody needs a key to solve it. The ciphertext still hides the note, the claimed fill and which feed it was,
+    // and nothing is known before the figure is posted, so a copier still needs the window. But a record of single trades is not private after the fact.
+    const quiet = new TraderAgent(w.chain, await w.fund("quiet", near(40)), seedOf("one-trade"), w.timing);
+    accepted("a trader who writes one trade in an epoch", await quiet.register("quiet", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const qe = await nextEpoch(w);
+    await honestEpoch(w, quiet, qe, [trade(1, -0.37, "a short nobody paid to see")]);
+    // The stranger: views only, no key.
+    const row = (await w.chain.view("get_epochs", { account: quiet.account, from: qe, limit: 1 }))[0];
+    const only = (await w.chain.view("get_entries", { account: quiet.account, from: row.first_seq, limit: 1 }))[0];
+    const pub = new Prices(w.chain);
+    await pub.load();
+    const guesses: bigint[] = [];
+    const delay = (w.config.price_delay_secs ?? 0) * 1000;
+    for (let f = 0; f < pub.rounds.length; f++) {
+      const fill = firstRoundAtOrAfter(pub.rounds[f], Number(only.at_ms) + delay);
+      const mark = firstRoundAtOrAfter(pub.rounds[f], w.timing.epochStart(qe + 1) + delay);
+      if (fill < 0 || mark < 0) continue;
+      const move = BigInt(pub.rounds[f][mark].answer_e8) - BigInt(pub.rounds[f][fill].answer_e8);
+      if (move !== 0n) guesses.push((BigInt(row.posted_e6) * 10_000_000_000n) / move);
+    }
+    const near37 = (q: bigint) => q >= -37_000_100n && q <= -36_999_900n;
+    check("LIMIT, shown: with no key, a one-trade epoch's side and size follow from its time, its figure and the public rounds", row.entries === 1 && guesses.some(near37), `candidates, one per feed: ${guesses.map((q) => (Number(q) / 1e8).toFixed(4)).join(", ")}; the trade was -0.3700 on feed 1`);
+    check("which feed it was stays hidden: every feed gives a candidate", guesses.length === pub.rounds.length, `${guesses.length} candidates`);
   }
 
   console.log("\n-- NEP-171 transfer_call --");
