@@ -3,7 +3,7 @@
 //   npm run attack -- --sandbox the core attacks on a real local NEAR node (short epochs, so it takes minutes)
 // Exits 1 on any failure. KEYHOLE_WASM points it at another build: the mutation check uses that.
 import { hex, sha256, unhex, utf8 } from "../lib/src/bytes.ts";
-import { decoyEntry, encryptEntry, entryKey, type Entry } from "../lib/src/entry.ts";
+import { encryptEntry, entryKey, type Entry } from "../lib/src/entry.ts";
 import { buyerKey, DEPTH, firstRoundAtOrAfter, loadEntries, near, NO_SETTLEMENT, Prices, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
 import { commit, cover, Tree } from "../lib/src/ggm.ts";
 import { agent, sandboxWorld, seedOf, VM_CONFIG, vmWorld, type World } from "./world.ts";
@@ -1089,11 +1089,11 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const calm = new TraderAgent(w.chain, await w.fund("calm", near(40)), seedOf("decoys"), w.timing);
     accepted("a trader whose agent writes decoys", await calm.register("calm", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
     const de = await nextEpoch(w);
-    // The same short as above, with three decoys spread over the epoch, a round between each.
-    const plan: [number, Entry][] = [[2, decoyEntry(2)], [7, trade(1, -0.37, "the same short, with company")], [13, decoyEntry(0)], [19, decoyEntry(1)]];
+    // The same short as above, with three decoys spread over the epoch by the agent's own call, a round between each.
+    const plan: [number, Entry | null][] = [[2, null], [7, trade(1, -0.37, "the same short, with company")], [13, null], [19, null]];
     for (const [slot, x] of plan) {
       await w.chain.advanceTo(w.timing.epochStart(de) + slot * w.timing.slotMs);
-      const r = await calm.write(x);
+      const r = x ? await calm.write(x) : await calm.writeDecoy(w.prices.feeds);
       if (!r.ok) throw new Error(`write: ${r.reason}`);
       await w.rounds();
     }
@@ -1101,9 +1101,8 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     const f = await calm.figure(de, w.prices);
     accepted("she posts the figure", await calm.post(de, f.pnl_e6));
     check("DECOYS: they move nothing: one trade counts, the three decoys are void", f.book.applied === 1 && f.book.void === 3, `applied ${f.book.applied}, void ${f.book.void}, figure ${f.pnl_e6}`);
-    const da = await runAudit(w.chain, await w.fund("decoy-auditor", near(10)), calm.account, de, f);
-    check("and an audit that opens every entry, decoys included, finds the figure true", da.verdict.ok && da.verdict.value.trader_at_fault === false, da.verdict.value?.detail ?? da.verdict.reason ?? "");
-    // The stranger, as above: views only, no key. He solves the same equation once per entry, as if each were the only trade.
+    // The stranger, as above: views only, no key, and before anyone audits (an audit puts every entry's key on chain). He solves the same equation once per
+    // entry, as if each were the only trade.
     const row = (await w.chain.view("get_epochs", { account: calm.account, from: de, limit: 1 }))[0];
     const seen = await w.chain.view("get_entries", { account: calm.account, from: row.first_seq, limit: row.entries });
     const pub = new Prices(w.chain);
@@ -1127,6 +1126,8 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
       row.entries === 4 && all.some(near37) && perFeed.every((s) => s.size === row.entries),
       `${row.entries} entries, ${all.length} candidates (${perFeed.map((s) => s.size).join(" / ")} per feed), against ${pub.rounds.length} without decoys; sides among them: ${sides.size === 2 ? "both" : "one only, so the side still shows"}`,
     );
+    const da = await runAudit(w.chain, await w.fund("decoy-auditor", near(10)), calm.account, de, f);
+    check("and an audit that opens every entry, decoys included, finds the figure true (it also makes the epoch public)", da.verdict.ok && da.verdict.value.trader_at_fault === false, da.verdict.value?.detail ?? da.verdict.reason ?? "");
   }
 
   console.log("\n-- NEP-171 transfer_call --");
