@@ -1,7 +1,7 @@
 // The parties, in code that runs in Node and in a browser: a trader's agent, a window holder, an auditor. All the crypto is here; a chain
 // is whatever implements `Chain` (the local wasm host in vm.ts, the sandbox, testnet).
 import { hex, sha256, unhex } from "./bytes.ts";
-import { encryptEntry, entryKey, oneTimeKey, openEntry, unwrapNodes, wrapNodes, type Entry, type OneTime } from "./entry.ts";
+import { decoyEntry, encryptEntry, entryKey, oneTimeKey, openEntry, unwrapNodes, wrapNodes, type Entry, type OneTime } from "./entry.ts";
 import { commit, cover, descend, Tree, type NodeId } from "./ggm.ts";
 import { Book, MAX_FEEDS, pnlE6 } from "./pnl.ts";
 
@@ -194,6 +194,10 @@ export class TraderAgent {
     const { ct, tag } = encryptEntry(leaf, seq, slot, e);
     const r = await this.chain.call(this.account, "commit_entry", { seq: String(seq), slot, ct: hex(ct), tag: hex(tag) }, STORAGE);
     return { ...r, seq, slot };
+  }
+  /** Commit a decoy (`decoyEntry`) on a random feed in the current slot. Call it at moments away from real trades: one that prices at a trade's round hides nothing. */
+  writeDecoy(feeds: number): Promise<Outcome & { seq?: number; slot?: number }> {
+    return this.write(decoyEntry(crypto.getRandomValues(new Uint8Array(1))[0] % feeds));
   }
   keyOf = (e: EntryRec): Uint8Array => entryKey(this.tree.leaf(e.slot), BigInt(e.seq));
   /** The honest figure for an ended epoch. */

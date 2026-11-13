@@ -23,7 +23,7 @@ What `npm run judge` ends with (measured in Debian 12 with 2 CPUs and 3 GB: 59 t
 PASS  Testnet: the deployed contract re-read from the chain (views only)        26/26 chain checks passed
 PASS  TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded
       state; a copy trade on the real intents.near wasm; key store; guards     tests passed: 27
-PASS  Attack suite on the real contract wasm (local host)                       407/407 attack checks passed
+PASS  Attack suite on the real contract wasm (local host)                       412/412 attack checks passed
 PASS  Ledger fuzz: every yocto re-added after each random operation             614 random operations, books balanced
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
@@ -94,7 +94,7 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 |---|---|
 | `npm run judge` | The fast path, about 75 s on 2 CPUs: the table above |
 | `npm run judge:full` | Everything below that runs on this machine, ending in a table: about 17 minutes, plus 11 for the mutants (`--no-mutate` leaves them out) |
-| `npm run attack` | About 30 named attacks, 407 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
+| `npm run attack` | About 30 named attacks, 412 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
 | `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 210 checks (the rest need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas: 29 transactions |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
