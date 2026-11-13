@@ -119,7 +119,10 @@ check("LIVE: and the garbage delivery, the locked account, the windows and a sea
 check("LIVE: it says the page can't act on testnet, and how you can", /holds no key and signs nothing/.test(liveText) && /npm run demo -- --testnet/.test(liveText));
 check("LIVE: a stranger's handle is never shown, only counted", !liveText.includes("NOT-OURS") && /1 other account has registered since/.test(liveText));
 check("LIVE: nor a stranger's account name: a window on his trader is counted, not listed", !liveText.includes("rude-words") && /1 more window was sold on accounts that aren't part of the run/.test(liveText) && (await page.locator(".livebox table.live").nth(1).locator("tbody tr").count()) === 4);
-check("LIVE: it says this run's journals were sealed with seeds anyone can derive, so they show the format and keep no secret", /tree seeds were made from public strings in this repository/.test(liveText));
+// The caveat follows the run's own record: a run made with random seeds from the keyring (tools/demo.ts on testnet, from now on) says "seeds": "keyring", and has none.
+const fromKeyring = JSON.parse(readFileSync(join(root, "testnet-run.json"), "utf8")).seeds === "keyring";
+const caveat = /tree seeds were made from public strings in this repository/.test(liveText);
+check(fromKeyring ? "LIVE: this run's seeds came from the keyring, so the page makes no caveat about its journals" : "LIVE: it says this run's journals were sealed with seeds anyone can derive, so they show the format and keep no secret", fromKeyring ? !caveat : caveat);
 rpcUp = false;
 await page.reload();
 await page.waitForSelector(".proof .verdict.alarm");
