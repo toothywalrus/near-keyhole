@@ -118,6 +118,8 @@ check("LIVE: the proof page shows the liar's slash as the contract recorded it",
 check("LIVE: and the garbage delivery, the locked account, the windows and a sealed journal", /doesn't match its commitment/.test(liveText) && /Locked: nobody can change its code/.test(liveText) && /Refunded to its holder/.test(liveText) && (await page.locator(".livejournal .bar").count()) > 0);
 check("LIVE: it says the page can't act on testnet, and how you can", /holds no key and signs nothing/.test(liveText) && /npm run demo -- --testnet/.test(liveText));
 check("LIVE: a stranger's handle is never shown, only counted", !liveText.includes("NOT-OURS") && /1 other account has registered since/.test(liveText));
+check("LIVE: nor a stranger's account name: a window on his trader is counted, not listed", !liveText.includes("rude-words") && /1 more window was sold on accounts that aren't part of the run/.test(liveText) && (await page.locator(".livebox table.live").nth(1).locator("tbody tr").count()) === 4);
+check("LIVE: it says this run's journals were sealed with seeds anyone can derive, so they show the format and keep no secret", /tree seeds were made from public strings in this repository/.test(liveText));
 rpcUp = false;
 await page.reload();
 await page.waitForSelector(".proof .verdict.alarm");

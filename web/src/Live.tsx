@@ -8,7 +8,7 @@ import { keyCount, type Run, stepOf, view } from "./testnet.ts";
 type Solvency = { obligations: string; balance: string; storage_locked: string; slack: string };
 type Snapshot = {
   at: number; epoch: number; keys: number; feeBps: number; epochSecs: number; solvency: Solvency; supply: number;
-  ours: { role: string; t: TraderRec; epochs: EpochRec[] }[]; others: number; tokens: TokenRec[]; journal: EntryRec[]; journalOf: string;
+  ours: { role: string; t: TraderRec; epochs: EpochRec[] }[]; others: number; tokens: TokenRec[]; otherTokens: number; read: number; journal: EntryRec[]; journalOf: string;
 };
 
 const ROLES: Record<string, string> = { vega: "posts true figures", lucky: "posted a false figure", mallory: "delivered garbage keys" };
@@ -35,11 +35,13 @@ export async function readLive(run: Run): Promise<Snapshot> {
     return { role: name === "enclave" ? "its figure was computed in OutLayer's TEE" : ROLES[name] ?? "", t, epochs: await view<EpochRec[]>(C, "get_epochs", { account, from, limit: 1 }) };
   }));
   const n = Math.min(Number(supply), 12);
-  const tokens = await Promise.all(Array.from({ length: n }, (_, i) => view<TokenRec>(C, "get_token", { token_id: i + 1 })));
+  const all12 = await Promise.all(Array.from({ length: n }, (_, i) => view<TokenRec>(C, "get_token", { token_id: i + 1 })));
   const journalOf = run.traders.vega;
   const journal = journalOf ? await view<EntryRec[]>(C, "get_entries", { account: journalOf, from: "0", limit: 6 }) : [];
   const kept = ours.filter((x): x is NonNullable<typeof x> => x !== null);
-  return { at: Number(clock.now_ms), epoch: clock.epoch, keys, feeBps: cfg.fee_bps ?? 0, epochSecs: cfg.slot_secs * cfg.epoch_slots, solvency, supply: Number(supply), ours: kept, others: all.length - kept.length, tokens, journal, journalOf };
+  // Only windows on the run's own traders are listed. A window on a stranger's trader carries a holder's account name, which is the stranger's own text.
+  const tokens = all12.filter((k) => kept.some((x) => x.t.id === k.trader));
+  return { at: Number(clock.now_ms), epoch: clock.epoch, keys, feeBps: cfg.fee_bps ?? 0, epochSecs: cfg.slot_secs * cfg.epoch_slots, solvency, supply: Number(supply), ours: kept, others: all.length - kept.length, tokens, otherTokens: all12.length - tokens.length, read: all12.length, journal, journalOf };
 }
 
 export function useLive(run: Run | null | undefined): { live: Snapshot | null; err: string | null; retry: () => void } {
@@ -135,7 +137,8 @@ export function Live({ run }: { run: Run }) {
           </tbody>
         </table>
       </div>
-      {live.supply > live.tokens.length ? <p className="note">The first {live.tokens.length} of {live.supply}.</p> : null}
+      {live.otherTokens > 0 ? <p className="note">{live.otherTokens} more {live.otherTokens === 1 ? "window was" : "windows were"} sold on accounts that aren't part of the run. They aren't listed: the names on them are their owners' own text.</p> : null}
+      {live.supply > live.read ? <p className="note">Read: the first {live.read} of {live.supply}.</p> : null}
 
       {live.journal.length ? (
         <>
@@ -143,7 +146,7 @@ export function Live({ run }: { run: Run }) {
           <ol className="journal locked livejournal">
             {live.journal.map((e) => <li key={e.seq}><span className="seq">#{e.seq}</span><span className="when">{when(e.at_ms).slice(5, 16)}</span><Bar ct={e.ct} label="sealed" /></li>)}
           </ol>
-          <p className="note">Ciphertext, a number and the block's time: all anyone without a key can read, on the real chain as in this tab.</p>
+          <p className="note">Ciphertext, a number and the block's time: all anyone without a key can read, on the real chain as in this tab.{run.seeds === "keyring" ? "" : " This run's traders are fixtures, though: their tree seeds were made from public strings in this repository, so anyone who reads it can open these journals. A real trader's seed is random and stays on his machine."}</p>
         </>
       ) : null}
       <p className="livefoot">
