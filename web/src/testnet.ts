@@ -7,6 +7,8 @@ export type Run = {
   steps: { what: string; tx?: string; tgas?: number; note?: string }[];
   traders: Record<string, string>;
   outlayer?: { trader: string; epoch: number; direct?: { request_tx: string; request_id: number } };
+  /** "keyring": the run's traders made random tree seeds and kept them. Absent: the seeds were test seeds, derived from public strings in the repo. */
+  seeds?: string;
 };
 
 let loading: Promise<Run | null> | null = null;

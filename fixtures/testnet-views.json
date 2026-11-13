@@ -33,7 +33,7 @@
   "storage_locked": "4443230000000000000000000",
   "slack": "816970849222112700000000"
  },
- "nft_total_supply": "4",
+ "nft_total_supply": "5",
  "view_access_key_list": [],
  "list_traders{\"from\":0,\"limit\":100}": [
   {
@@ -409,5 +409,26 @@
    "tag": "43018641a5e6258a4ebefe0d63f738cba5492c6c17df6d6f73cdb08b9c5eeb56",
    "head": "3564abea907a32877fa729e43b019908aa872f2fa0e7582b41c90650f514d12d"
   }
- ]
+ ],
+ "get_token{\"token_id\":5}": {
+  "id": 5,
+  "trader": 4,
+  "first_epoch": 1,
+  "last_epoch": 1,
+  "first_slot": 9,
+  "last_slot": 17,
+  "owner": "rude-words-here.testnet",
+  "price": "12000000000000000000000",
+  "buyer_pub": "f5a5e906268bfb171ba2207a17778d7a49fcca256e435a7d76c82ebfd6e57e73",
+  "state": "Pending",
+  "bought_ms": "1794292996766",
+  "deliver_by_ms": "1794293596766",
+  "settle_at_ms": "1794293836766",
+  "resale_price": null,
+  "eph": null,
+  "wrapped": [],
+  "commits": [],
+  "disputes_lost": 1,
+  "known_mask": 1
+ }
 }
