@@ -1,5 +1,5 @@
 // GGM window keys: the TypeScript twin of contracts/core/src/ggm.rs, held to it by fixtures/vectors.json.
-import { equal, sha256, utf8 } from "./bytes.ts";
+import { equal, hex, sha256, utf8 } from "./bytes.ts";
 
 const GGM = utf8("keyhole/ggm/v1");
 const COMMIT = utf8("keyhole/c/v1");
@@ -45,10 +45,26 @@ export function cover(first: number, last: number, depth: number): NodeId[] {
 }
 
 /** The whole tree of one trader. 2^(depth+1) nodes; at depth 16 about 0.3 s and 8 MB. */
+/**
+ * The last few trees built, by seed. A whole tree is about 400,000 SHA-256s, and the suites make dozens of traders from one test seed; a tree never
+ * changes once built, so they can share it. Only a few are kept: a depth-16 tree is tens of megabytes.
+ */
+const BUILT = new Map<string, { nodes: Uint8Array[][]; merkle: Uint8Array[][] }>();
+const KEEP = 4;
+
 export class Tree {
-  readonly nodes: Uint8Array[][] = [];
-  readonly merkle: Uint8Array[][] = [];
+  readonly nodes: Uint8Array[][];
+  readonly merkle: Uint8Array[][];
   constructor(readonly seed: Uint8Array, readonly depth: number) {
+    const key = `${depth}:${hex(seed)}`;
+    const hit = BUILT.get(key);
+    if (hit) {
+      BUILT.delete(key);
+      BUILT.set(key, hit);
+      this.nodes = hit.nodes;
+      this.merkle = hit.merkle;
+      return;
+    }
     this.nodes = [[seed]];
     for (let l = 0; l < depth; l++) {
       const below: Uint8Array[] = new Array(2 ** (l + 1));
@@ -63,6 +79,8 @@ export class Tree {
     for (let l = depth - 1; l >= 0; l--) {
       this.merkle[l] = this.nodes[l].map((v, i) => mInner(commit(v), this.merkle[l + 1][i * 2], this.merkle[l + 1][i * 2 + 1]));
     }
+    BUILT.set(key, { nodes: this.nodes, merkle: this.merkle });
+    if (BUILT.size > KEEP) BUILT.delete(BUILT.keys().next().value!);
   }
   get root(): Uint8Array {
     return this.merkle[0][0];

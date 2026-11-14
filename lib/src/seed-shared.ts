@@ -6,6 +6,7 @@ import { near, type Config } from "./client.ts";
 export const CONTRACT = "keyhole.local";
 export const RECORDER = "recorder.local";
 export const OWNER = "owner.local";
+export const TREASURY = "treasury.local";
 export const YOU = "you.local";
 /** wNEAR's price in a live 1Click dry quote on 2026-11-05: 2000 USDC for 498.17 wNEAR. Only for showing a bond next to a dollar figure. */
 export const NEAR_USD = 4.01;
@@ -15,7 +16,7 @@ export const demoSeed = (handle: string): Uint8Array => sha256(utf8(`keyhole dem
 export const SEED_CONFIG = (recorder: string): Config => ({
   slot_secs: 3600, epoch_slots: 24, post_grace_secs: 62 * 3600, delivery_lead_secs: 6 * 3600, delivery_grace_secs: 12 * 3600, catchup_grace_secs: 48 * 3600, min_price: near("0.01").toString(),
   challenge_secs: 70 * 3600, unbond_secs: 30 * 86400, max_round_gap_secs: 30 * 3600, min_bond: near(5).toString(), min_coverage_bps: 5000, prover_bps: 4000,
-  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.1").toString(), audit_bond: near(2).toString(), recorder,
+  penalty_bps: 5000, max_window_epochs: 31, min_dispute: near("0.1").toString(), audit_bond: near(2).toString(), recorder, fee_bps: 500, treasury: TREASURY,
 });
 
 export const FEED_INITS = [

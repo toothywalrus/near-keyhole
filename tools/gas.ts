@@ -6,7 +6,7 @@ import { agent, sandboxWorld, FAST_CONFIG } from "./world.ts";
 import { tgas } from "./nearkit.ts";
 
 const N = Number(process.env.N ?? 260);
-const long = (r: string): Config => ({ ...FAST_CONFIG(r), slot_secs: 60, epoch_slots: 10, post_grace_secs: 600, challenge_secs: 900 });
+const long = (r: string, t: string): Config => ({ ...FAST_CONFIG(r, t), slot_secs: 60, epoch_slots: 10, post_grace_secs: 600, challenge_secs: 900 });
 const w = await sandboxWorld(long);
 const account = await w.fund("heavy", near(60));
 const t = agent(w, account, "heavy");

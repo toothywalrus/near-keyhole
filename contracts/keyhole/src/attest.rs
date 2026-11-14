@@ -87,7 +87,8 @@ impl Keyhole {
             .with_unused_gas_weight(1)
             .request_execution(
                 json!({ "WasmUrl": { "url": o.wasm_url, "hash": o.wasm_hash, "build_target": "wasm32-wasip2" } }),
-                Some(json!({ "max_instructions": o.max_instructions, "max_memory_mb": 64, "max_execution_seconds": o.max_execution_seconds })),
+                // Numbers, not U64's strings: outlayer.testnet's `ResourceLimits` takes `u64`, and refused a string on 2026-11-10 ("invalid type: string").
+                Some(json!({ "max_instructions": o.max_instructions.0, "max_memory_mb": 64, "max_execution_seconds": o.max_execution_seconds.0 })),
                 Some(json!({ "contract": env::current_account_id(), "trader": who, "epoch": epoch, "rpc": o.rpc }).to_string()),
                 secrets_ref,
                 Some("Json".into()),
@@ -142,7 +143,20 @@ impl Keyhole {
         } else {
             require!(t.head == out.head || t.next_seq.0 == 0, "the job read another journal");
         }
+        // A weaker label never replaces a stronger one: a local runner can't erase what an enclave reported.
+        if let Some(old) = &rec.attested {
+            require!(rank(&kind) >= rank(&old.kind), "this epoch already carries a figure from a stronger source");
+        }
         rec.attested = Some(Attested { kind, via, pnl_e6: out.pnl_e6, job_sha256: out.job_sha256, at_ms: U64(self.now_ms()) });
         self.epochs.insert(Self::key(id, out.epoch as u64), rec);
+    }
+}
+
+/// How much a label says: a local run, a stand-in's callback, OutLayer's own.
+fn rank(k: &AttestKind) -> u8 {
+    match k {
+        AttestKind::SimulatedLocal => 0,
+        AttestKind::OutLayerStandIn => 1,
+        AttestKind::OutLayerTee => 2,
     }
 }

@@ -191,9 +191,9 @@ try {
 } catch (e) {
   check("the copy path ran to the end", false, String((e as Error).stack ?? e));
 }
-sb.stop();
 const bad = results.filter((r) => !r.ok);
 console.log(`\n${results.length - bad.length}/${results.length} copy checks passed`);
+sb.stop();
 process.exit(bad.length ? 1 : 0);
 
 function hexToBytes(h: string): Uint8Array {

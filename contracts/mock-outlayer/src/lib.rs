@@ -31,6 +31,29 @@ pub struct Request {
     pub data_id: Vec<u8>,
 }
 
+/// OutLayer's own argument types, field for field (out-layer/outlayer contract/src/lib.rs, read 2026-11-10), so a call the real contract would refuse
+/// fails here too: on 2026-11-10 outlayer.testnet refused limits sent as strings ("invalid type: string"), which a mock taking `Value` had let through.
+#[near(serializers = [json])]
+pub struct ResourceLimits {
+    pub max_instructions: Option<u64>,
+    pub max_memory_mb: Option<u32>,
+    pub max_execution_seconds: Option<u64>,
+}
+
+#[near(serializers = [json])]
+pub struct SecretsReference {
+    pub profile: String,
+    pub account_id: AccountId,
+}
+
+#[near(serializers = [json])]
+#[derive(PartialEq)]
+pub enum ResponseFormat {
+    Bytes,
+    Text,
+    Json,
+}
+
 /// OutLayer's ExecutionResponse, the fields Keyhole' path needs.
 #[near(serializers = [json])]
 pub struct ExecutionResponse {
@@ -61,16 +84,17 @@ impl MockOutLayer {
     pub fn request_execution(
         &mut self,
         source: Value,
-        resource_limits: Option<Value>,
+        resource_limits: Option<ResourceLimits>,
         input_data: Option<String>,
-        secrets_ref: Option<Value>,
-        response_format: Option<String>,
+        secrets_ref: Option<SecretsReference>,
+        response_format: Option<ResponseFormat>,
         payer_account_id: Option<AccountId>,
         params: Option<Value>,
     ) {
         let _ = (resource_limits, secrets_ref, payer_account_id, params);
-        require!(source.get("WasmUrl").is_some(), "this mock takes a WasmUrl source");
-        require!(response_format.as_deref() == Some("Json"), "this mock answers Json");
+        let hash = source.get("WasmUrl").and_then(|w| w.get("hash")).and_then(|h| h.as_str()).unwrap_or_else(|| env::panic_str("this mock takes a WasmUrl source"));
+        require!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()), "the hash is 64 lowercase hex, as OutLayer checks");
+        require!(response_format == Some(ResponseFormat::Json), "this mock answers Json");
         require!(env::attached_deposit().as_yoctonear() >= 10_000_000_000_000_000_000_000, "attach at least 0.01 NEAR");
         let request_id = self.next_id;
         self.next_id += 1;

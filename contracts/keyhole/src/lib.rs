@@ -31,6 +31,8 @@ use types::{checked_add, checked_sub};
 /// The depth of every trader's tree: 65,536 slots. At one hour a slot, 7.5 years.
 pub const DEPTH: u8 = 16;
 pub const MAX_HANDLE: usize = 32;
+/// The most the protocol can take of a sale: 20%. Set once at `new`, like everything in `Config`.
+pub const MAX_FEE_BPS: u32 = 2_000;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -86,6 +88,17 @@ pub struct Config {
     pub max_round_gap_secs: u32,
     /// Who may record replayed rounds into `Recorded` feeds. Absent on a deployment with only proven feeds.
     pub recorder: Option<AccountId>,
+    /// The protocol's cut of a sale, in basis points of its price, at most `MAX_FEE_BPS`: of a window's escrow when it goes to the trader, and of a resale's ask.
+    /// A refunded window carries no fee, and no fee ever comes from a bond (`docs/decisions/0016`). Absent from JSON written before the fee: no fee.
+    #[serde(default)]
+    pub fee_bps: u32,
+    /// Who the fee is credited to. Required when `fee_bps` isn't zero, and never the contract itself, which could never withdraw it.
+    pub treasury: Option<AccountId>,
+    /// A trade is priced at the first round at least this long after its entry, and an epoch is marked the same way after its end. On a live feed a round's answer is public
+    /// before the round's own timestamp (it waits in the source chain's mempool), so with no delay a trader can commit an entry already knowing its fill
+    /// (`docs/decisions/0019`). Set it above the source chain's worst inclusion time. Absent from JSON written before it: no delay.
+    #[serde(default)]
+    pub price_delay_secs: u32,
 }
 
 #[near(serializers = [borsh, json])]
@@ -237,6 +250,20 @@ pub struct Keyhole {
     pub(crate) obligations: u128,
 }
 
+/// The fee's rules, apart from `new` so that a unit test can check them without a panic.
+pub(crate) fn fee_rule(c: &Config, contract: &AccountId) -> Option<&'static str> {
+    if c.fee_bps > MAX_FEE_BPS {
+        return Some("fee_bps is at most 2000");
+    }
+    if c.fee_bps > 0 && c.treasury.is_none() {
+        return Some("a fee needs a treasury");
+    }
+    if c.treasury.as_ref() == Some(contract) {
+        return Some("the treasury can't be the contract: nothing could ever withdraw its fees");
+    }
+    None
+}
+
 #[near]
 impl Keyhole {
     #[init]
@@ -244,10 +271,15 @@ impl Keyhole {
         require!(config.slot_secs > 0 && config.epoch_slots > 0, "a slot and an epoch can't be empty");
         require!(config.prover_bps <= 10_000, "prover_bps is at most 10000");
         require!(config.max_round_gap_secs > 0, "the round gap can't be zero");
-        // An oracle outage can hold a figure up for twice the round gap (`price_at`): the grace must outlast it, or an honest trader would lapse.
-        require!(config.post_grace_secs as u64 > 2 * config.max_round_gap_secs as u64, "the posting grace must outlast twice the round gap");
+        // An oracle outage can hold a figure up for the price delay and twice the round gap (`price_at`): the grace must outlast it, or an honest trader would lapse.
+        require!(config.post_grace_secs as u64 > 2 * config.max_round_gap_secs as u64 + config.price_delay_secs as u64, "the posting grace must outlast twice the round gap and the price delay");
+        // `known_mask` has one bit per epoch of a window.
+        require!(config.max_window_epochs >= 1 && config.max_window_epochs <= 32, "max_window_epochs is 1 to 32");
         require!(config.challenge_secs > config.post_grace_secs, "the challenge window must outlast the posting grace, so a missed figure is known before the escrow is released");
         require!(!feeds.is_empty() && feeds.len() <= keyhole_core::pnl::MAX_FEEDS, "1 to 4 feeds");
+        if let Some(why) = fee_rule(&config, &env::current_account_id()) {
+            env::panic_str(why);
+        }
         let feeds = feeds.into_iter().map(oracle::Feed::from_init).collect();
         Self {
             owner,

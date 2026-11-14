@@ -1,4 +1,8 @@
-Mutating 85 security-critical lines. The attack suite must notice each.
+
+> mutate
+> tsx tools/mutate.ts
+
+Mutating 102 security-critical lines. The attack suite must notice each.
 
 ✓ caught: dispute_wrap accepts a secret that isn't the buyer's key       by "dispute: a wrong secret proves nothing and is refused" and 5 more
 ✓ caught: dispute_wrap slashes when the node matches, not when it doesn't by "GARBAGE KEY: the contract unwraps, compares and slashes" and 7 more
@@ -7,21 +11,21 @@ Mutating 85 security-critical lines. The attack suite must notice each.
 ✓ caught: commit_entry takes any number                                  by "deleted loser: skipping a number is refused" and 21 more
 ✓ caught: the audit accepts a figure one unit off                        by "OFF BY ONE: a difference of one unit slashes"
 ✓ caught: a price hint needn't be the first round after the trade        by "audit: a price hint past the first round after the trade is refused" and 2 more
-✓ caught: withdraw doesn't clear the credit                              by "a second withdrawal finds nothing: ACCEPTED" and 1 more
+✓ caught: withdraw doesn't clear the credit                              by "a second withdrawal finds nothing: ACCEPTED" and 2 more
 ✓ caught: commit_entry lets an entry into an epoch that's over           by "an entry for the last slot of the epoch that just ended is refused: AC"
 ✓ caught: post_epoch takes a figure before the epoch ends                by "a figure before the epoch has ended is refused: ACCEPTED" and 1 more
-✓ caught: post_epoch takes a figure after the grace                      by "LAPSE: a figure after the grace is refused" and 3 more
+✓ caught: post_epoch takes a figure after the grace                      by "LAPSE: a figure after the grace is refused" and 4 more
 ✓ caught: buy_window takes a low-order one-time key                      by "a low-order one-time key is refused at purchase: ACCEPTED"
 ✓ caught: deliver takes a low-order ephemeral key                        by "a low-order ephemeral key is refused: ACCEPTED" and 2 more
 ✓ caught: anyone can deliver                                             by "delivery by anyone but the trader is refused: ACCEPTED" and 9 more
-✓ caught: delivery before the window is near is allowed                  by "delivering too early is refused: until then the token can be resold" and 12 more
+✓ caught: delivery before the window is near is allowed                  by "delivering too early is refused: until then the token can be resold" and 13 more
 ✓ caught: delivery after the deadline is allowed                         by "delivering after the deadline is refused: ACCEPTED" and 4 more
 ✓ caught: a bond needn't cover a sale                                    by "COVERAGE: a sale the bond can't cover is refused"
 ✓ caught: a settled window's escrow can be taken twice                   by "settling twice is refused: amount underflow" and 2 more
 ✓ caught: settle before the challenge window ends                        by "settling before the challenge window ends is refused: ACCEPTED" and 2 more
 ✓ caught: anyone can claim someone's refund                              by "nobody else can claim his escrow: ACCEPTED" and 2 more
-✓ caught: a refused delivery pays its penalty to the holder instead of burning it by "the refund is the whole price and not a yocto more: the penalty burns," and 1 more
-✓ caught: a breached window still pays the trader                        by "the holder gets the whole price, whatever the size of the bond: " and 3 more
+✓ caught: a refused delivery pays its penalty to the holder instead of burning it by "the refund is the whole price and not a yocto more: the penalty burns," and 2 more
+✓ caught: a breached window still pays the trader                        by "the holder gets the whole price, whatever the size of the bond: " and 4 more
 ✓ caught: a missing figure burns nothing                                 by "and a missing figure burns half the price from the bond: that one is h" and 1 more
 ✓ caught: an honest loss past the floor burns the bond                   by "and his bond is untouched: a true loss costs him the sale, never the b" and 1 more
 ✓ caught: a refused epoch's figure still counts                          by "a figure posted after a refusal doesn't count either: {"posted_e6"" and 1 more
@@ -33,7 +37,7 @@ Mutating 85 security-critical lines. The attack suite must notice each.
 ✓ caught: cancelling an audit returns the whole deposit                  by "the auditor can give up: half the deposit back while the trader stands"
 ✓ caught: anyone can cancel someone's audit                              by "nobody can cancel someone else's audit: ACCEPTED" and 1 more
 ✓ caught: a missed epoch costs nothing on the record                     by "SKIPPED LOSER: the missed epoch counts against him, at the worse of hi" and 3 more
-✓ caught: silence after the last figure isn't counted                    by "and silence after his last figure counts too, once the grace is over: "
+✓ caught: silence after the last figure isn't counted                    by "and silence after his last figure counts too, once the grace is over: " and 1 more
 ✓ caught: a refused window costs nothing on the record                   by "SHIELDED FIGURE: a figure he refuses to let anyone check stops countin" and 1 more
 ✓ caught: every refused window burns again, however often its epochs were refused by "OFFLINE: the same epochs refused three times burn once, in proportion "
 ✓ caught: a past window gets the short grace                             by "a window already past gets a longer grace to deliver, for a trader's a"
@@ -41,14 +45,20 @@ Mutating 85 security-critical lines. The attack suite must notice each.
 ✓ caught: a refused loss is voided, laundering it                        by "LAUNDERED LOSS: refusing his own buyer can't raise his record"
 ✓ caught: a near-free price is allowed                                   by "a price below the minimum is refused at registration: ACCEPTED" and 1 more
 ✓ caught: a loss known at purchase makes the window refundable           by "FREE READ: a loss already posted when the window was bought can't make"
-✓ caught: a grace shorter than an oracle outage is allowed               by "ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice "
+✓ caught: a grace shorter than an oracle outage is allowed               by "ORACLE OUTAGE: a deployment whose posting grace doesn't outlast twice " and 5 more
+✓ caught: the posting grace needn't outlast the price delay              by "new refuses a posting grace that doesn't outlast twice the round gap a"
+✓ caught: a trade is priced at a round inside the price delay            by "KNOWN FILL: a round inside the delay can't price the trade" and 3 more
+✓ caught: a window may be longer than its mask of known epochs           by "new refuses a window longer than its 32-bit mask of known epochs: ACCE" and 1 more
+✓ caught: a window on a slashed trader can still be bought from its holder by "SLASHED RESALE: a window on a slashed trader can't be bought from its " and 3 more
+✓ caught: a window on a slashed trader can still be listed               by "nor listed again: ACCEPTED"
+✓ caught: a local run replaces an enclave's figure                       by "DOWNGRADE: a local runner can't replace the enclave's figure" and 2 more
 ✓ caught: a stand-in earns the enclave's label                           by "STAND-IN: a callback from any other contract can't earn the enclave's "
-✓ caught: the floor never triggers                                       by "FLOOR: a window past the floor goes back to its holder" and 4 more
-✓ caught: a missing figure doesn't count as a breach                     by "LAPSE: a window with a missing figure goes back to its holder" and 2 more
+✓ caught: the floor never triggers                                       by "FLOOR: a window past the floor goes back to its holder" and 5 more
+✓ caught: a missing figure doesn't count as a breach                     by "LAPSE: a window with a missing figure goes back to its holder" and 4 more
 ✓ caught: buy_resale keeps the old holder's key                          by "RESALE RACE: a delivery for a key that's no longer the holder's is ref" and 3 more
 ✓ caught: a delivered token can be transferred                           by "once delivery can begin the token can't move: a trader must be able to" and 2 more
 ✓ caught: anyone can transfer a token                                    by "a transfer by someone else is refused: ACCEPTED" and 1 more
-✓ caught: a transfer keeps the old one-time key                          by "the transfer clears the old one-time key: " and 4 more
+✓ caught: a transfer keeps the old one-time key                          by "the transfer clears the old one-time key: " and 6 more
 ✓ caught: anyone can dispute                                             by "dispute: only the holder can dispute" and 4 more
 ✓ caught: a dispute needs no deposit                                     by "dispute_entry: a deposit below the price is refused" and 4 more
 ✓ caught: dispute_wrap needs no deposit                                  by "dispute: a deposit below the price is refused" and 2 more
@@ -58,10 +68,10 @@ Mutating 85 security-critical lines. The attack suite must notice each.
 ✓ caught: dispute_entry slashes when the entry opens                     by "dispute_entry on the entry that does open is dismissed: the entry open" and 4 more
 ✓ caught: anyone can step someone's audit                                by "audit: someone else can't step this audit"
 ✓ caught: an audit concludes with entries unopened                       by "audit: concluding before opening every entry is refused" and 8 more
-✓ caught: a price hint can be before the trade                           by "audit: a price hint before the trade is refused" and 3 more
+✓ caught: a price hint can be before the trade                           by "audit: a price hint before the trade is refused" and 6 more
 ✓ caught: a claim that no round follows needn't be true                  by "audit: a wrong mark hint is refused" and 1 more
 ✓ caught: a claim that no round follows needn't wait                     by "before the wait is over, claiming no round is refused: ACCEPTED" and 1 more
-✓ caught: a round long after the trade still prices it                   by "and the contract agrees: that round prices nothing"
+✓ caught: a round long after the trade still prices it                   by "and the contract agrees: that round prices nothing" and 1 more
 ✓ caught: anyone can record a round                                      by "only the recorder may record rounds: attach 810000000000000000000 yoct" and 1 more
 ✓ caught: rounds can be rewritten in time                                by "ORACLE: a round at the same moment as the last is refused"
 ✓ caught: a failed withdrawal loses the money                            by "FAILED TRANSFER: the credit is restored in full"
@@ -76,14 +86,25 @@ Mutating 85 security-critical lines. The attack suite must notice each.
 ✓ caught: a token that comes back keeps its listing                      by "a receiver that lists it and hands it back leaves no listing behind: f"
 ✓ caught: a slashed trader can be slashed again                          by "a slashed trader can't be slashed twice: ACCEPTED"
 ✓ caught: a bond leaves before the delay                                 by "the bond stays at risk through the delay: ACCEPTED" and 1 more
-✓ caught: a local runner's figure reads as the enclave's                 by "SIMULATED: a local run is labeled as one, by the code path, with no wa" and 1 more
+✓ caught: a local runner's figure reads as the enclave's                 by "SIMULATED: a local run is labeled as one, by the code path, with no wa" and 4 more
 ✓ caught: anyone can report an attested figure                           by "a non-runner can't report an attested figure: not a registered trader"
-✓ caught: buy_window charges no storage                                  by "COVERAGE: a sale the bond can't cover is refused"
+✓ caught: buy_window charges no storage                                  by "an unbonding trader can't sell: bob.test can't afford this" and 1 more
 ✓ caught: record_round charges no storage                                by "a round that doesn't pay for its storage is refused: ACCEPTED"
 ✓ caught: commit_entry charges no storage                                by "an entry that doesn't pay for its storage is refused: ACCEPTED" and 15 more
+✓ caught: a refunded window pays the protocol a fee                      by "the holder gets the whole price, whatever the size of the bond: " and 5 more
+✓ caught: the trader keeps the whole price and the fee comes from nowhere by "anyone can settle: the escrow goes to the trader, less the protocol's " and 2 more
+✓ caught: the fee goes to the trader, not the treasury                   by "anyone can settle: the escrow goes to the trader, less the protocol's " and 3 more
+✓ caught: the fee rounds up                                              by "FEE: a closed sale pays the trader its price less the fee" and 1 more
+✓ caught: a resale pays no fee                                           by "the seller gets the asking price, less the protocol's fee: " and 1 more
+✓ caught: the treasury can be the contract itself                        by "FEE: the treasury can't be the contract itself, which could never with" and 1 more
+✓ caught: OutLayer's resource limits go as strings                       by "REAL OUTLAYER'S TYPES: resource limits are JSON numbers, the source a "
+✓ caught: a fee over the cap is allowed                                  by "FEE CAP: a deployment taking more than 20% of a sale is refused" and 3 more
+✓ caught: a fee with no treasury is allowed                              by "FEE: a fee with nobody to receive it is refused" and 2 more
+✓ caught: a keyless window burns the bond when its figure is missing     by "KEYLESS: and burns nothing, however many there are"
+✓ caught: a feed's first round is imported however old it is             by "LATE FIRST ROUND: a feed's first round can't be imported old, once the" and 1 more
 ✓ caught: the core's descent reaches outside a node's subtree            by "dispute_entry: an entry that isn't under the node is refused" and 2 more
 ✓ caught: the PnL rounds toward zero instead of down                     by "ROUNDING: the contract rounds down too, so the honest figure stands"
 ✓ caught: the exposure limit is gone                                     by "EXPOSURE: the contract agrees to the unit, voids included"
 ✓ caught: an entry's tag isn't checked when opening                      by "audit: a bad key is refused and records nothing" and 13 more
 
-85/85 mutants caught, in 1710 s
+102/102 mutants caught, in 1095 s

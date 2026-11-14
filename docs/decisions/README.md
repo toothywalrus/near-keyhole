@@ -8,7 +8,7 @@ decision per file.
 
 | # | Decision |
 |---|---|
-| [0001](0001-a-repo-of-its-own.md) | Keyhole is its own repo, testnet only; the design comes from near-lab but nothing depends on reading it |
+| [0001](0001-a-repo-of-its-own.md) | Keyhole is its own repo, testnet only; the design comes from a private research repo of ours, and nothing depends on reading it |
 | [0002](0002-the-contract-arbitrates-the-key-sale.md) | The kill test passed (9.50 Tgas), so the contract rules on key sales itself, with two proofs: garbage wrap and a node that opens nothing |
 | [0003](0003-chacha20-with-a-committing-sha256-tag.md) | ChaCha20 plus a committing SHA-256 tag, because Poly1305 lets a trader show the buyer one trade and the contract another |
 | [0004](0004-the-pnl-rule.md) | One PnL rule in exact integers: a trade is priced at the first round after it was written, no carry between epochs, over-limit entries void |
@@ -23,3 +23,13 @@ decision per file.
 | [0013](0013-no-part-of-a-bond-reaches-a-buyer.md) | No part of a bond ever reaches a buyer: refunds come from escrow, penalties and the rest of a slash burn, and a true loss never touches the bond. Gaps and refused figures count against the public figure |
 | [0014](0014-what-is-guaranteed-about-a-journal.md) | A journal is what the trader wrote: a settlement reference is his unverified claim, nothing forces a fill before publishing, and the key covers the journal, not a real confidential trade |
 | [0015](0015-what-a-missed-delivery-costs.md) | A refusal costs what it withheld, once per epoch; past windows get a catch-up grace, and traders can pause; only a refused gain stops counting; a known loss can't make a window refundable; the posting grace outlasts an oracle outage |
+| [0016](0016-a-fee-on-closed-sales-only.md) | The protocol takes `fee_bps` (5% here, at most 20%) of a window sale that closes for the trader, credited to a treasury; refunds go back whole, and no fee comes from a bond |
+| [0017](0017-a-new-deployment-is-locked-in-its-own-first-transaction.md) | A new contract version goes to a fresh account and is deployed, initialised and locked (its only key deleted) in one transaction; the old deployment stays as history |
+| [0018](0018-a-fast-judge-path-and-a-full-one.md) | `npm run judge` is the fast path (no node, no Rust, no browser, testnet re-read included); the local-node suites, Rust tests, page test and mutants are in `npm run judge:full` |
+| [0019](0019-a-round-seen-before-it-lands.md) | On a live feed a round's answer is visible in the source chain's mempool before its timestamp, so a trader can know a fill a few seconds ahead: stated as a limit now (no testnet figure is priced that way), closed in the next version by pricing at a round at least a set delay after the entry |
+| [0020](0020-the-page-reads-the-real-contract-and-holds-no-key.md) | The Proof page reads the deployed testnet contract live with view calls, holds no key and says so; only the recorded run's own accounts are shown by name, since anyone can register a handle on an open contract |
+| [0021](0021-a-trade-is-priced-after-a-delay.md) | The next version's source: a trade is priced at the first round at least `price_delay_secs` after its entry (and an epoch marked the same way), which closes `0019`; a weaker attestation label can't replace a stronger one; `max_window_epochs` is bounded. Not deployed |
+| [0022](0022-the-price-delay-bounds-a-borrowed-feed-not-a-recorded-one.md) | The delay of `0021` bounds a borrowed feed, whose rounds carry their source's time; on a recorded feed it is only as good as the recorder, and the claims say so |
+| [0023](0023-a-window-nobody-could-be-delivered-burns-nothing.md) | A window still pending with no key registered burns nothing when its figure is missing: parked keyless windows could otherwise burn an offline trader's bond once per window, the door `0015` closed for refusals |
+| [0024](0024-a-first-round-older-than-the-contract-only.md) | A feed's first round is exempt from "too old to import" only if it is older than the contract; a later one could price a trade already void and turn an audited figure false |
+| [0025](0025-decoys-hide-a-thin-epochs-trade.md) | A trader's agent can hide a thin epoch's trade among decoys, entries with no quantity that the PnL rule already voids, written at other moments of the epoch: no contract change, and it narrows the "LIMIT, shown" leak without closing it |

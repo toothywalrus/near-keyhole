@@ -3,12 +3,13 @@
 //   - obligations == every bond + every open escrow + every credit + every audit deposit, to the yocto;
 //   - each trader's liability == the sum of the prices of its windows that can still claim;
 //   - balance - storage cost - obligations never goes negative;
+//   - the treasury holds exactly the protocol's fee on every window that closed in its trader's favour and on every resale, and nothing from a refund or a bond;
 //   - nothing traps or under/overflows: every refusal is a sentence from the contract.
 // Run: npm run fuzz [-- <ops per seed> <seeds>]
 import { hex, sha256, utf8 } from "../lib/src/bytes.ts";
 import { buyerKey, loadEntries, near, NO_SETTLEMENT, Prices, replayEpoch, type EpochRec, type Outcome, type TokenRec, type TraderRec, TraderAgent, Timing } from "../lib/src/client.ts";
 import type { OneTime } from "../lib/src/entry.ts";
-import { agent, vmWorld, type World } from "./world.ts";
+import { agent, FEE_BPS, vmWorld, type World } from "./world.ts";
 
 const OPS = Number(process.argv[2] ?? 700);
 const SEEDS = Number(process.argv[3] ?? 3);
@@ -39,7 +40,9 @@ async function runSeed(seed: string): Promise<void> {
   const prices = new Prices(w.chain);
   await w.rounds();
   const pick = <T,>(x: T[]) => x[r(x.length)];
-  const creditAccounts = new Set<string>(accounts);
+  const creditAccounts = new Set<string>([...accounts, w.treasury]);
+  const feeBps = BigInt(w.config.fee_bps ?? 0);
+  let resaleFees = 0n;
 
   const ledger = async (op: string) => {
     const list: TraderRec[] = await w.chain.view("list_traders", { from: 0, limit: 100 });
@@ -51,8 +54,10 @@ async function runSeed(seed: string): Promise<void> {
       liab.set(t.id, 0n);
     }
     let escrow = 0n;
+    let fees = resaleFees;
     for (let id = 1; id < (Number(await w.chain.view("nft_total_supply")) + 1); id++) {
       const k: TokenRec = await w.chain.view("get_token", { token_id: id });
+      if (k.state === "Closed") fees += (BigInt(k.price) * feeBps) / 10_000n;
       if (k.state === "Pending" || k.state === "Delivered") {
         escrow += BigInt(k.price);
         liab.set(k.trader, liab.get(k.trader)! + BigInt(k.price));
@@ -69,6 +74,8 @@ async function runSeed(seed: string): Promise<void> {
     const sum = bonds + escrow + credits + auditDeposits;
     if (BigInt(s.obligations) !== sum) throw new Error(`after ${op}: obligations ${s.obligations} != bonds ${bonds} + escrow ${escrow} + credits ${credits} + audits ${auditDeposits}`);
     if (BigInt(s.slack) < 0n) throw new Error(`after ${op}: slack is negative: ${JSON.stringify(s)}`);
+    const treasury = BigInt(await w.chain.view("credit_of", { account: w.treasury }));
+    if (treasury !== fees) throw new Error(`after ${op}: the treasury holds ${treasury}, and the fees on closed windows add up to ${fees}`);
     for (const t of list) {
       if (BigInt(t.liability) !== liab.get(t.id)) throw new Error(`after ${op}: ${t.handle}'s liability ${t.liability} != ${liab.get(t.id)} from its tokens`);
       // A bond leaves only by burning, to a prover, or by the trader's own withdrawal, which ends the record.
@@ -208,7 +215,10 @@ async function runSeed(seed: string): Promise<void> {
           if (o.ok && who !== tok.owner) {
             const one = buyerKey();
             const b = await w.chain.call(who, "buy_resale", { token_id: k.id, buyer_pub: hex(one.pub) }, near(1));
-            if (b.ok) k.one.set(who, one);
+            if (b.ok) {
+              k.one.set(who, one);
+              resaleFees += (near("0.2") * feeBps) / 10_000n;
+            }
             note("buy_resale", b);
           }
         }
@@ -276,5 +286,5 @@ console.log("Accepted or attempted, by operation:", Object.fromEntries([...cover
 const top = [...refusals].sort((a, b) => b[1] - a[1]).slice(0, 14);
 console.log("Most common refusals:");
 for (const [why, n] of top) console.log(`  ${String(n).padStart(5)}  ${why}`);
-console.log("\nThe books balanced to the yocto after every operation. Every yocto of every bond is accounted for: still bonded, burned, or a prover's share. Nothing trapped or under/overflowed.");
+console.log(`\nThe books balanced to the yocto after every operation. Every yocto of every bond is accounted for: still bonded, burned, or a prover's share. The treasury held exactly the ${FEE_BPS} bps fee on closed windows and resales, and nothing else. Nothing trapped or under/overflowed.`);
 void Timing;

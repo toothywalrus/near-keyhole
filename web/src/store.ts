@@ -21,6 +21,8 @@ class Store {
   agents = new Map<string, TraderAgent>();
   /** One-time keys made in this tab, by token id. They never leave the tab. */
   oneTime = new Map<number, OneTime>();
+  /** Windows whose sealed entries this tab tried to open. Only the guide reads it. */
+  tried = new Set<number>();
   chain!: Chain;
   timing!: Timing;
   prices!: Prices;
@@ -30,10 +32,16 @@ class Store {
 
   async boot(): Promise<void> {
     try {
+      // Each file says its own name when it fails, so the page can say what went wrong.
+      const get = <T,>(path: string, read: (r: Response) => Promise<T>): Promise<T> =>
+        fetch(path).then(
+          (r) => { if (!r.ok) throw new Error(`${path.slice(2)} answered ${r.status} ${r.statusText}`.trim()); return read(r); },
+          (e) => { throw new Error(`${path.slice(2)} didn't load (${String(e).replace(/^TypeError: /, "")})`); },
+        );
       const [wasm, state, meta] = await Promise.all([
-        fetch("./keyhole.wasm").then((r) => r.arrayBuffer()),
-        fetch("./seed/state.json").then((r) => r.json()),
-        fetch("./seed/meta.json").then((r) => r.json()),
+        get("./keyhole.wasm", (r) => r.arrayBuffer()),
+        get("./seed/state.json", (r) => r.json()),
+        get("./seed/meta.json", (r) => r.json()),
       ]);
       this.meta = meta;
       this.vm = new MiniNear(wasm, CONTRACT, state.clockMs, (d) => nobleSha256(d));
@@ -51,7 +59,7 @@ class Store {
       await this.prices.load();
       this.ready = true;
     } catch (e) {
-      this.error = String(e);
+      this.error = e instanceof Error ? e.message : String(e);
     }
     this.bump();
   }
@@ -82,7 +90,23 @@ class Store {
   balance(): bigint { return this.vm.balance(YOU); }
   credit(): bigint { return BigInt(this.v<string>("credit_of", { account: YOU })); }
   myTokens(): { token_id: string }[] { return this.v("nft_tokens_for_owner", { account_id: YOU }); }
+  markTried(id: number): void { if (!this.tried.has(id)) { this.tried.add(id); this.bump(); } }
+  /** Where the visitor is in the one complete moment: buy a window, read it and try past it, prove a false figure. */
+  moment(): Moment {
+    const token = [...this.oneTime.keys()].at(-1);
+    const caught = this.traders().find((t) => t.status?.Slashed?.by === YOU);
+    const bought = token !== undefined;
+    const tried = this.tried.size > 0;
+    const step = !bought ? 1 : !tried && !caught ? 2 : !caught ? 3 : 4;
+    return { token, tokenHandle: token === undefined ? undefined : this.handleOf(this.token(token).trader), bought, tried, caught: caught ? bare(caught.account) : undefined, step };
+  }
+  handleOf(traderId: number): string | undefined { const t = this.traders().find((x) => x.id === traderId); return t ? bare(t.account) : undefined; }
 }
+
+export type Moment = { token?: number; tokenHandle?: string; bought: boolean; tried: boolean; caught?: string; step: 1 | 2 | 3 | 4 };
+const bare = (account: string) => account.replace(/\.local$/, "");
+/** The book the guide points at: it tops the board, and its figures don't add up. */
+export const TARGET = "lucky-seven";
 
 export const store = new Store();
 

@@ -56,6 +56,14 @@ export function parseEntry(p: Uint8Array): Entry | null {
   };
 }
 
+/**
+ * A decoy: a well-formed entry with no quantity. Every implementation of the PnL rule voids a zero quantity (it changes nothing but the void count), so a decoy moves
+ * no figure and costs no score, and from outside it's an entry like any other. A trader's agent writes some at other moments of an epoch, so a thin epoch's trade
+ * isn't one equation in one unknown once its figure is posted. Spread them out: a decoy priced at the same round as the trade hides nothing (`docs/decisions/0025`).
+ */
+export const decoyEntry = (feed: number): Entry => ({ feed, flags: 0, qty_e8: 0n, fill_e8: 0n, settlement: new Uint8Array(32), note: "" });
+export const isDecoy = (e: Entry): boolean => e.qty_e8 === 0n;
+
 export const entryKey = (leaf: Uint8Array, seq: number | bigint): Uint8Array => sha256(utf8("keyhole/entry/v1"), leaf, u64le(seq));
 export const entryTag = (key: Uint8Array, seq: number | bigint, slot: number, ct: Uint8Array): Uint8Array => sha256(utf8("keyhole/tag/v1"), key, u64le(seq), u32le(slot), ct);
 const NO_NONCE = new Uint8Array(12);

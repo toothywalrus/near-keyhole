@@ -1,10 +1,15 @@
-// Deletes the testnet deployment and everyone in its last run, returning their NEAR to the root, so the demo can run again on a fresh contract.
-// Only touches accounts this repo created under the root. Run: npx tsx tools/testnet-reset.ts
+// Deletes the accounts of a testnet run, returning their NEAR to the root. Only touches accounts this repo created under the root, and never a locked
+// contract: with no key on it, nobody can delete it, which is the point. Run: npx tsx tools/testnet-reset.ts
 import { keyFor } from "./keys.ts";
 import { Net } from "./nearkit.ts";
 import { CONTRACT, ROOT, RPC } from "./testnet.ts";
 
 const net = new Net(RPC);
+const keys = (await net.provider.viewAccessKeyList({ accountId: CONTRACT } as never).catch(() => ({ keys: [] }))) as unknown as { keys: unknown[] };
+if ((await net.exists(CONTRACT)) && keys.keys.length === 0) {
+  console.log(`${CONTRACT} is locked (no keys): it stays, as a record. Run the demo again on it with new traders, or deploy a new one under a new root (KEYHOLE_ROOT).`);
+  process.exit(0);
+}
 const del = async (id: string) => {
   if (!id.endsWith(`.${ROOT}`)) throw new Error(`refusing to delete ${id}`);
   if (!(await net.exists(id))) return;
@@ -25,6 +30,6 @@ for (const t of traders) {
 }
 for (const s of stamps) for (const n of ["vega", "lucky", "mallory", "ines", "grif"]) ids.add(`${n}${s}.${ROOT}`);
 for (const id of [...ids]) await del(id);
-for (const n of ["recorder", "owner"]) await del(`${n}.${ROOT}`);
+for (const n of ["recorder", "owner", "treasury"]) await del(`${n}.${ROOT}`);
 await del(CONTRACT);
 console.log("root balance:", Number(await net.balance(ROOT)) / 1e24);
