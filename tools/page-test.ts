@@ -114,7 +114,11 @@ check("LIVE: the board says what the real contract on testnet holds, and that it
 await page.click(".livestrip");
 await page.waitForSelector(".livebox table.live");
 const liveText = await page.locator(".livebox").innerText();
-check("LIVE: the proof page shows the liar's slash as the contract recorded it", /lucky[\s\S]*Slashed[\s\S]*posted 25380469723, recomputed 380469723/i.test(liveText) && /posted \$25,380\.47, the contract recomputed \$380\.47/.test(liveText), liveText.split("\n").find((l) => l.includes("recomputed"))?.slice(0, 80));
+// The liar's figures come from the recording, so a new deployment's recording (tools/record-views.ts) needs no edit here.
+const liar = (Object.entries(CANNED).find(([k, v]) => k.startsWith("get_epochs") && (v as any)?.[0]?.verdict?.False)?.[1] as any)?.[0];
+const usdOf = (e6: string) => `${Number(e6) < 0 ? "−" : ""}$${Math.abs(Number(e6) / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const lied = { posted: String(liar?.posted_e6), recomputed: String(liar?.verdict?.False?.recomputed_e6) };
+check("LIVE: the proof page shows the liar's slash as the contract recorded it", !!liar && /lucky[\s\S]*Slashed/i.test(liveText) && liveText.includes(`posted ${lied.posted}, recomputed ${lied.recomputed}`) && liveText.includes(`posted ${usdOf(lied.posted)}, the contract recomputed ${usdOf(lied.recomputed)}`),liveText.split("\n").find((l) => l.includes("recomputed"))?.slice(0, 80));
 check("LIVE: and the garbage delivery, the locked account, the windows and a sealed journal", /doesn't match its commitment/.test(liveText) && /Locked: nobody can change its code/.test(liveText) && /Refunded to its holder/.test(liveText) && (await page.locator(".livejournal .bar").count()) > 0);
 check("LIVE: it says the page can't act on testnet, and how you can", /holds no key and signs nothing/.test(liveText) && /npm run demo -- --testnet/.test(liveText));
 check("LIVE: a stranger's handle is never shown, only counted", !liveText.includes("NOT-OURS") && /1 other account has registered since/.test(liveText));

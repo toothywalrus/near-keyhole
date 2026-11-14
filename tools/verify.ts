@@ -48,7 +48,7 @@ if (acct.code_hash === local || !run.code) {
   const git = spawnSync("git", ["show", `${run.code.source_commit}:res/keyhole.wasm`], { cwd: new URL("..", import.meta.url).pathname, maxBuffer: 1 << 24 });
   const then = git.status === 0 ? base58.encode(createHash("sha256").update(git.stdout).digest()) : null;
   check(`the code on chain is res/keyhole.wasm as built at ${run.code.source_commit}, byte for byte`, acct.code_hash === run.code.code_hash && (then === null || then === acct.code_hash), `code_hash ${acct.code_hash}${then === null ? " (no git here: compared with the recorded hash)" : ", = git show " + run.code.source_commit + ":res/keyhole.wasm"}`);
-  console.log(`  (this tree's res/keyhole.wasm is ahead of the deployment by one fix: request_attested sends OutLayer's resource limits as numbers, which outlayer.testnet requires.)`);
+  console.log(`  (this tree's res/keyhole.wasm is ahead of the deployment: ${run.code.ahead ?? "request_attested sends OutLayer's resource limits as numbers, which outlayer.testnet requires"}.)`);
 }
 const keys = ((await tries(() => net.provider.viewAccessKeyList({ accountId: C } as never))) as unknown as { keys: { access_key: { permission: unknown } }[] }).keys;
 check("LOCKED: the contract account holds no key at all, so nobody can change its code or move its NEAR", keys.length === 0, `${keys.length} access key(s)`);
@@ -63,9 +63,18 @@ const cfg = await v("get_config");
 check("one trusted recorder, as the README says", cfg.recorder === `recorder.${C.split(".").slice(1).join(".")}`, `recorder ${cfg.recorder}`);
 check("the protocol fee: 5% of a sale that closes for the trader, to a treasury", cfg.fee_bps === 500 && cfg.treasury === run.treasury, `${cfg.fee_bps} bps to ${cfg.treasury}`);
 const outlayer = await v("get_outlayer");
-const jobSha = createHash("sha256").update(readFileSync(new URL("../res/keyhole_pnl_job.wasm", import.meta.url))).digest("hex");
+const treeJobSha = createHash("sha256").update(readFileSync(new URL("../res/keyhole_pnl_job.wasm", import.meta.url))).digest("hex");
+// The job this deployment pinned. When this tree's job has moved on (a locked deployment can't follow), it's the job as built at the deployment's commit: git shows it.
+let jobSha = treeJobSha;
+let jobFrom = "res/keyhole_pnl_job.wasm";
+if (run.outlayer && run.outlayer.wasm_hash !== treeJobSha && run.code?.source_commit) {
+  const git = spawnSync("git", ["show", `${run.code.source_commit}:res/keyhole_pnl_job.wasm`], { cwd: new URL("..", import.meta.url).pathname, maxBuffer: 1 << 24 });
+  const then = git.status === 0 ? createHash("sha256").update(git.stdout).digest("hex") : null;
+  jobSha = then ?? run.outlayer.wasm_hash;
+  jobFrom = `res/keyhole_pnl_job.wasm as built at ${run.code.source_commit}${then === null ? " (no git here: the recorded hash)" : ""}`;
+}
 if (run.outlayer) {
-  check("OutLayer is configured: outlayer.testnet, the job pinned by res/keyhole_pnl_job.wasm's sha256", outlayer?.contract === "outlayer.testnet" && outlayer?.wasm_hash === jobSha && run.outlayer.wasm_hash === jobSha, `${outlayer?.contract}: ${outlayer?.wasm_hash?.slice(0, 16)}…`);
+  check(`OutLayer is configured: outlayer.testnet, the job pinned by the sha256 of ${jobFrom}`, outlayer?.contract === "outlayer.testnet" && outlayer?.wasm_hash === jobSha && run.outlayer.wasm_hash === jobSha, `${outlayer?.contract}: ${outlayer?.wasm_hash?.slice(0, 16)}…`);
 } else {
   check("no OutLayer configured, so nothing here can be labeled OutLayerTee", outlayer === null);
 }
@@ -99,7 +108,7 @@ if (run.outlayer) {
     check("the figure the enclave computed, with the epoch's keys as an OutLayer secret, is the one the trader posted, to the unit", out.pnl_e6 === oe?.posted_e6 && out.head === lastHead && out.applied === oe?.entries, `enclave ${out.pnl_e6}, posted ${oe?.posted_e6}, ${out.applied} entries opened`);
   }
   if (o.contract_path && oe?.attested?.kind !== "OutLayerTee") {
-    check("the locked contract's own request failed on OutLayer's types, and labeled nothing: nothing reads as enclave-made that wasn't", oe?.attested === null, `${o.contract_path.request_tx}: attested ${JSON.stringify(oe?.attested)}`);
+    check("the contract's own OutLayer request came back with no result, and labeled nothing: nothing reads as enclave-made that wasn't", oe?.attested === null, `${o.contract_path.request_tx}: attested ${JSON.stringify(oe?.attested)}`);
   } else {
     check("an epoch labeled OutLayerTee: the figure came back from OutLayer's own contract, equal to the posted one", oe?.attested?.kind === "OutLayerTee" && oe.attested.via === "outlayer.testnet" && oe.attested.pnl_e6 === oe.posted_e6, `${oe?.attested?.kind} via ${oe?.attested?.via}: ${oe?.attested?.pnl_e6}`);
   }

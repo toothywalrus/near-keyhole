@@ -24,7 +24,7 @@ function Provenance() {
       <b>SEEDED DEMO.</b>
       <span className="wide">The real contract wasm runs in this tab on a local chain. Journals are generated from real Chainlink rounds; the trades never happened. No real money. </span>
       <span className="narrow">The real contract, on a local chain in this tab. The trades never happened; no real money. </span>
-      <a href="#/proof"><span className="wide">The same contract on testnet →</span><span className="narrow">On testnet →</span></a>
+      <a href="#/proof"><span className="wide">The deployed version, live on testnet →</span><span className="narrow">On testnet →</span></a>
     </div>
   );
 }
@@ -47,7 +47,7 @@ function BootError({ error }: { error: string }) {
       <p>This page runs the contract itself in your browser, so it needs WebAssembly and about a megabyte of files from this site. Reload to try again. If it fails again, a private window rules out an extension blocking it.</p>
       <p>
         <button className="primary" onClick={() => location.reload()}>Reload</button>
-        <a className="link" href="#/proof">Or see the same contract on NEAR testnet</a>
+        <a className="link" href="#/proof">Or see the deployed contract on NEAR testnet</a>
       </p>
     </div>
   );

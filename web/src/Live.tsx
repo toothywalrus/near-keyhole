@@ -32,7 +32,12 @@ export async function readLive(run: Run): Promise<Snapshot> {
     const t = all.find((x) => x.account === account);
     if (!t) return null;
     const from = name === "enclave" ? run.outlayer!.epoch : run.epoch;
-    return { role: name === "enclave" ? "its figure was computed in OutLayer's TEE" : ROLES[name] ?? "", t, epochs: await view<EpochRec[]>(C, "get_epochs", { account, from, limit: 1 }) };
+    const epochs = await view<EpochRec[]>(C, "get_epochs", { account, from, limit: 1 });
+    // The enclave's trader: say what happened, read from the contract's label and the run's record, never assumed.
+    const enclave = epochs[0]?.attested?.kind === "OutLayerTee" ? "its figure was computed in OutLayer's TEE"
+      : run.outlayer?.direct ? "its figure was computed in OutLayer's TEE, at his own request"
+      : "the contract asked OutLayer's TEE for his figure, and no result came back";
+    return { role: name === "enclave" ? enclave : ROLES[name] ?? "", t, epochs };
   }));
   const n = Math.min(Number(supply), 12);
   const all12 = await Promise.all(Array.from({ length: n }, (_, i) => view<TokenRec>(C, "get_token", { token_id: i + 1 })));
@@ -66,7 +71,7 @@ export function LiveStrip({ run }: { run: Run | null | undefined }) {
   return (
     <a className="livestrip" href="#/proof">
       <Pill tone="ok">Live</Pill>
-      <span>Not a simulation: the same contract on NEAR testnet, read just now. {live.ours.length} traders of the recorded run, <b>{slashed} slashed by the contract</b>, {live.supply} windows sold, {live.keys === 0 ? "no key on the contract's account" : `${live.keys} keys on the contract's account`}.</span>
+      <span>Not a simulation: the deployed contract on NEAR testnet, read just now. {live.ours.length} traders of the recorded run, <b>{slashed} slashed by the contract</b>, {live.supply} windows sold, {live.keys === 0 ? "no key on the contract's account" : `${live.keys} keys on the contract's account`}.</span>
       <span className="go">See it <span aria-hidden="true">→</span></span>
     </a>
   );

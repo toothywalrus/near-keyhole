@@ -78,6 +78,7 @@ export type CopyLimits = {
 export type Decision = { copy: true; qty_e8: bigint; notionalUsd: number } | { copy: false; reason: string };
 
 export function decideCopy(qty_e8: bigint, feed: number, fill_e8: bigint, l: CopyLimits): Decision {
+  if (qty_e8 === 0n) return { copy: false, reason: "it's a decoy, an empty entry written to hide the real ones, not a trade" };
   if (!l.feeds.includes(feed)) return { copy: false, reason: `feed ${feed} isn't on the owner's list` };
   const q = BigInt(Math.round(Number(qty_e8) * l.scale));
   if (q === 0n) return { copy: false, reason: "that trade scales to nothing" };

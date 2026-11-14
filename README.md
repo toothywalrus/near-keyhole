@@ -2,7 +2,7 @@
 
 **A paywall for trade signals where the track record can't be edited after the fact and access ends by mathematics.** A trader keeps an encrypted journal on NEAR, entry by entry as he trades, and posts each day's PnL with a bond behind it. A follower buys a window of days and can read exactly those days: the keys past the window never exist, so nothing has to be revoked. Anyone holding a window's keys can make the contract open the entries, recompute the figure against oracle prices and slash a false one. The sale itself has no operator; who feeds the prices and who can label an attested figure is said below.
 
-**Video:** [`docs/demo/keyhole-demo.mp4`](docs/demo/keyhole-demo.mp4) · **Contract:** [`app.near-keyhole-y4ow.testnet`](https://testnet.nearblocks.io/address/app.near-keyhole-y4ow.testnet), locked · **Every claim, with its test:** [`JUDGES.md`](JUDGES.md)
+**Video:** [`docs/demo/keyhole-demo.mp4`](docs/demo/keyhole-demo.mp4) · **Contract:** [`app.keyhole-33232a.testnet`](https://testnet.nearblocks.io/address/app.keyhole-33232a.testnet), locked · **Every claim, with its test:** [`JUDGES.md`](JUDGES.md)
 <!-- LINKS: when the page is hosted and the thread is posted, add one line here: **Demo:** <url> · **Post:** <url> -->
 
 Built for NEAR HACKATHON, tracks **privacy** and **defi**. A testnet technical demo, not investment advice: selling trading signals is regulated in many places.
@@ -20,26 +20,27 @@ Built for NEAR HACKATHON, tracks **privacy** and **defi**. A testnet technical d
 What `npm run judge` ends with (measured in Debian 12 with 2 CPUs and 3 GB: 59 to 73 s from a fresh clone, `npm ci` included; about two minutes on a busy host; about 12 s on an Apple Silicon Mac. Without network the testnet row says SKIP):
 
 ```
-PASS  Testnet: the deployed contract re-read from the chain (views only)        26/26 chain checks passed
+PASS  Testnet: the deployed contract re-read from the chain (views only)        24/24 chain checks passed
 PASS  TypeScript twin = the Rust core's vectors; deflated Sharpe; seeded
-      state; a copy trade on the real intents.near wasm; key store; guards     tests passed: 24
-PASS  Attack suite on the real contract wasm (local host)                       357/357 attack checks passed
+      state; a copy trade on the real intents.near wasm; key store; guards     tests passed: 27
+PASS  Attack suite on the real contract wasm (local host)                       412/412 attack checks passed
 PASS  Ledger fuzz: every yocto re-added after each random operation             614 random operations, books balanced
 4 passed, 0 failed, 0 skipped, in 69 s
 ```
 
-(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (17 checks), the web app in a headless browser (45 checks) and the mutation check (94 of 94 mutants caught).
+(The real rows are one line each and wider.) `npm run judge:full` adds the Rust core's property tests (15), the contract's unit and property tests (6), the kill test, the copy trade (22 checks), the complete moment (29 transactions) and the attack suite (210 checks) on a local NEAR node, the attested job under wasmtime (18 checks), the web app in a headless browser (45 checks) and the mutation check (102 of 102 mutants caught).
 
-## Status (2026-11-10)
+## Status (2026-11-14)
 
-**Real, on NEAR testnet.** The contract was **deployed, initialised and locked in one transaction** ([`2sWeD43DFU…`](https://testnet.nearblocks.io/txns/2sWeD43DFUhifqLKkyKggRi58msT4LXmUJYRpcQqGXXm): deploy, `new`, delete the only key), so nobody can change its code or move its NEAR. One complete run is on chain: a sale and delivery, a false figure proven and slashed by the contract's own recomputation, garbage keys proven and slashed, a false dispute dismissed, a sale settled with the protocol's 5% to its treasury, and a cross-contract read of a round from near-borrowed-oracle. **The PnL job also ran in OutLayer's real TEE** (Intel TDX, request 15448) and printed the figure its trader had posted, to the unit; the attestation is committed. `npm run verify` re-reads all of it from the chain. Every transaction: [`docs/deployments.md`](docs/deployments.md).
+**Real, on NEAR testnet.** The contract was **deployed, initialised and locked in one transaction** ([`9FKDdjNiaj…`](https://testnet.nearblocks.io/txns/9FKDdjNiajrY8ujJY9NrPi1C3vr7ai1YwK4kN3AuehRJ): deploy, `new`, delete the only key), so nobody can change its code or move its NEAR. One complete run is on chain: a sale and delivery, a false figure proven and slashed by the contract's own recomputation, garbage keys proven and slashed, a false dispute dismissed, a sale settled with the protocol's 5% to its treasury, and a cross-contract read of a round from near-borrowed-oracle. The run's traders made their key-tree seeds from random bytes kept in the OS keyring, so their journals on chain open only with nodes someone delivered. **The PnL job also ran in OutLayer's real TEE** once, on the previous deployment (Intel TDX, request 15448), and printed the figure its trader had posted, to the unit; the attestation is committed. `npm run verify` re-reads all of it from the chain. Every transaction: [`docs/deployments.md`](docs/deployments.md).
 
 **Real, in a local sandbox and in the browser tab.** A NEP-413 `token_diff` copy trade settling on the unmodified **mainnet `intents.near` wasm**, with limits and slippage; live keyless 1Click dry quotes; the attack suite on a real node.
 
 **Simulated, and labeled so.**
 - Every journal on the web app's board is **SEEDED**: rule-based strategies run over real recorded Chainlink rounds. The trades never happened, and the page runs the contract on a local chain in your browser.
 - Prices on testnet are real Chainlink rounds **replayed by a trusted recorder**, labeled `Recorded` by the contract's `get_feeds`.
-- The attested figure on vega's epoch is a local run under wasmtime with **no enclave**, labeled `SimulatedLocal` by the contract. The enclave run was asked for by the trader directly, because the locked contract's own `request_attested` sent OutLayer arguments it refuses (fixed in source since). So **no epoch on testnet is labeled `OutLayerTee`**, and the deployed wasm is the build of `a23a06c`, one fix behind this tree.
+- The attested figure on vega's epoch is a local run under wasmtime with **no enclave**, labeled `SimulatedLocal` by the contract. The enclave run was asked for by the trader directly, on the previous deployment. On this one OutLayer accepts the contract's own `request_attested`, and its worker then fails the run with no output, although the same job wasm on the same input prints the posted figure under local wasmtime. So **no epoch on testnet is labeled `OutLayerTee`**.
+- **The deployed contract is this tree's (v2, deployed 2026-11-14).** Over the first locked deployment it adds the `request_attested` fix, a price delay that closes the live-feed limit below for a borrowed feed (`price_delay_secs`), a rule that a weaker attestation label can't replace a stronger one, a bound on window length, a rule that a slashed trader's windows can't be resold (`docs/decisions/0021`), and two fixes from the last hostile read: a window nobody registered a key for burns nothing when its figure is missing, and a feed's first round can't be imported old (`0023`, `0024`). The web app runs the same wasm in the tab, and `npm run verify` checks the code on chain against `res/keyhole.wasm`, byte for byte.
 - The tokens and solver in the copy paths are local stand-ins; only the Intents contract is the real wasm. `copy/confidential-adapter.ts` is written against the docs and has **never been exercised**.
 
 **What it isn't.** A journal is what the trader wrote: a checkable *signal record*, not a brokerage statement and not proof of a trade. Confidential Intents documents no public viewing key (read 2026-11-05), so the key here covers the journal, not a real confidential fill (`docs/decisions/0014`). No human has audited the contract. Nothing has touched mainnet.
@@ -93,18 +94,18 @@ From a fresh clone: `npm ci`. Node 20+ is enough for everything in `npm run judg
 |---|---|
 | `npm run judge` | The fast path, about 75 s on 2 CPUs: the table above |
 | `npm run judge:full` | Everything below that runs on this machine, ending in a table: about 17 minutes, plus 11 for the mutants (`--no-mutate` leaves them out) |
-| `npm run attack` | About 30 named attacks, 357 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
+| `npm run attack` | About 30 named attacks, 412 checks, on the real wasm, in about 2 seconds on a laptop. Each states what must be refused: garbage key, false PnL, backdated entry, deleted loser, window overreach, resale replay, a fee taken from a refund, and more |
 | `npm run attack -- --sandbox` | The attacks on a real local NEAR node: 210 checks (the rest need the local host's controls: a transfer that fails, a mocked receiver, a long clock), about 15 minutes. Log: [`docs/research/attack-sandbox-run.txt`](docs/research/attack-sandbox-run.txt) |
 | `npm run demo` | The complete moment on a real local node, with every transaction's gas: 29 transactions |
 | `npm run copy` | The copy trade: `token_diff` on the mainnet `intents.near` wasm, limits, measured slippage, refusals, a live dry quote |
 | `npm run job` | The attested job under wasmtime reading the chain over HTTP, its figure equal to the contract's to the unit, and OutLayer's shape with real yield/resume against a stand-in |
 | `npm run fuzz` | 2,100 random operations, with the whole ledger re-added from views after each and compared to the yocto, the treasury's fees included |
-| `npm run mutate` | Needs Rust and cargo-near. Breaks 94 security-critical lines one at a time and rebuilds: `94/94 mutants caught` in one pass. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
+| `npm run mutate` | Needs Rust and cargo-near. Breaks 102 security-critical lines one at a time and rebuilds: `102/102 mutants caught` in one pass. Log: [`docs/research/mutation-run.txt`](docs/research/mutation-run.txt) |
 | `npm run kani` | Needs Kani. A model-checker proof that the PnL book is total: no input panics, and a void entry changes nothing. Log: [`docs/research/kani-2026-11-05.txt`](docs/research/kani-2026-11-05.txt). The cover and rounding proofs didn't finish in CBMC, so they're covered by an exhaustive test and property tests instead |
 | `npm run killtest` | The kill test in a sandbox: a dispute's gas, step by step |
 | `npm run gas` | How much of a journal the contract can recompute per transaction. About 10 minutes, most of it waiting for a real epoch to end on the node |
 | `npm run verify` | Re-reads the testnet deployment from the chain: code hash, no key on the account, the fee, slashed traders, the hash chain recomputed, feeds' labels, OutLayer's attestation recomputed from its transaction, and the run's transactions on an archival node |
-| `npm test` | The TypeScript twin against the Rust core's vectors, the deflated Sharpe, the seeded state, the key store and the mainnet guards: 24 tests |
+| `npm test` | The TypeScript twin against the Rust core's vectors, the deflated Sharpe, the seeded state, the key store, the mainnet and redeploy guards, and the next deployment's configuration: 27 tests |
 | `cd contracts && cargo test --release -p keyhole-core --features sha2` | Property tests: a window's nodes read exactly that window and nothing outside it (15 tests) |
 | `npm run page-test` | Needs Chromium (`npx playwright install --with-deps chromium`). The web app driven through the whole moment in a headless browser, and its live testnet view against a recording of the contract's views: 45 checks |
 | `npm run web`, or `npm run web:build` and serve `web/dist/` | The web app: see below |
@@ -124,15 +125,15 @@ Screenshots at 1440×900: [the board](docs/screenshots/after/desktop-01-board.pn
 
 ## On testnet
 
-Contract [`app.near-keyhole-y4ow.testnet`](https://testnet.nearblocks.io/address/app.near-keyhole-y4ow.testnet): locked, with no key on the account. Slots are 20 s and epochs 3 minutes, so the run takes minutes. The 30 transactions of the run, the five of the OutLayer run, the failed `request_attested` and how to run it all on a deployment of your own are in [`docs/deployments.md`](docs/deployments.md); the record is [`docs/demo/testnet-run.json`](docs/demo/testnet-run.json).
+Contract [`app.keyhole-33232a.testnet`](https://testnet.nearblocks.io/address/app.keyhole-33232a.testnet): locked, with no key on the account. Slots are 20 s and epochs 3 minutes, so the run takes minutes. The 30 transactions of the run, the contract's own OutLayer request, the enclave run on the previous deployment and how to run it all on a deployment of your own are in [`docs/deployments.md`](docs/deployments.md); the record is [`docs/demo/testnet-run.json`](docs/demo/testnet-run.json).
 
-`npm run verify` (also the first row of `npm run judge`) checks the code hash on chain against `git show a23a06c:res/keyhole.wasm`, the empty key list, the one-transaction deploy, the fee, both slashes, a hash chain recomputed from the entries, the feeds' labels, and the OutLayer attestation's input and output hashes recomputed from its transaction. In a copy without git history it compares the code hash with the one recorded in `testnet-run.json` instead, and says so. Checking the TDX quote itself takes OutLayer's verifier, which hasn't been run here.
+`npm run verify` (also the first row of `npm run judge`) checks the code hash on chain against this tree's `res/keyhole.wasm`, the empty key list, the one-transaction deploy, the fee, both slashes, a hash chain recomputed from the entries, the feeds' labels, and that the contract's own OutLayer request labeled nothing.
 
 The demo's traders stopped posting when the run ended, so the contract's `score` view, which charges every epoch with no figure, now shows them far below zero: the rule working, not a loss (`docs/deployments.md`).
 
 ## What a review found
 
-Three times, after every test passed, a cold reader found real bugs: one let any buyer slash an honest trader, another let a trader's second account pull the whole bond out. All are fixed and tested: [`docs/research/review-2026-11-05.md`](docs/research/review-2026-11-05.md). A fourth read, on 2026-11-10, found the oracle limit below. A fifth, on 2026-11-13, found two ways an honest trader can lose bond in this version's code (windows nobody registered a key for, parked on an epoch he misses, burn half their price each; and a borrowed feed's first round, imported late, can price a trade already void), both reproduced on the deployed build and neither fixable in a locked contract, and that the testnet run's journals can be opened by anyone who reads this repo: [`docs/limits.md`](docs/limits.md). Counts here say the checks are load-bearing, not that they are complete. **No human has audited this contract.**
+Three times, after every test passed, a cold reader found real bugs: one let any buyer slash an honest trader, another let a trader's second account pull the whole bond out. All are fixed and tested: [`docs/research/review-2026-11-05.md`](docs/research/review-2026-11-05.md). A fourth read, on 2026-11-10, found the oracle limit below, which the deployed contract now closes for a borrowed feed. A fifth, on 2026-11-13, found two more ways an honest trader could lose bond in the deployed version's code (parked keyless windows on a missed epoch, and a late first round on a borrowed feed; both reproduced on the deployed build in the local host), fixed and deployed on 2026-11-14, and that the first testnet run's journals could be opened by anyone who reads this repo (the current run's traders used random seeds): [`docs/limits.md`](docs/limits.md). Counts here say the checks are load-bearing, not that they are complete. **No human has audited this contract.**
 
 ## How NEAR is used, concretely
 
@@ -149,7 +150,7 @@ Three times, after every test passed, a cold reader found real bugs: one let any
 | `intents.near` (mainnet wasm, sandbox) | `execute_intents` with NEP-413 `token_diff` signed by the trader, the follower and a solver: replay, expiry, balance and signature refusals exercised |
 | 1Click | Live keyless dry quotes. Setting `confidentiality` answers 401 without a user's auth: measured, and asserted by `npm run copy` (`docs/decisions/0011`) |
 | near-borrowed-oracle (testnet) | A feed source: MPC-proven Chainlink rounds, read by a real cross-contract call |
-| OutLayer | `request_execution` in its current 7-argument shape, a wasm32-wasip2 job pinned by sha256, the epoch's keys as an encrypted OutLayer secret. **Run for real in OutLayer's TEE on testnet** (request 15448, attestation committed), asked for by the trader, not by the contract. The contract's own yield/resume path runs against a stand-in with OutLayer's argument types; on the locked deployment it failed on the real one, and the source is fixed |
+| OutLayer | `request_execution` in its current 7-argument shape, a wasm32-wasip2 job pinned by sha256, the epoch's keys as an encrypted OutLayer secret. **Run for real in OutLayer's TEE on testnet** (request 15448, attestation committed), asked for by the trader on the previous deployment, not by the contract. The contract's own yield/resume path runs against a stand-in with OutLayer's argument types; on the current deployment the real OutLayer accepts its request, and its worker fails the run |
 
 ## Honest limits
 
@@ -157,8 +158,8 @@ The ones that matter most to a buyer. All of them: [`docs/limits.md`](docs/limit
 
 - **A journal is what a trader wrote.** An entry committed before the outcome is a valid record even if never executed. A settlement reference is his own claim, and the app shows it as "claims a fill (unverified)".
 - **A lie can still pay.** A proven false figure costs its trader at least 60% of his bond (40% goes to the prover, even if that's his own second account; the rest burns). A lie that earns more than that is still worth telling, which is why the board shows the bond beside the PnL.
-- **On a live feed, a trader can know his fill a few seconds ahead.** A Chainlink round's answer sits in Ethereum's mempool before the block that stamps it, and a trade is priced at the first round at or after its entry. Nothing on testnet is priced this way; the fix is the next version's, a set delay before the pricing round (`docs/decisions/0019`).
-- **Recorded prices are trusted to the recorder, and on testnet they're public** (`fixtures/chainlink-rounds.json`), so the demo's PnL shows the mechanism, not skill. So are the testnet run's journals: its traders used the repo's test seeds, so any reader of this repo can open them. On a borrowed feed, whoever relays chooses which rounds exist (`docs/decisions/0010`).
+- **On a live feed, a trader could know his fill a few seconds ahead; the deployed contract closes that for a borrowed feed.** A Chainlink round's answer sits in Ethereum's mempool before the block that stamps it, and the first locked deployment priced a trade at the first round at or after its entry. Nothing on testnet is priced from a live feed. The current contract closes it for a borrowed feed, whose rounds carry their source's time: a trade is priced at the first round at least `price_delay_secs` after its entry, tested by the attack suite's known-fill checks (`docs/decisions/0021`). On a recorded feed the delay is only as good as the recorder, and the suite shows that too (`0022`).
+- **Recorded prices are trusted to the recorder, and on testnet they're public** (`fixtures/chainlink-rounds.json`), so the demo's PnL shows the mechanism, not skill. The previous deployment's journals were public too, since its traders used the repo's test seeds; the current run's traders used random seeds kept in the keyring. On a borrowed feed, whoever relays chooses which rounds exist (`docs/decisions/0010`).
 - **One account can't prove it isn't one of ten,** and a buyer count costs only gas and the fee to fake. Bond, age, trades and the deflated Sharpe price that doubt, and don't remove it.
 - **A buyer can leak** what he read. **A dispute publishes** that sale's nodes, so a false dispute gives the window away (and costs the griefer his deposit).
 - **A trader can refuse a window,** and an offline trader can be made to. It costs him the escrow, half the price burned from the bond, and a charge on the record, once per epoch (`docs/decisions/0015`).

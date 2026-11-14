@@ -6,7 +6,7 @@ import { hex, sha256, unhex, utf8 } from "../lib/src/bytes.ts";
 import { encryptEntry, entryKey, type Entry } from "../lib/src/entry.ts";
 import { buyerKey, DEPTH, firstRoundAtOrAfter, loadEntries, near, NO_SETTLEMENT, Prices, runAudit, TraderAgent, WindowReader, type Outcome, type TokenRec, type TraderRec } from "../lib/src/client.ts";
 import { commit, cover, Tree } from "../lib/src/ggm.ts";
-import { agent, sandboxWorld, seedOf, vmWorld, type World } from "./world.ts";
+import { agent, sandboxWorld, seedOf, VM_CONFIG, vmWorld, type World } from "./world.ts";
 
 const SANDBOX = process.argv.includes("--sandbox");
 const QUIET = process.argv.includes("--quiet");
@@ -918,6 +918,16 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
       ["max_instructions", "max_memory_mb", "max_execution_seconds"].every((k) => Number.isInteger(lim[k])) && /^[0-9a-f]{64}$/.test(sent?.source?.WasmUrl?.hash ?? "") && typeof sent?.source?.WasmUrl?.url === "string" && sent?.response_format === "Json" && typeof sent?.input_data === "string",
       JSON.stringify({ resource_limits: lim, response_format: sent?.response_format }));
     refused("a deposit that can't pay for the callback's storage is refused", await w.chain.call(at.account, "request_attested", { epoch: ae }, 1n), "storage");
+    // A weaker label can't replace a stronger one: the owner's local runner can't erase what the enclave reported.
+    const runner2 = await w.fund("runner2", near(2));
+    accepted("the owner registers another local runner", await w.chain.call(w.owner, "set_runner", { runner: runner2, enabled: true }));
+    const local = (epoch: number) => ({ output: { trader: at.account, epoch, pnl_e6: "777", head, job_sha256: "bb".repeat(32) } });
+    refused("DOWNGRADE: a local runner can't replace the enclave's figure", await w.chain.call(runner2, "submit_attested", local(ae + 1), near("0.01")), "stronger source");
+    refused("nor a stand-in's", await w.chain.call(runner2, "submit_attested", local(ae), near("0.01")), "stronger source");
+    const kept = (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0];
+    check("the enclave's figure and label are still there", kept.attested?.kind === "OutLayerTee" && kept.attested?.pnl_e6 === "0", JSON.stringify(kept.attested));
+    await w.chain.call(at.account, "request_attested", { epoch: ae + 1 }, near("0.02"));
+    check("the enclave itself can report again", (await w.chain.view("get_epochs", { account: at.account, from: ae + 1, limit: 1 }))[0].attested?.kind === "OutLayerTee");
   }
 
   console.log("\n-- Posting winners only --");
@@ -1072,6 +1082,54 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
     check("which feed it was stays hidden: every feed gives a candidate", guesses.length === pub.rounds.length, `${guesses.length} candidates`);
   }
 
+  console.log("\n-- Decoys: what a trader's agent can do about it, with no contract change --");
+  {
+    // A decoy is an entry with no quantity (lib/src/entry.ts): void by the PnL rule, so it moves no figure, and from outside an entry like any other. Written at other
+    // moments of the epoch, each prices at another round, so the stranger's one equation gets one more unknown: which entry was the trade (docs/decisions/0025).
+    const calm = new TraderAgent(w.chain, await w.fund("calm", near(40)), seedOf("decoys"), w.timing);
+    accepted("a trader whose agent writes decoys", await calm.register("calm", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const de = await nextEpoch(w);
+    // The same short as above, with three decoys spread over the epoch by the agent's own call, a round between each.
+    const plan: [number, Entry | null][] = [[2, null], [7, trade(1, -0.37, "the same short, with company")], [13, null], [19, null]];
+    for (const [slot, x] of plan) {
+      await w.chain.advanceTo(w.timing.epochStart(de) + slot * w.timing.slotMs);
+      const r = x ? await calm.write(x) : await calm.writeDecoy(w.prices.feeds);
+      if (!r.ok) throw new Error(`write: ${r.reason}`);
+      await w.rounds();
+    }
+    await closeEpoch(w, de);
+    const f = await calm.figure(de, w.prices);
+    accepted("she posts the figure", await calm.post(de, f.pnl_e6));
+    check("DECOYS: they move nothing: one trade counts, the three decoys are void", f.book.applied === 1 && f.book.void === 3, `applied ${f.book.applied}, void ${f.book.void}, figure ${f.pnl_e6}`);
+    // The stranger, as above: views only, no key, and before anyone audits (an audit puts every entry's key on chain). He solves the same equation once per
+    // entry, as if each were the only trade.
+    const row = (await w.chain.view("get_epochs", { account: calm.account, from: de, limit: 1 }))[0];
+    const seen = await w.chain.view("get_entries", { account: calm.account, from: row.first_seq, limit: row.entries });
+    const pub = new Prices(w.chain);
+    await pub.load();
+    const delay = (w.config.price_delay_secs ?? 0) * 1000;
+    const perFeed = pub.rounds.map(() => new Set<bigint>());
+    for (const en of seen) {
+      for (let fd = 0; fd < pub.rounds.length; fd++) {
+        const fill = firstRoundAtOrAfter(pub.rounds[fd], Number(en.at_ms) + delay);
+        const mark = firstRoundAtOrAfter(pub.rounds[fd], w.timing.epochStart(de + 1) + delay);
+        if (fill < 0 || mark < 0) continue;
+        const move = BigInt(pub.rounds[fd][mark].answer_e8) - BigInt(pub.rounds[fd][fill].answer_e8);
+        if (move !== 0n) perFeed[fd].add((BigInt(row.posted_e6) * 10_000_000_000n) / move);
+      }
+    }
+    const all = perFeed.flatMap((s) => [...s]);
+    const near37 = (q: bigint) => q >= -37_000_100n && q <= -36_999_900n;
+    const sides = new Set(all.map((q) => q > 0n));
+    check(
+      "DECOYS: the stranger's sum now gives a candidate per entry on every feed, and nothing public says which entry was the trade",
+      row.entries === 4 && all.some(near37) && perFeed.every((s) => s.size === row.entries),
+      `${row.entries} entries, ${all.length} candidates (${perFeed.map((s) => s.size).join(" / ")} per feed), against ${pub.rounds.length} without decoys; sides among them: ${sides.size === 2 ? "both" : "one only, so the side still shows"}`,
+    );
+    const da = await runAudit(w.chain, await w.fund("decoy-auditor", near(10)), calm.account, de, f);
+    check("and an audit that opens every entry, decoys included, finds the figure true (it also makes the epoch public)", da.verdict.ok && da.verdict.value.trader_at_fault === false, da.verdict.value?.detail ?? da.verdict.reason ?? "");
+  }
+
   console.log("\n-- NEP-171 transfer_call --");
   const nora = new TraderAgent(w.chain, await w.fund("nora", near(40)), seedOf("shared"), w.timing);
   accepted("a trader", await nora.register("nora", { book_usd: 1000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
@@ -1124,6 +1182,169 @@ async function vmOnly(w: World & { chain: any }): Promise<void> {
   c2.vm.mock("oracle.test", () => { throw new Error("oracle down"); });
   const down = c2.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
   check("an oracle that fails imports nothing", down.ok && down.value === false, JSON.stringify(down.value ?? down.reason));
+
+  // A feed's first round used to be exempt from "too old to import". A trade written while the feed was empty is void once the wait is over, and a figure
+  // posted on that has been audited as right; an old first round arriving later would price the trade after all and turn the honest figure false.
+  {
+    const c4 = new VmChain("kh4.test", Date.UTC(2026, 9, 31));
+    for (const a of ["o.test", "t.test", "aud.test", "aud2.test"]) c4.vm.fund(a, near(100));
+    accepted("another deployment with one proven feed, and no round on it yet", c4.vm.call("o.test", "new", { owner: "o.test", config: cfg, feeds: [{ symbol: "ETH/USD", source: { BorrowedOracle: { oracle: "oracle.test", pair: "ETH/USD" } } }] }));
+    const t4 = await (await import("../lib/src/client.ts")).Timing.read(c4);
+    const early = new TraderAgent(c4, "t.test", seedOf("first-round"), t4);
+    accepted("a trader on it", await early.register("early", { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: 0n, bond: BOND }));
+    const e4 = t4.epochOf(await c4.nowMs()) + 1;
+    await c4.advanceTo(t4.epochStart(e4));
+    accepted("a trade while the feed has no round", await early.write(trade(0, 1, "the feed is still empty")));
+    const at4 = await c4.nowMs();
+    const end4 = t4.epochStart(e4 + 1);
+    await c4.advanceTo(end4 + 1000);
+    const p4 = new Prices(c4);
+    await p4.load();
+    const f4 = await early.figure(e4, p4);
+    accepted("no round came in time, so the trade is void and he posts zero", await early.post(e4, f4.pnl_e6));
+    const a4 = await runAudit(c4, "aud.test", "t.test", e4, f4, { bond: near(1) });
+    check("an audit finds that figure right", a4.verdict.ok && a4.verdict.value.trader_at_fault === false && f4.book.void === 1, a4.verdict.value?.detail ?? a4.verdict.reason ?? "");
+    const oracleSays = (t_s: number, answer: string, id: string) => c4.vm.mock("oracle.test", () => ({ pair: "ETH/USD", age_secs: 10, answer, decimals: 8, round_id: id, updated_at: String(t_s), proven_at_ms: "1", chain: "base-sepolia" }));
+    // The oracle's round is from a minute after the trade: almost a day old by now, and it would be the feed's first.
+    oracleSays(Math.floor(at4 / 1000) + 60, "200000000000", "1");
+    const lateFirst = c4.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
+    check("LATE FIRST ROUND: a feed's first round can't be imported old, once the contract was there to price trades by it", lateFirst.ok && lateFirst.value === false && c4.vm.view("get_rounds", { feed: 0, from: 0, limit: 5 }).length === 0, JSON.stringify(lateFirst.value ?? lateFirst.reason));
+    c4.vm.advance(60_000);
+    oracleSays(Math.floor(end4 / 1000) + 30, "230000000000", "2");
+    const fresh = c4.vm.call("o.test", "import_round", { feed: 0 }, near("0.01"));
+    check("a fresh round is still imported, first or not", fresh.ok && fresh.value === true, JSON.stringify(fresh.value ?? fresh.reason));
+    await p4.load();
+    const again4 = await early.figure(e4, p4);
+    const b4 = await runAudit(c4, "aud2.test", "t.test", e4, again4, { bond: near(1) });
+    check("LATE FIRST ROUND: the figure audited as right is still right, and the honest trader isn't slashed", again4.pnl_e6 === f4.pnl_e6 && b4.verdict.ok && b4.verdict.value.trader_at_fault === false && (await early.record()).status === "Active", b4.verdict.value?.detail ?? b4.verdict.reason ?? "");
+  }
+
+  console.log("\n-- Windows nobody registered a key for, on a trader who misses a figure --");
+  {
+    // A stranger buys windows on a coming epoch and passes each to a second account, which never registers a one-time key: the trader has nobody to deliver to.
+    // If the trader then misses that epoch's figure, each of those windows used to burn half its price from the bond, and the stranger got every yocto back:
+    // the per-window burn that `0015` ended for refused deliveries, by another door.
+    const down = new TraderAgent(w.chain, await w.fund("down", near(200)), seedOf("shared"), w.timing);
+    accepted("an honest trader with a 10 NEAR bond", await down.register("down", { book_usd: 100_000, floor_bps: 1000, base_price: near("0.3"), slope: 0n, bond: near(10) }));
+    const ke = (await nextEpoch(w)) + 3;
+    const parker = await w.fund("parker", near(200));
+    const parked = await w.fund("parked", near(1));
+    const held: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const k = await buy(w, parker, down, ke, ke);
+      const moved = await w.chain.call(parker, "nft_transfer", { receiver_id: parked, token_id: String(k.id) }, 1n);
+      if (!moved.ok) throw new Error(moved.reason);
+      held.push(k.id);
+    }
+    const one = await buy(w, buyer, down, ke, ke);
+    // The trader's agent is down for that epoch: no delivery, no figure.
+    const kt = await w.chain.view<TokenRec>("get_token", { token_id: one.id });
+    await w.chain.advanceTo(Number(kt.settle_at_ms) + 1000);
+    const bond0 = BigInt((await down.record()).bond);
+    const c0 = await creditOf(w, parked);
+    let paid = 0n;
+    for (const id of held) {
+      const s = await w.chain.call(parker, "settle", { token_id: id });
+      if (!s.ok || s.value !== "refunded") throw new Error(`settle: ${s.reason ?? s.value}`);
+      paid += BigInt((await w.chain.view<TokenRec>("get_token", { token_id: id })).price);
+    }
+    const bond1 = BigInt((await down.record()).bond);
+    check("KEYLESS: a window with no key registered goes back whole when its figure is missing", (await creditOf(w, parked)) - c0 === paid, `${(await creditOf(w, parked)) - c0} of ${paid}`);
+    check("KEYLESS: and burns nothing, however many there are: the trader had nobody to deliver to", bond1 === bond0, `burned ${Number((bond0 - bond1) / 10n ** 21n) / 1000} NEAR for five windows`);
+    accepted("the buyer who did register a key is refused a delivery, and claims", await w.chain.call(buyer, "claim_undelivered", { token_id: one.id }));
+    const bond2 = BigInt((await down.record()).bond);
+    check("the refusal itself still burns half that window's price, once for the epoch", bond1 - bond2 === BigInt(kt.price) / 2n, `burned ${Number((bond1 - bond2) / 10n ** 21n) / 1000} NEAR`);
+    check("and the missed epoch is on his record", (await w.chain.view("score", { account: down.account })).missed >= 1);
+    await solvent(w, "after the keyless windows");
+  }
+}
+
+/** The price delay (`docs/decisions/0021`), on a world of its own: an hour's delay, rounds two hours apart at most, a six-hour posting grace. */
+async function delayed(): Promise<void> {
+  console.log("\n-- A round seen before it lands (price_delay_secs) --");
+  const DELAY = 3600;
+  const cfg = (over: Record<string, unknown>) => (recorder: string, treasury: string) => ({ ...VM_CONFIG(recorder, treasury), ...over });
+  const why = async (over: Record<string, unknown>) => vmWorld(undefined, undefined, cfg(over)).then(() => "ACCEPTED", (e) => String((e as Error).message));
+  // VM_CONFIG: a 6 h grace and a 2 h gap, so the grace outlasts twice the gap by under 2 h.
+  check("new refuses a posting grace that doesn't outlast twice the round gap and the price delay", (await why({ price_delay_secs: 2 * 3600 })).includes("price delay"), await why({ price_delay_secs: 2 * 3600 }));
+  check("new refuses a window longer than its 32-bit mask of known epochs", (await why({ max_window_epochs: 33 })).includes("1 to 32"), await why({ max_window_epochs: 33 }));
+  check("and a window of no epochs", (await why({ max_window_epochs: 0 })).includes("1 to 32"));
+  const w = await vmWorld(undefined, undefined, cfg({ price_delay_secs: DELAY }));
+  const carol = await w.fund("carol", near(50));
+  await w.rounds();
+  const hon = await newTrader(w, "honest-delayed", "delay-a");
+  const fr = await newTrader(w, "front-runner", "delay-b");
+  const e = await nextEpoch(w);
+  // A window far ahead on the trader who is about to be caught, listed for resale at more than it cost.
+  const dave = await w.fund("dave", near(50));
+  const ahead = await buy(w, carol, fr, e + 5, e + 5);
+  accepted("a future window on him is listed for resale, above its price", await w.chain.call(carol, "list_resale", { token_id: ahead.id, price: near(2).toString() }));
+  // Both write the same trade. One second later a round lands at a price they could have read in the source chain's mempool; the next round, past the delay, differs.
+  for (const t of [hon, fr]) accepted(`${t === hon ? "an honest trader" : "a front-runner"} writes a long`, await t.write(trade(0, 2, "long")));
+  accepted("a round one second later: the one a mempool watcher already knew", await w.roundAt(0, 2000_00000000n));
+  w.chain.vm.advance(DELAY * 1000);
+  accepted("the first round past the delay", await w.roundAt(0, 2100_00000000n));
+  await closeEpoch(w, e);
+  const figH = await hon.figure(e, w.prices);
+  // The same replay with no delay: what the rule was before, and what a trader who knew his fill would post.
+  const p0 = new Prices(w.chain);
+  await p0.load();
+  p0.delayMs = 0;
+  const known = await fr.figure(e, p0);
+  check("the two rules give different figures here", known.pnl_e6 !== figH.pnl_e6 && known.openings[0].price_index + 1 === figH.openings[0].price_index, `known fill ${known.pnl_e6}, delayed ${figH.pnl_e6}`);
+  accepted("the honest trader posts the delayed figure", await hon.post(e, figH.pnl_e6));
+  accepted("the front-runner posts the figure at the fill he knew", await fr.post(e, known.pnl_e6));
+  const op = await w.chain.call(carol, "audit_open", { trader: hon.account, epoch: e }, near("0.5"));
+  refused("KNOWN FILL: a round inside the delay can't price the trade", await w.chain.call(carol, "audit_step", { audit: Number(op.value), openings: [{ ...figH.openings[0], price_index: known.openings[0].price_index }] }), "wrong price hint");
+  accepted("the round past the delay does", await w.chain.call(carol, "audit_step", { audit: Number(op.value), openings: figH.openings }));
+  const vh = await w.chain.call(carol, "audit_conclude", { audit: Number(op.value), mark_indices: figH.mark_indices });
+  check("the honest figure stands, and the mark waits out the delay too", vh.ok && vh.value.trader_at_fault === false, vh.value?.detail ?? vh.reason ?? "");
+  const figF = await fr.figure(e, w.prices);
+  const vf = await runAudit(w.chain, carol, fr.account, e, figF);
+  check("KNOWN FILL: the figure priced at the round he already knew is false, and slashes", vf.verdict.ok && vf.verdict.value.trader_at_fault === true, vf.verdict.value?.detail ?? vf.verdict.reason ?? "");
+  // He is slashed now. The listing from before must not sell his window for more than the refund it's worth.
+  refused("SLASHED RESALE: a window on a slashed trader can't be bought from its holder", await w.chain.call(dave, "buy_resale", { token_id: ahead.id, buyer_pub: hex(buyerKey().pub) }, near(3)), "was slashed");
+  refused("nor listed again", await w.chain.call(carol, "list_resale", { token_id: ahead.id, price: near(1).toString() }), "was slashed");
+  const before = await creditOf(w, carol);
+  accepted("its holder claims the refund", await w.chain.call(carol, "claim_refund", { token_id: ahead.id }));
+  check("and gets the whole price back", (await creditOf(w, carol)) - before === BigInt((await ahead.token()).price));
+  // No round at all after the delay: void only once the delay and twice the gap have passed.
+  const late = await newTrader(w, "late", "delay-c");
+  const e2 = await nextEpoch(w);
+  accepted("a trade with no round after it", await late.write(trade(1, 1, "quiet feed")));
+  w.chain.vm.advance((DELAY + 2 * 2 * 3600) * 1000 - 60_000);
+  await w.prices.load();
+  let early = "";
+  try { await late.figure(e2, w.prices); } catch (x) { early = String((x as Error).message); }
+  check("its figure can't be known until the delay and twice the gap are over", early.includes("no round after"), early);
+  w.chain.vm.advance(120_000);
+  await w.prices.load();
+  const voided = await late.figure(e2, w.prices);
+  check("after that the trade is void, and the figure is zero", voided.trades[0].priceE8 === null && voided.pnl_e6 === 0n, `${voided.pnl_e6}`);
+  // What the delay doesn't cover (`docs/decisions/0022`): a `Recorded` round is stamped with the moment it was recorded here, whatever its source round is. A recorder
+  // that records the source's latest round again, unchanged, after the delay fills the trade at a price that was public before the entry. The delay bounds a
+  // borrowed feed, whose rounds carry their source's time and can't be imported twice; on a recorded feed it's only as good as the recorder.
+  const stale = await newTrader(w, "stale-fill", "delay-d");
+  const e3 = await nextEpoch(w);
+  const record = (id: string, answer: bigint, updated: string) => w.chain.call(w.recorder, "record_round", { feed: 2, round_id: id, answer_e8: Number(answer), source_updated_at: updated }, near("0.002"));
+  const n2 = (await w.chain.view("get_feeds"))[2].rounds;
+  const A = BigInt((await w.chain.view("get_rounds", { feed: 2, from: n2 - 1, limit: 1 }))[0].answer_e8);
+  accepted("the source's latest round, recorded: public", await record("777", A, "1000"));
+  w.chain.vm.advance(1000);
+  accepted("a long written after it, by a trader who sees the market above the oracle already", await stale.write(trade(2, 100, "the oracle is behind the market")));
+  w.chain.vm.advance(DELAY * 1000 + 5000);
+  accepted("past the delay the recorder records the source's latest again: the same round 777", await record("777", A, "1000"));
+  w.chain.vm.advance(1000);
+  accepted("he writes the sale", await stale.write(trade(2, -100, "out when the oracle catches up")));
+  w.chain.vm.advance(DELAY * 1000 + 5000);
+  accepted("then the source moves, 4% up, to where the market was", await record("778", (A * 104n) / 100n, "5000"));
+  await closeEpoch(w, e3);
+  const figS = await stale.figure(e3, w.prices);
+  accepted("he posts the figure", await stale.post(e3, figS.pnl_e6));
+  const vs = await runAudit(w.chain, carol, stale.account, e3, figS);
+  check("LIMIT, shown: on a recorded feed a round recorded again after the delay fills a trade at a price known before it, and the audit finds the gain right", figS.trades[0].priceE8 === A && figS.pnl_e6 > 0n && vs.verdict.ok && vs.verdict.value.trader_at_fault === false, `bought at ${Number(A) / 1e8}, the round already public; figure ${figS.pnl_e6}`);
+  const s = await w.chain.view("solvency");
+  check("solvency holds: after the delayed audits", BigInt(s.slack) >= 0n);
 }
 
 const started = Date.now();
@@ -1132,6 +1353,7 @@ console.log(`Attack suite on ${SANDBOX ? "a local NEAR sandbox node" : "the loca
 try {
   await run(w);
   if (!SANDBOX) await vmOnly(w as any);
+  if (!SANDBOX) await delayed();
 } catch (e) {
   check("the suite ran to the end", false, String((e as Error).stack ?? e));
 }

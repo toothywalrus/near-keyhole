@@ -1,234 +1,220 @@
 {
  "chain": "testnet",
- "contract": "app.near-keyhole-y4ow.testnet",
- "at": "2026-11-10T06:56:30.914Z",
+ "contract": "app.keyhole-33232a.testnet",
+ "at": "2026-11-14T10:19:07.416Z",
  "epoch": 1,
- "deploy_tx": "2sWeD43DFUhifqLKkyKggRi58msT4LXmUJYRpcQqGXXm",
- "owner": "owner.near-keyhole-y4ow.testnet",
- "treasury": "treasury.near-keyhole-y4ow.testnet",
+ "deploy_tx": "9FKDdjNiajrY8ujJY9NrPi1C3vr7ai1YwK4kN3AuehRJ",
+ "owner": "owner.keyhole-33232a.testnet",
+ "treasury": "treasury.keyhole-33232a.testnet",
  "traders": {
-  "vega": "vegao55.near-keyhole-y4ow.testnet",
-  "lucky": "luckyo55.near-keyhole-y4ow.testnet",
-  "mallory": "malloryo55.near-keyhole-y4ow.testnet"
+  "vega": "vega1uie.keyhole-33232a.testnet",
+  "lucky": "lucky1uie.keyhole-33232a.testnet",
+  "mallory": "mallory1uie.keyhole-33232a.testnet"
  },
- "buyer": "ineso55.near-keyhole-y4ow.testnet",
+ "buyer": "ines1uie.keyhole-33232a.testnet",
  "tokens": {
   "vega": 1,
   "lucky": 2,
   "mallory": 3
  },
+ "seeds": "keyring",
  "steps": [
   {
    "what": "vega registers: a bond, a root committing to a key tree",
-   "tx": "4NRVvVjmnytoJREcb2H1W8saAaXRvD4Y5oWuydqnQNNM",
-   "tgas": 2.668564057966,
+   "tx": "FPQUZ4MS9WF8ac2hJUNon9NQ6wgg3JdUThbKmDmRq4yt",
+   "tgas": 2.668366191203,
    "note": ""
   },
   {
    "what": "lucky registers: a bond, a root committing to a key tree",
-   "tx": "8mxgVYrpeErV28QuifF993mVvfbNKhrQBLtXwDpmJPQ7",
-   "tgas": 2.687246931355,
+   "tx": "8nvvQeDU2jJRkp4zSxRhwLkhT2HfAxVxsUELHc2LCoeh",
+   "tgas": 2.686970080016,
    "note": ""
   },
   {
    "what": "mallory registers: a bond, a root committing to a key tree",
-   "tx": "85Ac3qxcp7ZBL4DxJcNkeEJ8STgygUR61WiT17GhtehV",
-   "tgas": 2.692683627817,
+   "tx": "41HmFLYTo69PviAATMpFVkspYP58TbozSjoCFfKD6nDt",
+   "tgas": 2.69240430821,
    "note": ""
   },
   {
    "what": "vega writes: long ETH",
-   "tx": "9WgDfewdy4oT6eDcBKjLXdjzmKpygfUHP5zyiJNjahfh",
-   "tgas": 3.709340552763,
+   "tx": "8E56XY3XpKKvymPKmUUhQy8qknUwFrZtK6jsBYaivnhb",
+   "tgas": 3.708753888276,
    "note": "an encrypted entry, committed when written"
   },
   {
    "what": "lucky writes: a small long",
-   "tx": "EnhbJSiPTtu3EvCtThTbWrspWtrTxURWwzSQTMFRRcPf",
-   "tgas": 3.714542305393,
+   "tx": "7Y6GKQQct2ZxpMriqmmBS9pgYNSKAMmHp3RTEwPPa5Mm",
+   "tgas": 3.713797671754,
    "note": ""
   },
   {
    "what": "lucky writes: a BTC short",
-   "tx": "7KBYV45TdAKcuj7cyHtdnVC2shwun5FHx3pZa8uQWMSF",
-   "tgas": 3.817521223399,
+   "tx": "3gVRhXw8xQJwgZ3Ss15viCiWwez1fJj2WMYfZuew5eWe",
+   "tgas": 3.81677658976,
    "note": ""
   },
   {
    "what": "vega writes: a BTC hedge",
-   "tx": "9rzw7Usa6twBu48zFNE3uYRntUqBw6Q8AtZsBxbRbMRC",
-   "tgas": 3.821439470769,
+   "tx": "FrHkbxUmPVD3cC9WjR4duZmUyWsv9TyeasDNx2ozBU7e",
+   "tgas": 3.820852806282,
    "note": ""
   },
   {
    "what": "vega posts the true figure: $26.35",
-   "tx": "4CUxQAxmqXTyjXeb6FDStdRAswWHrSFyG9pjbtt4pdk5",
-   "tgas": 3.439334689544,
+   "tx": "3uvbu2uwrbAv1quzVq6qD9ydwtMMmVEC2aJT33NJw6Uw",
+   "tgas": 3.438748025057,
    "note": ""
   },
   {
    "what": "lucky posts a LIE: $25380.47 (truth: $380.47)",
-   "tx": "2rQaP4TwovhcLjAVNpn8aoMQQfPsx7CJvw9uGDbKkzFA",
-   "tgas": 3.440908058763,
+   "tx": "9ZGBSpuhZDd4K7oY88vKyaC2MMuTEUh9efkJPUYwWz3U",
+   "tgas": 3.439722427908,
    "note": ""
   },
   {
    "what": "mallory posts an empty epoch",
-   "tx": "DaDsLtm5sG2yYxtz4Af64ppaDN6VRiUUwNCVG8vf8EoR",
-   "tgas": 3.419214633952,
+   "tx": "HzaBozzHDHZVrYQfcBLUg4YvebZsgYxR5D12JQBPm5ff",
+   "tgas": 3.418521833941,
    "note": ""
   },
   {
    "what": "vega writes the next day's entry",
-   "tx": "C4M2R2qg265g2KrzTdTw6qNnsQXvfN417s8MrYPnvnbR",
-   "tgas": 3.795673230443,
+   "tx": "EwoMdQwnSRxKgo4Sb78ShfMU2o61p36P4UBzrfvpViSa",
+   "tgas": 3.795086565956,
    "note": ""
   },
   {
    "what": "buy epoch 1 of vega's journal, a NEP-171 token",
-   "tx": "HuDyjtKtwhUUu8budTB6d3uVqUZXLZoP5kL8wydoi5So",
-   "tgas": 7.633131957024,
+   "tx": "7URKYNhLMjo4GC2NYy43j8eK7qMDBa9SpGBMURvt68iV",
+   "tgas": 7.631194420545,
    "note": "price 0.0100 NEAR"
   },
   {
    "what": "vega delivers: nodes wrapped to her one-time key",
-   "tx": "DEEWA3mAfWtxYLPZfwK9oKt6bAUcaWoiFfehZRbViVhp",
-   "tgas": 8.425268123645,
+   "tx": "Y8dTLS8ujbXyj3ye7opNsFisZUtZfzu4xxRP5s3cJqj",
+   "tgas": 8.424654917314,
    "note": ""
   },
   {
    "what": "buy epoch 1 of lucky's journal",
-   "tx": "YNPrR9afF86arr4kAaDwUjTqsPgXnSfhLMRNzqVPo9d",
-   "tgas": 7.658742010108,
+   "tx": "39Yy1HFP9C55ha2AUD1oh5Ay4ffPJDuGmS746gvYjXgX",
+   "tgas": 7.656597961873,
    "note": ""
   },
   {
    "what": "lucky delivers honestly: the journal itself isn't the lie",
-   "tx": "9Bvn1kvDQ41ALxhhRjXjo3PMk3mEhgR6Mjysski9MDNo",
-   "tgas": 8.430301872483,
+   "tx": "8oaDKUuzYdLovbHkQJFZcGqL5T8hvnLpmnhUd2uzK5YT",
+   "tgas": 8.429530697,
    "note": ""
   },
   {
    "what": "audit_open: the deposit goes at risk",
-   "tx": "AC6KF5oQ3956a4w4ArtFcByUp7TMqg1fgzocZcEQZuqi",
-   "tgas": 3.343282984631,
+   "tx": "Gpywh9izYcLZPbc4Mfi2K4PNoEFZiyAnQ9ZJHXWhj1hL",
+   "tgas": 3.342449580116,
    "note": ""
   },
   {
    "what": "audit_step: 2 entries opened in the contract",
-   "tx": "99j4AWm4L9ESmCsT6rvPaLXh8ZAoEnP2iMo2X8QGcoxv",
-   "tgas": 3.117994471797,
+   "tx": "BHJ1YkNXVtvcJvLqmjwaj4dt41DYrTarNdFPY8vgCEQ1",
+   "tgas": 3.117915258926,
    "note": ""
   },
   {
    "what": "audit_conclude: recomputed, compared, slashed",
-   "tx": "HbxTcSjNyoi8tVgyAA5eFsfVymcAD4CCVXaaMvuoD21T",
-   "tgas": 3.434378252698,
+   "tx": "EHjL8YaeYKEDyea1Hnsvgt7ZXiz4SVJcarK9UgjDpQA1",
+   "tgas": 3.433400614731,
    "note": ""
   },
   {
    "what": "claim_refund: the escrow back",
-   "tx": "AfFxfXabvY3pbkmDWW8Tt3mvdE1SWyxebxki65jtbxET",
-   "tgas": 2.948475500261,
+   "tx": "9AgFXMkZRGMHUouq7v1z9nVQVi7VXtfhJvyydihUrGtU",
+   "tgas": 2.947731740718,
    "note": ""
   },
   {
    "what": "withdraw",
-   "tx": "66w1ftpXsX4Y8bWHT9XMzzGERWEuWHGJ5fBiXzbaQGcZ",
-   "tgas": 5.433573175634,
+   "tx": "HznqH4pFoyQK9pzvipc66zA3ALKnYxz2LhEH2GfP67e2",
+   "tgas": 5.431747716954,
    "note": ""
   },
   {
    "what": "she buys a window of mallory's journal",
-   "tx": "9mrR2fAA2JtbB7EABvmcq1s1bKFF1UK2aowT8YopqKNF",
-   "tgas": 7.662955380358,
+   "tx": "3SsbJT9yGobqqPmsMpB7NVYHNmfAYp398nYipXQp1ZGB",
+   "tgas": 7.660628680291,
    "note": ""
   },
   {
    "what": "mallory delivers garbage for one node",
-   "tx": "9Dwj7NReReag9wfvRh1BTSpSLr41Vdne5aXjgYzRYQ7K",
-   "tgas": 8.431249370159,
+   "tx": "CpxQsVgoKi33j6dhPFzHuR4e6ppBSwU4uHyyYjGbYxHT",
+   "tgas": 8.43047325814,
    "note": ""
   },
   {
    "what": "dispute_wrap: secret revealed, the contract unwraps and compares",
-   "tx": "3QioDitSjsRcnxGJ3gQoCXEyYoPrY6B7DKSs15BR9dVQ",
-   "tgas": 10.438560450958,
+   "tx": "6evESEbPAFRpY9edyPCjWFFWtBq7NKQQq4cAyZFxkgU1",
+   "tgas": 10.437796990365,
    "note": "x25519 x2, ChaCha20, SHA-256"
   },
   {
    "what": "someone else buys vega's window",
-   "tx": "ByPYkRrztxhqVo4RWgdKhs4YHotvXFP96NCL1v4nmRRM",
-   "tgas": 7.642251957024,
+   "tx": "EbNERxuUMYMf7WfwzNJstK78THG1i8PAEatMBXpaPVHh",
+   "tgas": 7.640314420545,
    "note": ""
   },
   {
    "what": "vega delivers honestly",
-   "tx": "Fw4rv5XYVGyoqZ7uYQKtp6PYhUVDE4EmUQLdd5jkmNJL",
-   "tgas": 8.429828123645,
+   "tx": "6628QNYsG7qaqPFXN4EdVAS4WpB3pEHn4jsW5xnhXFNG",
+   "tgas": 8.429214917314,
    "note": ""
   },
   {
    "what": "dispute_wrap with nothing wrong",
-   "tx": "3ogk5HR1GKZdUMBmFNP1ZB4z6SUiZTEDrGCW3AxCX7HG",
-   "tgas": 10.043342056252,
+   "tx": "9od6pivrtnBbuxyRwxzoX5MJRTSeBtqKNbrYdfFBmyiq",
+   "tgas": 10.043053817565,
    "note": ""
   },
   {
    "what": "the owner registers a local runner",
-   "tx": "7XAYCSa3j78SqzZN1byZJsVFeibTmaYixxaz3bauktbc",
-   "tgas": 2.400333374329,
+   "tx": "6EBde6N8ayj9BPkpxcXWrVKBfVsXVsHd7pzsJZKDiYPu",
+   "tgas": 2.399758444091,
    "note": ""
   },
   {
    "what": "the runner submits the job's output",
-   "tx": "9KuK7RAvzDqb2S4NM4ys9zyKU6EbMgM3qRMQ7Zu2Aiyv",
-   "tgas": 3.46843928767,
+   "tx": "CvC66uYo9mgdDvPCVqFjj1MvLtDBmbSLYjEo2Jt5Aygv",
+   "tgas": 3.466910226679,
    "note": ""
   },
   {
    "what": "settle: the challenge window is over, the escrow is released",
-   "tx": "J62rNcfv41rb5KmRzoQBuKNQjJwap6VNe1zmksLgqgj",
-   "tgas": 3.114009842054,
+   "tx": "ACDiUm1GRVtwdrrxqiptQ2pDDwANfLuUS2tfFzMn18Gd",
+   "tgas": 3.117833664283,
    "note": ""
   },
   {
    "what": "import_round: a real cross-contract read of the proven round",
-   "tx": "4Hbb4JHrVejh24NMSJqB4decG3RSjkhYvdrXu8vV5zqi",
-   "tgas": 6.70611659141,
+   "tx": "B7S1pwqYQaiMdjuXBDUQ6QXyKphRh3GviRQj2ZrBrsbe",
+   "tgas": 6.705296261151,
    "note": ""
-  },
-  {
-   "what": "settle, later: the false dispute's window closes for vega once its challenge window is over",
-   "tx": "6mHkLQka1yTNFqj8fqE6hoHXqgNLyrgzq66BVpBpFNik",
-   "tgas": 3.170651724769,
-   "note": "anyone can call it; run on 2026-11-10 after the demo"
   }
  ],
  "outlayer": {
-  "trader": "oliutl.near-keyhole-y4ow.testnet",
+  "trader": "oli1c2z.keyhole-33232a.testnet",
   "epoch": 8,
-  "wasm_url": "https://test.fastfs.io/owner.near-keyhole-y4ow.testnet/outlayer.testnet/5d814c083a12364aff3482b484e60c57994f18972f2275a7d47524c9cc24a78c.wasm",
-  "wasm_hash": "5d814c083a12364aff3482b484e60c57994f18972f2275a7d47524c9cc24a78c",
-  "upload_tx": "6TSbLfB6bQWYkFzVzcBjSXwhAZx9gEYMYgRqJLXZRTk6",
-  "direct": {
-   "request_tx": "9yQdrxsicFRVf1Ni4kYdkUfcEdnnpatx9pshyos5zWkS",
-   "request_id": 15448,
-   "figure": "12352646",
-   "posted": "12352646",
-   "via": "outlayer.testnet, returned to oliutl.near-keyhole-y4ow.testnet's transaction",
-   "attestation": "docs/research/outlayer-attestation-request-15448.json",
-   "secret_tx": "69QxQvacsDt4qFJ2M4gyB2DTV6tXNYP5pfuSYAKN3Ca3"
-  },
+  "wasm_url": "https://test.fastfs.io/owner.keyhole-33232a.testnet/outlayer.testnet/9f89762659c6ce1d002ff951be7e70d3a70b6a0a2f94f966821eae96059ca0b7.wasm",
+  "wasm_hash": "9f89762659c6ce1d002ff951be7e70d3a70b6a0a2f94f966821eae96059ca0b7",
+  "upload_tx": "Bi3BhQoazzGCmKNsvv5ZBugCfRbbDpDZhnYtudTSFa7P",
   "contract_path": {
-   "request_tx": "9MHogMxp4DAfMkaKgx1KaTf2NejpsUVrk7jJsRvuuny6",
-   "outcome": "outlayer.testnet refused the arguments: the deployed contract sends resource_limits as strings (invalid type: string \"10000000000\", expected u64). Its callback logged \"OutLayer gave no result\" and wrote no label. Fixed in source after this deployment (attest.rs)"
+   "request_tx": "4Dg6s9p8eP57KyYrRqCpVUXjvAoW4JPan1jWZqcnMAH9",
+   "first_request_tx": "FVPGhXuCWwK1JiAfs4krgUvZ3hfP1DwtEsc8aWeZRcNa",
+   "outcome": "outlayer.testnet accepted the contract's request (request 44316; the retry too), and its worker's run failed: \"Execution promise failed: Failed\", with the deposit refunded and no attestation published. The callback logged \"OutLayer gave no result\" and wrote no label. The same job wasm, on the same input, run locally under wasmtime against this contract, prints 12352646, the posted figure.",
+   "direct_attempt": {
+    "request_tx": "58aRDqYeKNukDRWzUQixXCaPG8NiQ5hLyZP9pey4cP5L",
+    "request_id": 44357,
+    "outcome": "the trader-signed request failed the same way on 2026-11-14: no output, no attestation"
+   }
   }
- },
- "code": {
-  "sha256": "8d6385fd2c0632934f30e90e8d3c41c293e77a85d99fb5bc179cb76c5e7313d0",
-  "code_hash": "AWvWFjMtUXJfuQXt3Ed1afCXR3MKLrDGBGwR83SdX1nF",
-  "source_commit": "a23a06c",
-  "built": "res/keyhole.wasm at a23a06c (git show a23a06c:res/keyhole.wasm)"
  }
 }

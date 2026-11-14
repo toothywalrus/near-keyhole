@@ -7,7 +7,7 @@ export function Proof() {
   return (
     <article className="proof">
       <h1>Proof</h1>
-      <p className="standfirst">Everything else on this site is a seeded simulation: the real contract, running in your tab on a local chain. This page is the part that isn't. The same contract is deployed on NEAR testnet, and what follows is read from it as you load the page.</p>
+      <p className="standfirst">Everything else on this site is a seeded simulation: the real contract, running in your tab on a local chain. This page is the part that isn't. The contract is deployed on NEAR testnet, the same wasm as the one in this tab, and what follows is read from it as you load the page.</p>
 
       <h2>Live on NEAR testnet</h2>
       {run === undefined ? <p className="note" role="status">Loading the run's record…</p> : run ? <Live run={run} /> : <p className="note">The testnet run's record isn't in this build.</p>}

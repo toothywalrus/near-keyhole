@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hex } from "@lib/bytes.ts";
 import { DEPTH, firstRoundAtOrAfter, replayEpoch, WindowReader, type EntryRec, type TokenRec, type TraderRec } from "@lib/client.ts";
-import { entryKey, openEntry, type Entry, type OneTime } from "@lib/entry.ts";
+import { entryKey, isDecoy, openEntry, type Entry, type OneTime } from "@lib/entry.ts";
 import { descend, slotsOf, type NodeId } from "@lib/ggm.ts";
 import { unhex } from "@lib/bytes.ts";
 import { decideCopy, slippageBps } from "@lib/intents.ts";
@@ -65,6 +65,7 @@ function Decrypted({ text, ct }: { text: string; ct: string }) {
 }
 
 function line(e: Entry): string {
+  if (isDecoy(e)) return "DECOY: no trade, void by the PnL rule";
   const q = Number(e.qty_e8) / 1e8;
   const asset = FEEDS[e.feed] ?? `feed ${e.feed}`;
   return `${q > 0 ? "BUY " : "SELL"} ${Math.abs(q).toFixed(4)} ${asset} @ ${(Number(e.fill_e8) / 1e8).toFixed(2)}`;
@@ -309,8 +310,8 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
                   <span className="when">{timeOf(Number(e.at_ms))}</span>
                   <span className="body">
                     <span className="trade"><Decrypted text={entry ? line(entry) : "malformed: void by the PnL rule"} ct={e.ct} /></span>
-                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="What a trader wrote, not proof of a trade. A settlement reference is his own claim: the contract never reads it."> {entry.flags & 1 ? "claims a fill (unverified)" : "signal record"}</em></span> : null}
-                    {entry ? (
+                    {entry && !isDecoy(entry) ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="What a trader wrote, not proof of a trade. A settlement reference is his own claim: the contract never reads it."> {entry.flags & 1 ? "claims a fill (unverified)" : "signal record"}</em></span> : null}
+                    {entry && !isDecoy(entry) ? (
                       <span className="copy-row">
                         <button className="link" onClick={() => copyHere(e, entry)}>Copy it here</button>
                         <button className="link" onClick={() => getQuote(e, entry)}>Live 1Click quote</button>
