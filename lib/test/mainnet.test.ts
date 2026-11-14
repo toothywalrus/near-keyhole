@@ -39,3 +39,14 @@ test("the mainnet config is one the contract accepts, with the 5% fee", () => {
   assert.ok(r.ok, r.reason);
   assert.equal(vm.view<{ fee_bps: number }>("get_config", {}).fee_bps, 500);
 });
+
+test("the testnet config of the next deployment is one the contract accepts, with its price delay", async () => {
+  const { TESTNET_CONFIG } = await import("../../tools/testnet.ts");
+  const vm = new MiniNear(readFileSync(new URL("../../res/keyhole.wasm", import.meta.url)), "app.fresh.testnet", Date.UTC(2026, 10, 10), (d) => nobleSha256(d));
+  vm.fund("app.fresh.testnet", 10n ** 27n);
+  vm.fund("owner.fresh.testnet", near(10));
+  const r = vm.call("owner.fresh.testnet", "new", { owner: "owner.fresh.testnet", config: TESTNET_CONFIG("recorder.fresh.testnet", "treasury.fresh.testnet"), feeds: [{ symbol: "ETH/USD", source: "Recorded" }] });
+  assert.ok(r.ok, r.reason);
+  assert.equal(vm.view<{ price_delay_secs: number }>("get_config", {}).price_delay_secs, 20);
+  assert.equal(vm.view<{ price_delay_secs: number }>("get_config", {}).price_delay_secs > 0 && MAINNET_CONFIG("r.near", "t.near").price_delay_secs, 60);
+});

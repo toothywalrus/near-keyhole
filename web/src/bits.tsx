@@ -9,6 +9,17 @@ export function Glyph({ size = 18 }: { size?: number }) {
   );
 }
 
+/** The brass plate around a keyhole: the mark. */
+export function Escutcheon({ size = 28 }: { size?: number }) {
+  return (
+    <svg className="escutcheon" width={size} height={size * (40 / 28)} viewBox="0 0 28 40" aria-hidden="true">
+      <rect className="plate" x="0.5" y="0.5" width="27" height="39" rx="13.5" />
+      <rect className="rim" x="2.5" y="2.5" width="23" height="35" rx="11.5" />
+      <path className="hole" d="M14 9.5a4.6 4.6 0 0 0-2.6 8.4L9.9 29.5h8.2l-1.5-11.6A4.6 4.6 0 0 0 14 9.5z" />
+    </svg>
+  );
+}
+
 export function Spark({ data, width = 132, height = 34 }: { data: number[]; width?: number; height?: number }) {
   if (data.length < 2) return <svg width={width} height={height} className="spark" aria-hidden="true" />;
   const all = [0, ...data];
@@ -41,12 +52,18 @@ export function Fact({ label, children, note }: { label: string; children: React
   );
 }
 
-/** A locked entry: a redaction bar with its real ciphertext inside. */
+/** A sealed entry: black lacquer with its real ciphertext inside. */
 export function Bar({ ct, label }: { ct: string; label?: string }) {
   return (
-    <span className="bar" title="ciphertext, on the chain">
+    <span className="bar" title="ciphertext, as it is on the chain">
+      <svg className="lock" width="9" height="12" viewBox="0 0 20 26" aria-hidden="true"><path d="M10 1a7 7 0 0 0-3.9 12.8L3.6 25h12.8l-2.5-11.2A7 7 0 0 0 10 1z" fill="currentColor" /></svg>
       <span className="cipher">{ct}</span>
       {label ? <span className="bar-label">{label}</span> : null}
     </span>
   );
+}
+
+/** A link to a transaction on NEAR testnet's explorer. */
+export function Tx({ tx }: { tx: string }) {
+  return <a href={`https://testnet.nearblocks.io/txns/${tx}`} target="_blank" rel="noreferrer"><code>{tx.slice(0, 10)}…</code> ↗</a>;
 }

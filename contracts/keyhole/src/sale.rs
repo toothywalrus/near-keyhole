@@ -210,6 +210,8 @@ impl Keyhole {
             self.refund_undelivered(k);
             return "refunded".to_string();
         }
+        // A holder who took the token by plain transfer and never registered a key gave the trader nobody to deliver to. That window settles like a delivered one.
+        // Refunding it instead would let a buyer park money in windows he never means to read and tie up a trader's bond coverage for free.
         let holder_absent = k.state == TokenState::Pending;
         require!(k.state == TokenState::Delivered || holder_absent, "this window can't be settled");
         let price = k.price.0;
@@ -219,7 +221,9 @@ impl Keyhole {
         // A missing figure is the trader's doing: it burns. A loss past the floor, truly posted, is just a loss: the buyer gets the escrow back and the bond is
         // untouched, or strangers could buy into a drawdown to burn it (#15). Only a figure that differs from the journal can cost a bond, through an audit.
         if breach == Breach::MissingFigure {
-            let penalty = self.penalty_of(price);
+            // Not for a window nobody registered a key for: the trader had nobody to deliver to, and a stranger could otherwise park any number of such windows on an
+            // epoch and burn half of each from the bond of a trader whose agent was down for it, at no cost to himself. The refund and the record's charge stay.
+            let penalty = if holder_absent { 0 } else { self.penalty_of(price) };
             self.burn(&mut t, penalty);
         }
         let payee = if breached { k.owner.clone() } else { t.account.clone() };
@@ -276,6 +280,7 @@ impl Keyhole {
         require!(k.owner == who, "only the holder can list");
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
         require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
+        require!(!matches!(self.trader(k.trader).status, TraderStatus::Slashed { .. }), "this trader was slashed: the window can only be refunded to its holder");
         k.resale_price = price;
         self.tokens.insert(token_id, k);
     }
@@ -286,6 +291,8 @@ impl Keyhole {
         let mut k = self.token(token_id);
         require!(k.state == TokenState::Pending, "keys were already delivered: this window can't be resold");
         require!(self.resale_open(&k), "delivery can begin now: this window can't be resold");
+        // A window on a slashed trader is worth its refund and nothing else: a listing left from before the slash could otherwise sell it for more to someone who hasn't looked.
+        require!(!matches!(self.trader(k.trader).status, TraderStatus::Slashed { .. }), "this trader was slashed: the window can only be refunded to its holder");
         let ask = k.resale_price.unwrap_or_else(|| env::panic_str("this token isn't for sale")).0;
         require!(who != k.owner, "you already hold it");
         require!(!low_order(&buyer_pub.0), "that one-time key is a low-order point");

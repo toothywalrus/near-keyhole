@@ -30,6 +30,7 @@ fn contract() -> Keyhole {
             recorder: None,
             fee_bps: 0,
             treasury: None,
+            price_delay_secs: 0,
         },
         vec![oracle::FeedInit { symbol: "ETH/USD".into(), source: oracle::FeedSource::Recorded }],
     )

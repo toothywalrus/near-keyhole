@@ -4,10 +4,12 @@
 //
 //   npm run demo                on a local sandbox node, free, about a minute
 //   npm run demo -- --testnet   on NEAR testnet (the owner's funded root; writes docs/demo/testnet-run.json)
+import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { hex } from "../lib/src/bytes.ts";
 import { buyerKey, loadEntries, near, NO_SETTLEMENT, replayEpoch, runAudit, type EpochRec, type Outcome, type TokenRec, type TraderRec, TraderAgent, WindowReader } from "../lib/src/client.ts";
 import { sandboxWorld, seedOf, type World } from "./world.ts";
+import { hasKey, keyFor, saveKey } from "./keys.ts";
 import { tgas } from "./nearkit.ts";
 
 const TESTNET = process.argv.includes("--testnet");
@@ -40,9 +42,17 @@ const PRICE = TESTNET ? near("0.01") : near("0.05");
 const SLOPE = TESTNET ? near("0.002") : near("0.01");
 const STAMP = TESTNET ? (Date.now() % 100000).toString(36) : "";
 
+/** A trader's tree seed. On testnet it's 32 random bytes kept in the OS keyring beside his key, as `tools/outlayer.ts` does: a seed made from a name would let anyone
+ *  who reads this repo open the journal on the public chain, which the first run's seeds did. On the local node it's a test seed, so a run can be repeated. */
+const treeSeed = (account: string, label: string): Uint8Array => {
+  if (!TESTNET) return seedOf(label);
+  const id = `keyhole-tree-seed:${account}`;
+  if (!hasKey(id)) saveKey(id, hex(randomBytes(32)));
+  return Uint8Array.from(Buffer.from(keyFor(id), "hex"));
+};
 const agentNamed = async (name: string, fund: string): Promise<TraderAgent> => {
   const account = await w.fund(`${name}${STAMP}`, near(fund));
-  return new TraderAgent(w.chain, account, seedOf(`${name}${STAMP}`), w.timing);
+  return new TraderAgent(w.chain, account, treeSeed(account, `${name}${STAMP}`), w.timing);
 };
 const reg = async (t: TraderAgent, handle: string) => {
   const r = await t.register(handle, { book_usd: 100_000, floor_bps: 1000, base_price: PRICE, slope: SLOPE, bond: BOND });
@@ -219,6 +229,8 @@ for (const s of steps.filter((x) => x.tgas)) say(`   ${(s.tgas ?? 0).toFixed(2).
 const out = {
   chain: TESTNET ? "testnet" : "sandbox", contract: w.contract, at: new Date().toISOString(), epoch: e0, deploy_tx: (w as any).deployTx ?? null, owner: w.owner, treasury: w.treasury,
   traders: { vega: vega.account, lucky: lucky.account, mallory: mallory.account }, buyer, tokens: { vega: tokenId, lucky: Number(b2.value), mallory: Number(b3.value) },
+  // Where the traders' tree seeds came from. The page says so: a run whose record lacks "keyring" used seeds anyone can derive from this repo.
+  seeds: TESTNET ? "keyring" : "test",
   steps,
 };
 if (TESTNET || process.argv.includes("--write")) writeFileSync(new URL(TESTNET ? "../docs/demo/testnet-run.json" : "../docs/research/gas-sandbox.json", import.meta.url), JSON.stringify(out, null, 1));

@@ -65,14 +65,14 @@ function mkRounds(w: Pick<World, "chain" | "recorder">) {
   };
 }
 
-export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?: string): Promise<World & { chain: VmChain }> {
+export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?: string, config: (recorder: string, treasury: string) => Config = VM_CONFIG): Promise<World & { chain: VmChain }> {
   const contract = "keyhole.test";
   const chain = new VmChain(contract, startMs, wasmPath);
   const recorder = "recorder.test";
   const owner = "owner.test";
   const treasury = "treasury.test";
   for (const a of [recorder, owner, treasury]) chain.vm.fund(a, near(1000));
-  const r = chain.vm.call(owner, "new", { owner, config: VM_CONFIG(recorder, treasury), feeds: FEEDS });
+  const r = chain.vm.call(owner, "new", { owner, config: config(recorder, treasury), feeds: FEEDS });
   if (!r.ok) throw new Error(`new: ${r.reason}`);
   const timing = await Timing.read(chain);
   const prices = new Prices(chain);
@@ -85,7 +85,8 @@ export async function vmWorld(startMs: number = Date.UTC(2026, 7, 25), wasmPath?
       return `${n}.test`;
     },
     rounds: async () => {
-      chain.vm.advance(1000);
+      // Past the price delay, so that these rounds can price what was written before them.
+      chain.vm.advance((timing.config.price_delay_secs ?? 0) * 1000 + 1000);
       await rounds();
       chain.vm.advance(1000);
     },

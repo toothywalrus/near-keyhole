@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { hex } from "../lib/src/bytes.ts";
-import { DEPTH, near, NO_SETTLEMENT, type EpochRec, type TraderRec } from "../lib/src/client.ts";
+import { DEPTH, loadEntries, near, NO_SETTLEMENT, Prices, replayEpoch, type EpochRec, type TraderRec } from "../lib/src/client.ts";
 import { cover } from "../lib/src/ggm.ts";
 import { agent, sandboxWorld, FAST_CONFIG } from "./world.ts";
 
@@ -55,6 +55,19 @@ try {
   if (!out.ok) throw new Error(out.err);
   check("JOB = TRADER = CONTRACT'S RULE: the job's figure equals the local replay, to the unit", out.out.pnl_e6 === fig.pnl_e6.toString(), `job ${out.out.pnl_e6}, local ${fig.pnl_e6}`);
   check("it read the whole epoch", out.out.applied === 2 && out.out.void === 0, `applied ${out.out.applied}, void ${out.out.void}`);
+  // The price delay (docs/decisions/0021): the job and the local replay must move together. Everything is handed to the job here, with a delay this deployment doesn't have.
+  {
+    const D = 3000;
+    const tr = await w.chain.view<{ book_usd_e6: string }>("get_trader", { account });
+    const entries = await loadEntries(w.chain, account, 0, 2);
+    const later = new Prices(w.chain);
+    await later.load();
+    later.delayMs = D;
+    later.nowMs += 60_000;
+    const local = replayEpoch(entries, (x) => t.keyOf(x), later, BigInt(tr.book_usd_e6), w.timing.epochStart(e + 1));
+    const given = run({ trader: account, epoch: e, data: { book_usd_e6: tr.book_usd_e6, feeds: later.feeds, epoch_end_ms: w.timing.epochStart(e + 1), head: entries[entries.length - 1].head, entries, rounds: later.rounds, gap_ms: later.gapMs, delay_ms: D, now_ms: later.nowMs } }, env);
+    check("PRICE DELAY: with a delay the job and the local replay still agree, to the unit", given.ok && given.out.pnl_e6 === local.pnl_e6.toString(), given.ok ? `job ${given.out.pnl_e6}, local ${local.pnl_e6} (no delay: ${fig.pnl_e6})` : given.err?.slice(0, 160));
+  }
   const wrong = run(input, { ...env, KEYHOLE_NODES: JSON.stringify(nodes.map((n) => ({ ...n, value: "11".repeat(32) }))) });
   check("with the wrong key material the job refuses and prints no figure", !wrong.ok, wrong.err?.trim().slice(0, 90));
   const outside = run(input, { ...env, KEYHOLE_NODES: JSON.stringify(cover(last + 1, last + 1, DEPTH).map((n) => ({ level: n.level, index: n.index, value: hex(t.tree.node(n)) }))) });
