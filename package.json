@@ -29,7 +29,8 @@
     "judge:full": "tsx tools/judge.ts --full",
     "record": "tsx tools/record-demo.ts",
     "kani": "sh tools/kani.sh",
-    "check-res": "sh tools/check-res.sh"
+    "check-res": "sh tools/check-res.sh",
+    "web:next": "npm run --silent web:assets && npm run dev:next -w web"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",

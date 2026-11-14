@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keyhole</title>
+    <meta name="description" content="Buy a window into a trader's encrypted journal. The PnL is bonded, and any buyer can prove a false figure on-chain. A NEAR testnet demo." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2314171c'/%3E%3Cpath d='M16 7a5.5 5.5 0 0 0-3 10.1L11.6 25h8.8L19 17.1A5.5 5.5 0 0 0 16 7z' fill='%23e0b44c'/%3E%3C/svg%3E" />
+    <script>
+      // The theme before the first paint: the visitor's choice if there is one, else the system's.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("keyhole:theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-Do8UZv0U.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CDr_pGv9.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -12,6 +12,7 @@ Built for NEAR HACKATHON, tracks **privacy** and **defi**. A testnet technical d
 1. `git clone https://github.com/toothywalrus/near-keyhole && cd near-keyhole && npm ci`
 2. `npm run judge`: about 75 s on a 2-CPU box, free, no keys. It ends in the table below.
 3. `npm run web`, then open http://localhost:5191: the board. Press **Buy a week of lucky-seven**, read it, try the next day's entry, and **Prove it**. The page walks you through it, in about a minute.
+   A redesigned interface for the same demo: `npm run web:next`, then http://localhost:5192 (`web/next/`).
 
 **Prerequisites.** `npm run judge` needs Node 20 or newer and network access to NEAR testnet's public RPC (`--offline` skips those reads), on any OS. No Rust, no keys, no local node, no browser.
 `npm run judge:full` (about 17 minutes on an Apple Silicon Mac, plus 11 for the mutants) also needs Linux with **glibc 2.38 or newer** (Ubuntu 24.04, Debian 13) or macOS on Apple Silicon, for NEAR's sandbox binary; **Chromium** (`npx playwright install --with-deps chromium`); **Rust 1.93.0** (pinned; rustup installs it) with `cargo-near` 0.22; and `wasmtime`. Anything missing shows as SKIP with the reason, never as FAIL.

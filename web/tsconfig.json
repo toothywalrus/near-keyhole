@@ -3,5 +3,5 @@
     "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "jsx": "react-jsx", "strict": true, "noEmit": true,
     "skipLibCheck": true, "allowImportingTsExtensions": true, "lib": ["ES2023", "DOM", "DOM.Iterable"], "paths": { "@lib/*": ["../lib/src/*"] }, "types": []
   },
-  "include": ["src", "../lib/src"]
+  "include": ["src", "next/src", "../lib/src"]
 }

@@ -1,0 +1,44 @@
+{
+ "generated": "2026-11-13T07:38:23.837Z",
+ "rounds_recorded": "2026-11-05T11:44:31.167Z",
+ "days": 46,
+ "wasm_sha256": "c88d70b9f53a294d7e99101910079801037438d258550f88224816874909e351",
+ "clock_ms": 1794049873000,
+ "personas": [
+  {
+   "handle": "lucky-seven",
+   "display": "lucky-seven",
+   "blurb": "Top of the board. High conviction, very few words."
+  },
+  {
+   "handle": "north-sea",
+   "display": "north-sea",
+   "blurb": "ETH trend, held for days. Long stretches of nothing."
+  },
+  {
+   "handle": "ox-and-ember",
+   "display": "ox&ember",
+   "blurb": "Fades BTC's sharp moves and goes home flat."
+  },
+  {
+   "handle": "mistral",
+   "display": "mistral",
+   "blurb": "ETH against BTC. Doesn't care which way the market goes."
+  },
+  {
+   "handle": "tomo",
+   "display": "tomo",
+   "blurb": "SOL breakouts on a slow feed. New here, bond to match."
+  },
+  {
+   "handle": "marrow",
+   "display": "marrow",
+   "blurb": "Was posting daily. Stopped eleven days ago."
+  },
+  {
+   "handle": "halcyon",
+   "display": "halcyon",
+   "blurb": "Looked fine for a month. A buyer did the sum."
+  }
+ ]
+}
