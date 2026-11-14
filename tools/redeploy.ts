@@ -1,5 +1,5 @@
 // A new locked deployment of this tree's contract on NEAR testnet, with the whole run and the contract's own OutLayer path on it, and the repo pointed at it.
-// NOT RUN YET: the deployed contract (app.near-keyhole-y4ow.testnet) is the build of a23a06c. A new version goes to a fresh account under a fresh root
+// Run on 2026-11-14: app.keyhole-33232a.testnet. A new version goes to a fresh account under a fresh root
 // (docs/decisions/0017), which takes about 9 testnet NEAR: one faucet draw, which is the author's call.
 //
 //   npx tsx tools/faucet.ts <name>.testnet                                  make and fund a fresh root (its key goes to the OS keyring first)
@@ -13,7 +13,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 
-const USED = ["near-keyhole-y4ow.testnet", "keyhole-g1zo8i.testnet"];
+const USED = ["near-keyhole-y4ow.testnet", "keyhole-g1zo8i.testnet", "keyhole-33232a.testnet"];
 const NEED_NEAR = 9;
 
 /** Why this can't go ahead, or null. Pure, so the guards can be tested without a network. */
