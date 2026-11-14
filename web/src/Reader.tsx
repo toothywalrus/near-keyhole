@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hex } from "@lib/bytes.ts";
 import { DEPTH, firstRoundAtOrAfter, replayEpoch, WindowReader, type EntryRec, type TokenRec, type TraderRec } from "@lib/client.ts";
-import { entryKey, openEntry, type Entry, type OneTime } from "@lib/entry.ts";
+import { entryKey, isDecoy, openEntry, type Entry, type OneTime } from "@lib/entry.ts";
 import { descend, slotsOf, type NodeId } from "@lib/ggm.ts";
 import { unhex } from "@lib/bytes.ts";
 import { decideCopy, slippageBps } from "@lib/intents.ts";
@@ -65,6 +65,7 @@ function Decrypted({ text, ct }: { text: string; ct: string }) {
 }
 
 function line(e: Entry): string {
+  if (isDecoy(e)) return "DECOY: no trade, void by the PnL rule";
   const q = Number(e.qty_e8) / 1e8;
   const asset = FEEDS[e.feed] ?? `feed ${e.feed}`;
   return `${q > 0 ? "BUY " : "SELL"} ${Math.abs(q).toFixed(4)} ${asset} @ ${(Number(e.fill_e8) / 1e8).toFixed(2)}`;
@@ -256,7 +257,7 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
         <div>
           <p className="kicker"><a href="#/">The board</a> / <a href={`#/t/${handle}`}>{t.handle}</a> / window #{id}</p>
           <h1>{dateOf(s.timing.epochStart(token.first_epoch))} to {dateOf(s.timing.epochStart(token.last_epoch))}</h1>
-          <p className="blurb">Your window into {t.handle}'s journal: NEP-171 token #{id}. Paid {lnear(token.price)} Ⓝ, in escrow until {timeOf(Number(token.settle_at_ms))}. State: {token.state}.</p>
+          <p className="blurb">Your window into {t.handle}'s journal: NEP-171 token #{id}. Paid {lnear(token.price)} Ⓝ{token.state === "Refunded" ? ", and the escrow is yours again" : token.state === "Closed" ? ", released to the trader" : `, in escrow until ${timeOf(Number(token.settle_at_ms))}`}. State: {token.state}.</p>
         </div>
       </section>
 
@@ -309,8 +310,8 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
                   <span className="when">{timeOf(Number(e.at_ms))}</span>
                   <span className="body">
                     <span className="trade"><Decrypted text={entry ? line(entry) : "malformed: void by the PnL rule"} ct={e.ct} /></span>
-                    {entry ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="What a trader wrote, not proof of a trade. A settlement reference is his own claim: the contract never reads it."> {entry.flags & 1 ? "claims a fill (unverified)" : "signal record"}</em></span> : null}
-                    {entry ? (
+                    {entry && !isDecoy(entry) ? <span className="reason">“{entry.note}”{idx >= 0 ? <em> oracle {(rounds![idx].answer_e8 / 1e8).toFixed(2)}</em> : null}<em title="What a trader wrote, not proof of a trade. A settlement reference is his own claim: the contract never reads it."> {entry.flags & 1 ? "claims a fill (unverified)" : "signal record"}</em></span> : null}
+                    {entry && !isDecoy(entry) ? (
                       <span className="copy-row">
                         <button className="link" onClick={() => copyHere(e, entry)}>Copy it here</button>
                         <button className="link" onClick={() => getQuote(e, entry)}>Live 1Click quote</button>
@@ -363,7 +364,7 @@ function Window({ id, token, t, one }: { id: number; token: TokenRec; t: TraderR
                 </table>
               </div>
             ) : <p className="note">Nothing to check until the keys arrive.</p>}
-            {falseRows.length && !t.status?.Slashed ? <p className="verdict alarm"><b>{falseRows.length === epochRows.length ? "Every figure here is false." : `${falseRows.length} of these figures are false.`}</b> The difference is {money(totalPosted - totalMine, 2).replace("+", "")} of PnL that didn't happen. Prove any one of them, and the contract recomputes it and slashes his bond.</p> : null}
+            {falseRows.length && !t.status?.Slashed ? <p className="verdict alarm"><b>{falseRows.length === epochRows.length ? "Every day's figure here is false." : `${falseRows.length} of these daily figures are false.`}</b> His number on the board is the sum of figures like these, and in your window alone it's {money(totalPosted - totalMine, 2).replace("+", "")} of PnL that didn't happen. One false day is enough: prove any one, and the contract recomputes it and slashes his whole bond.</p> : null}
             {reader && !falseRows.length && !t.status?.Slashed && epochRows.length ? <p className="verdict plain"><b>Every figure in your window adds up.</b> This trader posted what his entries say. That's what a bond is for.</p> : null}
             {audit ? (
               <div className="audit-log" aria-live="polite">

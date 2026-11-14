@@ -25,6 +25,18 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors: string[] = [];
 page.on("pageerror", (e) => errors.push(String(e)));
+// The part that isn't a simulation: the real contract on testnet, read live. The RPC is answered here from a recording of its own views, so the test needs no network;
+// the page code, the parsing and the rendering are the real ones.
+const CANNED: Record<string, unknown> = JSON.parse(readFileSync(new URL("../fixtures/testnet-views.json", import.meta.url), "utf8"));
+let rpcUp = true;
+await page.route("https://test.rpc.fastnear.com/**", async (route) => {
+  if (!rpcUp) return route.abort();
+  const q = JSON.parse(route.request().postData() ?? "{}").params ?? {};
+  const args = q.args_base64 ? Buffer.from(q.args_base64, "base64").toString() : "";
+  const key = q.request_type === "view_access_key_list" ? "view_access_key_list" : `${q.method_name}${args === "{}" ? "" : args}`;
+  const body = q.request_type === "view_access_key_list" ? { keys: CANNED[key] } : { result: [...Buffer.from(JSON.stringify(CANNED[key] ?? null))] };
+  await route.fulfill({ contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, result: body }) });
+});
 await page.goto(url);
 await page.waitForSelector(".brow:not(.head)");
 check("the board loads, from the contract's views", (await page.locator(".brow:not(.head)").count()) === 7);
@@ -32,6 +44,7 @@ check("every page says what is seeded", (await page.locator(".provenance").inner
 check("the board's first row is the top PnL: lucky-seven", (await page.locator(".brow:not(.head) .who b").first().innerText()) === "lucky-seven");
 const start = page.locator(".tryit a.brass");
 check("the first screen says what to do, and one button starts it", (await start.getAttribute("href")) === "#/t/lucky-seven" && /Buy a week of lucky-seven/.test(await start.innerText()));
+check("the first screen says how small the bond is beside the claim, before anyone pays", /His bond is [\d.]+% of what he claims/.test(await page.locator(".tryit").innerText()));
 await page.locator(".brow:not(.head)").filter({ hasText: "lucky-seven" }).click();
 await page.waitForSelector(".cal");
 check("the trader page shows a window picker", (await page.locator(".day").count()) > 5);
@@ -93,7 +106,45 @@ await page.click(".verdict.alarm button");
 await page.waitForSelector(".verdict.ok");
 check("the dispute slashes, in the real contract, in this tab", (await page.locator(".verdict.ok").first().innerText()).includes("slashed"));
 
+// The part that isn't a simulation: the real contract on testnet, read live (answered from a recording: see the top of this file).
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(`${url}#/`);
+await page.waitForSelector(".livestrip");
+check("LIVE: the board says what the real contract on testnet holds, and that it's not the simulation", /Not a simulation.*2 slashed by the contract.*no key on the contract's account/s.test(await page.locator(".livestrip").innerText()));
+await page.click(".livestrip");
+await page.waitForSelector(".livebox table.live");
+const liveText = await page.locator(".livebox").innerText();
+// The liar's figures come from the recording, so a new deployment's recording (tools/record-views.ts) needs no edit here.
+const liar = (Object.entries(CANNED).find(([k, v]) => k.startsWith("get_epochs") && (v as any)?.[0]?.verdict?.False)?.[1] as any)?.[0];
+const usdOf = (e6: string) => `${Number(e6) < 0 ? "−" : ""}$${Math.abs(Number(e6) / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const lied = { posted: String(liar?.posted_e6), recomputed: String(liar?.verdict?.False?.recomputed_e6) };
+check("LIVE: the proof page shows the liar's slash as the contract recorded it", !!liar && /lucky[\s\S]*Slashed/i.test(liveText) && liveText.includes(`posted ${lied.posted}, recomputed ${lied.recomputed}`) && liveText.includes(`posted ${usdOf(lied.posted)}, the contract recomputed ${usdOf(lied.recomputed)}`),liveText.split("\n").find((l) => l.includes("recomputed"))?.slice(0, 80));
+check("LIVE: and the garbage delivery, the locked account, the windows and a sealed journal", /doesn't match its commitment/.test(liveText) && /Locked: nobody can change its code/.test(liveText) && /Refunded to its holder/.test(liveText) && (await page.locator(".livejournal .bar").count()) > 0);
+check("LIVE: it says the page can't act on testnet, and how you can", /holds no key and signs nothing/.test(liveText) && /npm run demo -- --testnet/.test(liveText));
+check("LIVE: a stranger's handle is never shown, only counted", !liveText.includes("NOT-OURS") && /1 other account has registered since/.test(liveText));
+check("LIVE: nor a stranger's account name: a window on his trader is counted, not listed", !liveText.includes("rude-words") && /1 more window was sold on accounts that aren't part of the run/.test(liveText) && (await page.locator(".livebox table.live").nth(1).locator("tbody tr").count()) === 4);
+// The caveat follows the run's own record: a run made with random seeds from the keyring (tools/demo.ts on testnet, from now on) says "seeds": "keyring", and has none.
+const fromKeyring = JSON.parse(readFileSync(join(root, "testnet-run.json"), "utf8")).seeds === "keyring";
+const caveat = /tree seeds were made from public strings in this repository/.test(liveText);
+check(fromKeyring ? "LIVE: this run's seeds came from the keyring, so the page makes no caveat about its journals" : "LIVE: it says this run's journals were sealed with seeds anyone can derive, so they show the format and keep no secret", fromKeyring ? !caveat : caveat);
+rpcUp = false;
+await page.reload();
+await page.waitForSelector(".proof .verdict.alarm");
+const down = await page.locator(".proof .verdict.alarm").innerText();
+check("LIVE: when testnet can't be read the page says so, says nothing is wrong with it, and offers a retry", /Couldn't read testnet just now/.test(down) && /Try again/.test(down) && (await page.locator(".txs tbody tr").count()) > 20, down.slice(0, 70));
+rpcUp = true;
+await page.click(".proof .retry");
+await page.waitForSelector(".livebox table.live");
+check("LIVE: and the retry works", (await page.locator(".livebox table.live").count()) === 2);
+
 await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${url}#/proof`);
+await page.waitForSelector(".livebox table.live");
+const overflowP = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+check("at phone width the proof page doesn't scroll sideways either", overflowP <= 0, `${overflowP}px`);
+const verdictCell = page.locator(".livebox table.live").first().locator("tr.caught td").last();
+const sb = await verdictCell.boundingBox();
+check("at phone width what the contract says about a slashed trader is on screen, not behind a sideways scroll", !!sb && sb.x >= 0 && sb.x + sb.width <= 390, sb ? `${Math.round(sb.x)} to ${Math.round(sb.x + sb.width)}px of 390` : "missing");
 await page.goto(`${url}#/`);
 await page.waitForSelector(".brow:not(.head)");
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

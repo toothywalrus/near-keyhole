@@ -321,6 +321,35 @@ a.brow:hover .who b { text-decoration: underline; text-decoration-thickness: 1px
 .proof .facts { margin-bottom: 8px; }
 .proof .retry { margin-left: 8px; }
 .table-scroll { overflow-x: auto; }
+
+/* ---- the real contract, read live ---- */
+.livestrip { display: flex; gap: 12px; align-items: baseline; margin: 26px 0 4px; padding: 12px 14px; background: var(--lacquer); color: var(--on-lacquer); text-decoration: none; font: 400 13px/1.5 var(--mono); }
+.livestrip .pill { vertical-align: 0; flex: none; }
+.livestrip b { color: var(--plate); font-weight: 600; }
+.livestrip .go { margin-left: auto; flex: none; color: var(--plate); font-weight: 600; white-space: nowrap; }
+.livestrip:hover .go, .livestrip:focus-visible .go { text-decoration: underline; }
+.livebox h3 { font: 400 20px/1.2 var(--display); margin: 26px 0 4px; }
+.livehead { font: 400 13px/1.55 var(--mono); color: var(--ink-2); margin: 6px 0 0; }
+.livehead .pill { vertical-align: 1px; margin-right: 6px; }
+.livehead code, .livefoot code { overflow-wrap: anywhere; }
+.live td small { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+.live td .reason { color: var(--red); }
+.live td .pill { vertical-align: 1px; margin-right: 4px; }
+.live tr.caught td:first-child b { text-decoration: line-through; text-decoration-thickness: 1px; }
+.livejournal li { grid-template-columns: 34px 92px minmax(0, 1fr); }
+.livefoot { font: 400 13px/1.6 var(--mono); color: var(--ink-2); margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) {
+  .livestrip { flex-direction: column; gap: 6px; }
+  .livestrip .go { margin-left: 0; }
+  /* On a phone each row of the live tables is a block: what the contract says must not sit off-screen behind a sideways scroll. */
+  .live thead { display: none; }
+  .live, .live tbody, .live tr, .live td { display: block; }
+  .live tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .live td { border: 0; padding: 2px 0; }
+  .live td.num { text-align: left; }
+  .live td[data-label]::before { content: attr(data-label) " "; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); margin-right: 6px; }
+  .live td.num small { display: inline; margin-left: 8px; }
+}
 footer { margin-top: 48px; border-top: 3px double var(--ink); padding-top: 12px; font: 400 12px/1.6 var(--mono); color: var(--ink-3); }
 footer p { margin: 0; }
 

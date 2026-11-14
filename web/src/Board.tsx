@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Pill, Spark } from "./bits.tsx";
 import { TryIt } from "./Guide.tsx";
+import { LiveStrip } from "./Live.tsx";
+import { useRun } from "./testnet.ts";
 import { dsrOf, lnear, money, pctStr, rowOf, type Row, TARGET, timeOf, useStore } from "./store.ts";
 
 type Sort = "pnl" | "dsr" | "bond";
@@ -31,6 +33,7 @@ export function Board() {
   const week = (r: Row) => s.v<string>("quote", { trader: r.t.account, first_epoch: r.t.first_epoch, last_epoch: r.t.first_epoch + 6 });
   const target = rows.find((r) => r.handle === TARGET);
   const m = s.moment();
+  const run = useRun();
   return (
     <>
       <section className="lede">
@@ -46,6 +49,8 @@ export function Board() {
         </div>
         <TryIt target={target} price={target && !target.slashed ? week(target) : null} />
       </section>
+
+      <LiveStrip run={run} />
 
       <div className="controls">
         <div className="seg" role="group" aria-label="Sort by">

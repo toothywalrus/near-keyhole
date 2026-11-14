@@ -21,7 +21,8 @@ const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/`;
 const videoDir = join(tmpdir(), `keyhole-video-${Date.now()}`);
 mkdirSync(videoDir, { recursive: true });
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir: videoDir, size: { width: 1280, height: 720 } }, colorScheme: "light" });
+// 1920x1080 on a 1280x720 layout: the page is drawn at 1.5 device pixels per CSS pixel, so the text stays the size a visitor sees and the video is full HD.
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5, recordVideo: { dir: videoDir, size: { width: 1920, height: 1080 } }, colorScheme: "light" });
 const page = await ctx.newPage();
 
 async function caption(p: Page, text: string): Promise<void> {
@@ -107,7 +108,7 @@ await browser.close();
 server.close();
 const webm = readdirSync(videoDir).filter((f) => f.endsWith(".webm")).map((f) => join(videoDir, f))[0];
 const mp4 = join(out, "keyhole-demo.mp4");
-execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", webm, "-c:v", "libx264", "-preset", "slow", "-crf", "30", "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4]);
+execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", webm, "-c:v", "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4]);
 rmSync(videoDir, { recursive: true, force: true });
 void renameSync;
 console.log(`${mp4}: ${(statSync(mp4).size / 1e6).toFixed(2)} MB`);
