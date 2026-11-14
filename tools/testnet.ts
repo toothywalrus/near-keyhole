@@ -10,7 +10,7 @@ import { FEE_BPS, FEEDS, RECORDED, type World } from "./world.ts";
 import { RpcChain, WASM } from "./vmchain.ts";
 
 /** The current deployment's root, made by `tools/faucet.ts` on 2026-11-10. The first deployment (keyhole-g1zo8i.testnet, unlocked) stays on chain as history. */
-export const ROOT = process.env.KEYHOLE_ROOT ?? "near-keyhole-y4ow.testnet";
+export const ROOT = process.env.KEYHOLE_ROOT ?? "keyhole-33232a.testnet";
 export const RPC = process.env.NEAR_RPC ?? "https://test.rpc.fastnear.com";
 export const CONTRACT = process.env.KEYHOLE_CONTRACT ?? `app.${ROOT}`;
 /** What the contract account is funded with: storage for the code (about 440 KB) and its state. */

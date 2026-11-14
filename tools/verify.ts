@@ -108,7 +108,7 @@ if (run.outlayer) {
     check("the figure the enclave computed, with the epoch's keys as an OutLayer secret, is the one the trader posted, to the unit", out.pnl_e6 === oe?.posted_e6 && out.head === lastHead && out.applied === oe?.entries, `enclave ${out.pnl_e6}, posted ${oe?.posted_e6}, ${out.applied} entries opened`);
   }
   if (o.contract_path && oe?.attested?.kind !== "OutLayerTee") {
-    check("the locked contract's own request failed on OutLayer's types, and labeled nothing: nothing reads as enclave-made that wasn't", oe?.attested === null, `${o.contract_path.request_tx}: attested ${JSON.stringify(oe?.attested)}`);
+    check("the contract's own OutLayer request came back with no result, and labeled nothing: nothing reads as enclave-made that wasn't", oe?.attested === null, `${o.contract_path.request_tx}: attested ${JSON.stringify(oe?.attested)}`);
   } else {
     check("an epoch labeled OutLayerTee: the figure came back from OutLayer's own contract, equal to the posted one", oe?.attested?.kind === "OutLayerTee" && oe.attested.via === "outlayer.testnet" && oe.attested.pnl_e6 === oe.posted_e6, `${oe?.attested?.kind} via ${oe?.attested?.via}: ${oe?.attested?.pnl_e6}`);
   }
