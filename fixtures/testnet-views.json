@@ -1,40 +1,10 @@
 {
- "solvency": {
-  "obligations": "887730000000000000000000",
-  "balance": "6175653405799445500000000",
-  "storage_locked": "4450350000000000000000000",
-  "slack": "837573405799445500000000"
- },
  "clock": {
-  "now_ms": "1794652564660",
+  "now_ms": "1794652987278",
   "genesis_ms": "1794650182661",
-  "slot": "119",
-  "epoch": 13
+  "slot": "140",
+  "epoch": 15
  },
- "get_config": {
-  "slot_secs": 20,
-  "epoch_slots": 9,
-  "post_grace_secs": 240,
-  "delivery_lead_secs": 60,
-  "delivery_grace_secs": 180,
-  "catchup_grace_secs": 600,
-  "challenge_secs": 300,
-  "unbond_secs": 600,
-  "min_bond": "300000000000000000000000",
-  "min_price": "5000000000000000000000",
-  "min_coverage_bps": 5000,
-  "prover_bps": 4000,
-  "penalty_bps": 5000,
-  "max_window_epochs": 31,
-  "min_dispute": "10000000000000000000000",
-  "audit_bond": "30000000000000000000000",
-  "max_round_gap_secs": 80,
-  "recorder": "recorder.keyhole-33232a.testnet",
-  "fee_bps": 500,
-  "treasury": "treasury.keyhole-33232a.testnet",
-  "price_delay_secs": 20
- },
- "nft_total_supply": "5",
  "view_access_key_list": [],
  "list_traders{\"from\":0,\"limit\":100}": [
   {
@@ -46,7 +16,7 @@
    "first_epoch": 0,
    "status": "Active",
    "bond": "345740000000000000000000",
-   "liability": "12000000000000000000000",
+   "liability": "0",
    "book_usd_e6": "100000000000",
    "floor_bps": 1000,
    "base_price": "10000000000000000000000",
@@ -60,7 +30,7 @@
    "sold": 2,
    "buyers": 2,
    "late_deliveries": 0,
-   "paused": false,
+   "paused": true,
    "refused_epochs": 0,
    "voided_e6": "0",
    "burned": "0",
@@ -159,7 +129,7 @@
    "sold": 0,
    "buyers": 0,
    "late_deliveries": 0,
-   "paused": false,
+   "paused": true,
    "refused_epochs": 0,
    "voided_e6": "0",
    "burned": "0",
@@ -174,7 +144,7 @@
    "first_epoch": 0,
    "status": "Active",
    "bond": "345740000000000000000000",
-   "liability": "12000000000000000000000",
+   "liability": "0",
    "book_usd_e6": "100000000000",
    "floor_bps": 1000,
    "base_price": "10000000000000000000000",
@@ -188,11 +158,55 @@
    "sold": 0,
    "buyers": 0,
    "late_deliveries": 0,
-   "paused": false,
+   "paused": true,
    "refused_epochs": 0,
    "voided_e6": "0",
    "burned": "0",
    "last_post_ms": "1794650582494"
+  }
+ ],
+ "get_config": {
+  "slot_secs": 20,
+  "epoch_slots": 9,
+  "post_grace_secs": 240,
+  "delivery_lead_secs": 60,
+  "delivery_grace_secs": 180,
+  "catchup_grace_secs": 600,
+  "challenge_secs": 300,
+  "unbond_secs": 600,
+  "min_bond": "300000000000000000000000",
+  "min_price": "5000000000000000000000",
+  "min_coverage_bps": 5000,
+  "prover_bps": 4000,
+  "penalty_bps": 5000,
+  "max_window_epochs": 31,
+  "min_dispute": "10000000000000000000000",
+  "audit_bond": "30000000000000000000000",
+  "max_round_gap_secs": 80,
+  "recorder": "recorder.keyhole-33232a.testnet",
+  "fee_bps": 500,
+  "treasury": "treasury.keyhole-33232a.testnet",
+  "price_delay_secs": 20
+ },
+ "nft_total_supply": "5",
+ "solvency": {
+  "obligations": "887730000000000000000000",
+  "balance": "6175653405799445500000000",
+  "storage_locked": "4450350000000000000000000",
+  "slack": "837573405799445500000000"
+ },
+ "get_epochs{\"account\":\"oli1c2z.keyhole-33232a.testnet\",\"from\":8,\"limit\":1}": [
+  {
+   "epoch": 8,
+   "first_seq": "0",
+   "entries": 2,
+   "posted_e6": "12352646",
+   "posted_ms": "1794651843007",
+   "verdict": "Unchallenged",
+   "audits_passed": 0,
+   "covering_sales": 0,
+   "refused_sales": 0,
+   "attested": null
   }
  ],
  "get_epochs{\"account\":\"lucky1uie.keyhole-33232a.testnet\",\"from\":1,\"limit\":1}": [
@@ -209,34 +223,6 @@
    },
    "audits_passed": 0,
    "covering_sales": 1,
-   "refused_sales": 0,
-   "attested": null
-  }
- ],
- "get_epochs{\"account\":\"mallory1uie.keyhole-33232a.testnet\",\"from\":1,\"limit\":1}": [
-  {
-   "epoch": 1,
-   "first_seq": "0",
-   "entries": 0,
-   "posted_e6": "0",
-   "posted_ms": "1794650591531",
-   "verdict": "Unchallenged",
-   "audits_passed": 0,
-   "covering_sales": 0,
-   "refused_sales": 0,
-   "attested": null
-  }
- ],
- "get_epochs{\"account\":\"oli1c2z.keyhole-33232a.testnet\",\"from\":8,\"limit\":1}": [
-  {
-   "epoch": 8,
-   "first_seq": "0",
-   "entries": 2,
-   "posted_e6": "12352646",
-   "posted_ms": "1794651843007",
-   "verdict": "Unchallenged",
-   "audits_passed": 0,
-   "covering_sales": 0,
    "refused_sales": 0,
    "attested": null
   }
@@ -261,33 +247,47 @@
    }
   }
  ],
- "get_token{\"token_id\":3}": {
-  "id": 3,
-  "trader": 2,
+ "get_epochs{\"account\":\"mallory1uie.keyhole-33232a.testnet\",\"from\":1,\"limit\":1}": [
+  {
+   "epoch": 1,
+   "first_seq": "0",
+   "entries": 0,
+   "posted_e6": "0",
+   "posted_ms": "1794650591531",
+   "verdict": "Unchallenged",
+   "audits_passed": 0,
+   "covering_sales": 0,
+   "refused_sales": 0,
+   "attested": null
+  }
+ ],
+ "get_token{\"token_id\":1}": {
+  "id": 1,
+  "trader": 0,
   "first_epoch": 1,
   "last_epoch": 1,
   "first_slot": 9,
   "last_slot": 17,
   "owner": "ines1uie.keyhole-33232a.testnet",
   "price": "10000000000000000000000",
-  "buyer_pub": "24b52bcf5b38f4e36021700951d074045ea8e9ea8a1a5ac4dd9ef54625a51a4a",
-  "state": "Refunded",
-  "bought_ms": "1794650677532",
-  "deliver_by_ms": "1794651277532",
-  "settle_at_ms": "1794651577532",
+  "buyer_pub": "3b0a6cc39293024721a5694345ae4116d802fb18a8261c32fdcefe35535c172e",
+  "state": "Closed",
+  "bought_ms": "1794650635141",
+  "deliver_by_ms": "1794651235141",
+  "settle_at_ms": "1794651535141",
   "resale_price": null,
-  "eph": "0d38e28541a4636fdfa46fde94c7e7fc38fc4e07107e1e73c658a3b71483b12c",
+  "eph": "df3fd668bbf397ebc5dac3ba7cfcdc6c105a197ddcea9e9fa24e76db243a131f",
   "wrapped": [
-   "7dc3af2e0802a258555c7caadc0eca3c29622223ab3aee06251ab3f9f0cca7bc",
-   "111ab54fbf51da7bd0fddcd941b68a06c94455b5eb47ba0270aa26b213a2e48d",
-   "836ba86b9c1b89621aa6c60d859cf687965c6106dff5b512fa22ef11469aa57d",
-   "701008c1e241cc768d1a0bbfb1d59e7a8651b59d30d9575b6259a0387d739bb8"
+   "7ff30dda44825df4537c5e90f8b9249e54fe53bb2e747a934098aacfe94f520b",
+   "3d90e6912973776944b1bb3d9fce55d5fce8d62743d8627f48fbcdc76730f978",
+   "59f421b77aa0e359d06ea636ef74e21dedf3f6e321f13ad32db7da4a2e8969b5",
+   "9b917e3474ba2cd1f3ec20bf853b3292b056fb0b8326cc8ebcac38507bc47cc5"
   ],
   "commits": [
-   "8288868eb2c1086b64db8afe919a3a43590bd8583be15f3200c8dbea96a880cb",
-   "42ff02faa9e161c2f90274967df4a9022d31dbe5743d3390a5f3dd0887c3dd38",
-   "bc1700f205b194ddc2a2c6874423a8865f4c1d4f02669a29b18a4678b1c9a84e",
-   "9c5be5a9a0d087e3c0fa5ad1c179cef730e6804f63acd32036597935c5f5acda"
+   "6f2a04751d5c98ec42f44fc247ff39e1a43682c62720dee3eb56b152a23f924a",
+   "0f0f29dd53dfa86555d4cebfaa18947f7b5e59719f709910c84cf3464e154a16",
+   "61e303acdea048b56e95c949052e845bd39f8abb5ec8d1398971c20ad32bcbf0",
+   "0d390dbfa8c95069893c13c6ce9cce3694b6b5879468384ff405a3908945bb5a"
   ],
   "disputes_lost": 0,
   "known_mask": 1
@@ -333,7 +333,7 @@
   "owner": "grif1uie.keyhole-33232a.testnet",
   "price": "12000000000000000000000",
   "buyer_pub": "49ea6a7a6a4b4d589f720b234401e03c39beec7c6ff2eac175c154069c987317",
-  "state": "Delivered",
+  "state": "Closed",
   "bought_ms": "1794650693877",
   "deliver_by_ms": "1794651293877",
   "settle_at_ms": "1794651593877",
@@ -354,33 +354,33 @@
   "disputes_lost": 1,
   "known_mask": 1
  },
- "get_token{\"token_id\":1}": {
-  "id": 1,
-  "trader": 0,
+ "get_token{\"token_id\":3}": {
+  "id": 3,
+  "trader": 2,
   "first_epoch": 1,
   "last_epoch": 1,
   "first_slot": 9,
   "last_slot": 17,
   "owner": "ines1uie.keyhole-33232a.testnet",
   "price": "10000000000000000000000",
-  "buyer_pub": "3b0a6cc39293024721a5694345ae4116d802fb18a8261c32fdcefe35535c172e",
-  "state": "Closed",
-  "bought_ms": "1794650635141",
-  "deliver_by_ms": "1794651235141",
-  "settle_at_ms": "1794651535141",
+  "buyer_pub": "24b52bcf5b38f4e36021700951d074045ea8e9ea8a1a5ac4dd9ef54625a51a4a",
+  "state": "Refunded",
+  "bought_ms": "1794650677532",
+  "deliver_by_ms": "1794651277532",
+  "settle_at_ms": "1794651577532",
   "resale_price": null,
-  "eph": "df3fd668bbf397ebc5dac3ba7cfcdc6c105a197ddcea9e9fa24e76db243a131f",
+  "eph": "0d38e28541a4636fdfa46fde94c7e7fc38fc4e07107e1e73c658a3b71483b12c",
   "wrapped": [
-   "7ff30dda44825df4537c5e90f8b9249e54fe53bb2e747a934098aacfe94f520b",
-   "3d90e6912973776944b1bb3d9fce55d5fce8d62743d8627f48fbcdc76730f978",
-   "59f421b77aa0e359d06ea636ef74e21dedf3f6e321f13ad32db7da4a2e8969b5",
-   "9b917e3474ba2cd1f3ec20bf853b3292b056fb0b8326cc8ebcac38507bc47cc5"
+   "7dc3af2e0802a258555c7caadc0eca3c29622223ab3aee06251ab3f9f0cca7bc",
+   "111ab54fbf51da7bd0fddcd941b68a06c94455b5eb47ba0270aa26b213a2e48d",
+   "836ba86b9c1b89621aa6c60d859cf687965c6106dff5b512fa22ef11469aa57d",
+   "701008c1e241cc768d1a0bbfb1d59e7a8651b59d30d9575b6259a0387d739bb8"
   ],
   "commits": [
-   "6f2a04751d5c98ec42f44fc247ff39e1a43682c62720dee3eb56b152a23f924a",
-   "0f0f29dd53dfa86555d4cebfaa18947f7b5e59719f709910c84cf3464e154a16",
-   "61e303acdea048b56e95c949052e845bd39f8abb5ec8d1398971c20ad32bcbf0",
-   "0d390dbfa8c95069893c13c6ce9cce3694b6b5879468384ff405a3908945bb5a"
+   "8288868eb2c1086b64db8afe919a3a43590bd8583be15f3200c8dbea96a880cb",
+   "42ff02faa9e161c2f90274967df4a9022d31dbe5743d3390a5f3dd0887c3dd38",
+   "bc1700f205b194ddc2a2c6874423a8865f4c1d4f02669a29b18a4678b1c9a84e",
+   "9c5be5a9a0d087e3c0fa5ad1c179cef730e6804f63acd32036597935c5f5acda"
   ],
   "disputes_lost": 0,
   "known_mask": 1
